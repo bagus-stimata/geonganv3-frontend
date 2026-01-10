@@ -4,47 +4,59 @@ export default class FtDataset {
         kode1 = '',
         description = '',
         avatarImage = '',
-        tahun = 0,
         fdivisionBean = null,
-
-        listFtDataHeader = [],
-        listFtDataDetil = [],
-
+        statusActive = true,
+        markerImage = '',
+        trDate = new Date(),
+        privateData = false,
+        relationKey = '',
+        sumberData = '',
+        tahun = 0,
+        fsatuanBean = 0,
+        datasetType = 'GEOJSON',
+        geojson = '{}',
+        propertyKeys = '[]',
+        propertiesMeta = '{}',
+        geom = null,
+        featureCount = 0,
+        centroid = null,
         created = new Date(),
         modified = new Date(),
-        modifiedBy = ''
+        modifiedBy = '',
+        listFtDataHeader = [],
+        listFtDataDetil = []
     ) {
         // Basic info
         this.id = id;
         this.kode1 = kode1;
         this.description = description;
         this.avatarImage = avatarImage;
-        this.tahun = tahun;
 
         // Relasi & status
         this.fdivisionBean = fdivisionBean;  // biasanya object division
-        this.statusActive = true;
-        this.markerImage = '';
+        this.statusActive = statusActive;
+        this.markerImage = markerImage;
 
         // Tanggal & akses
-        this.trDate = new Date();
-        this.privateData = false;
-        this.relationKey = '';
-        this.sumberData = '';
+        this.trDate = trDate;
+        this.privateData = privateData;
+        this.relationKey = relationKey;
+        this.sumberData = sumberData;
+        this.tahun = tahun;
 
         // Satuan & tipe dataset
-        this.fsatuanBean = 0;                 // Int di backend
-        this.datasetType = 'GEOJSON';         // EnumDataSpaType.GEOJSON
+        this.fsatuanBean = fsatuanBean;       // Int di backend
+        this.datasetType = datasetType;       // EnumDataSpaType.GEOJSON
 
         // GeoJSON & properti
-        this.geojson = '{}';
-        this.propertyKeys = '[]';
-        this.propertiesMeta = '{}';
+        this.geojson = geojson;
+        this.propertyKeys = propertyKeys;
+        this.propertiesMeta = propertiesMeta;
 
         // Geometry (opsional, biasanya dari backend)
-        this.geom = null;
-        this.featureCount = 0;
-        this.centroid = null;
+        this.geom = geom;
+        this.featureCount = featureCount;
+        this.centroid = centroid;
 
         // List detail (khusus frontend, tetap dipertahankan)
         this.listFtDataHeader = listFtDataHeader;

@@ -81,7 +81,7 @@
                     </v-col>
                     <v-col cols="12" sm="8" md="8" v-if="true">
                       <v-text-field
-                          v-model="itemModified.notes"
+                          v-model="itemModified.sumberData"
                           label="Catatan/Sumber Data"
                           variant="outlined"
                           density="compact"
@@ -149,8 +149,8 @@
                 </v-col>
                 <v-col cols="12" sm="6" md="4">
                   <v-autocomplete
-                      v-model="itemModified.fdayaDukungTypeBean"
-                      :items="itemsFDayaDukungType"
+                      v-model="itemModified.datasetType"
+                      :items="itemsDatasetType"
                       :rules="rulesNotEmpty"
                       item-value="id"
                       item-title="description"
@@ -188,286 +188,7 @@
                 </v-col>
               </v-row>
 
-              <v-row class="bg-green-lighten-4 rounded">
-                <v-col cols="12">
-                  <v-row>
-                    <v-col cols="12" sm="6" md="4">
-                      <v-autocomplete
-                        variant="outlined"
-                        density="compact"
-                        small="true"
-                        label="Tipe Kompresi"
-                        v-model="itemModified.fileType"
-                        :rules="rulesNotEmpty"
-                        :items=itemsJenisKompresi
-                        item-value="id"
-                        item-title="description"
-                        hint="Harus dipilih dulu sebelum upload spasial"
-                        persistent-hint
-                      ></v-autocomplete>
-                    </v-col>
-                    <v-col cols="12" sm="3" md="3" v-if="false">
-                      <v-text-field
-                        v-model="itemModified.color1"
-                        label="Color1"
-                        variant="outlined"
-                        density="compact"
-                      ></v-text-field>
-                    </v-col>
-                    <v-col cols="12" sm="3" md="3" v-if="false">
-                      <v-text-field
-                        v-model="itemModified.color2"
-                        label="Color2"
-                        variant="outlined"
-                        density="compact"
-                      ></v-text-field>
-                    </v-col>
-                    <v-col cols="12" sm="3" md="3">
-                      <v-switch
-                          v-model="itemModified.selected"
-                          :label="itemModified.selected ? 'Selected' : 'Selected'"
-                          class="pa-3"
-                          density="compact"
-                          hide-details
-                          color="primary"
-                      ></v-switch>
-                    </v-col>
-                  </v-row>
 
-                  <v-row v-if="itemModified.fileType === 'geojson-only' ">
-                    <v-col cols="12" sm="6" md="6">
-                      <div class="mb-n2 text-right text-caption font-weight-bold">
-                        LOW RES
-                      </div>
-                      <div class="bg-blue-lighten-4 rounded elevation-1">
-                        <v-btn
-                          :disabled="!itemModified.fileType"
-                          @click="showDialogUploadSpasial('lowres')"
-                          class="ma-1"
-                          icon
-                          color="amber-darken-1"
-                          size="x-small"
-                        >
-                          <v-icon color="white">mdi-upload</v-icon>
-                        </v-btn>
-                        <span v-if="itemModified.fileNameLow === ''">No File (Low Res)</span>
-                        <a
-                          v-else
-                          :href="`${downloadFile(itemModified.fileNameLow)}`"
-                          target="_blank"
-                        >
-                          {{ itemModified.fileNameLow }}
-                          <v-icon color="green" size="x-small">mdi-download</v-icon>
-                        </a>
-                      </div>
-                    </v-col>
-
-                    <v-col cols="12" sm="6" md="6">
-                      <div class="mb-n2 text-right text-caption font-weight-bold">
-                        HIGH RES
-                      </div>
-                      <div class="bg-blue-lighten-4 rounded elevation-1">
-                        <v-btn
-                          :disabled="!itemModified.fileType"
-                          @click="showDialogUploadSpasial('highres')"
-                          icon
-                          color="primary"
-                          class="ma-1"
-                          size="x-small"
-                        >
-                          <v-icon color="white">mdi-upload</v-icon>
-                        </v-btn>
-                        <span v-if="itemModified.fileNameHigh === ''"
-                          >No File (High Res)</span
-                        >
-                        <a
-                          v-else
-                          :href="`${downloadFile(itemModified.fileNameHigh)}`"
-                          target="_blank"
-                        >
-                          {{ itemModified.fileNameHigh }}
-                          <v-icon color="green" size="x-small">mdi-download</v-icon>
-                        </a>
-                      </div>
-                    </v-col>
-
-                  </v-row>
-
-                  <v-row v-if="itemModified.fileType === 'geojson-gzip' ">
-                    <v-col cols="12" sm="6" md="6">
-                      <div class="mb-n2 text-right text-caption font-weight-bold">
-                        GEO JSON (akan di Konvert ke Gzip)
-                      </div>
-                      <div class="bg-blue-lighten-4 rounded elevation-1">
-                        <v-btn
-                            :disabled="!itemModified.fileType"
-                            class="ma-1"
-                            @click="showDialogUploadSpasial('geojson-gzip')"
-                            icon
-                            color="amber-darken-1"
-                            size="x-small"
-                        >
-                          <v-icon color="white">mdi-upload</v-icon>
-                        </v-btn>
-                        <span v-if="itemModified.fileNameLow === ''">No File (GeoJSON)</span>
-                        <span  v-else>
-                          <v-btn
-                              color="primary"
-                              @click="downloadFileGeojsonGzipManual(itemModified.fileNameLow)"
-                              variant="flat"
-                              size="small"
-                              class="mr-2"
-                          >
-                              Download GeoJSON Gzip <v-icon color="green">mdi-download</v-icon>
-                            </v-btn>
-                            <span>{{ itemModified.fileNameLow }}</span>
-                        </span>
-
-                      </div>
-                    </v-col>
-                    <v-col cols="12" sm="6" md="3" align="center" justify="center">
-                      <div>Pilih Marker</div>
-                      <v-hover v-slot="{ hover }">
-                        <v-card
-                            :elevation="hover ? 10 : 1"
-                            :class="[
-                          { 'on-hover': hover },
-                          hover
-                            ? 'card-hover-opacity'
-                            : 'card-not-hover-opacity',
-                        ]"
-                            height="150px"
-                            width="150px"
-                        >
-                          <v-img
-                              :src="lookupImageMarkerUrl(itemModified.markerImage1)"
-                              height="150px"
-                              width="150px"
-                          >
-                            <v-card-title class="text-h6 white--text fill-height">
-                              <v-row
-                                  class="fill-height flex-column"
-                                  justify="space-between"
-                              >
-                                <v-spacer />
-                                <div class="align-self-center">
-                                  <v-btn
-                                      :class="{ 'show-btns': hover }"
-                                      icon
-                                      large
-                                      dark
-                                      outlined
-                                      @click="showDialogUploadMarker1"
-                                  >
-                                    <v-icon
-                                        :class="{ 'show-btns': hover }"
-                                        color="blue"
-                                    >
-                                      mdi-upload
-                                    </v-icon>
-                                  </v-btn>
-                                </div>
-                              </v-row>
-                            </v-card-title>
-                          </v-img>
-                        </v-card>
-                      </v-hover>
-                      <div>
-                        <v-btn
-                            density="compact"
-                            size="small"
-                            plain
-                            color="primary"
-                            @click="downloadFileImage(lookupImageMarkerUrl(itemModified.markerImage1))"
-                            style="text-transform: none;"
-                        >
-                          Download
-                        </v-btn>
-                      </div>
-                    </v-col>
-                  </v-row>
-
-                  <v-row v-if="itemModified.fileType ==='arcgis-gzip' ">
-                    <v-col cols="12" sm="6" md="4">
-                      <div class="mb-n2 text-right text-caption font-weight-bold">
-                        SHP
-                      </div>
-                      <div class="bg-blue-lighten-4 rounded elevation-1">
-                        <v-file-input
-                            v-model="fileShp"
-                            show-size
-                            counter
-                            label="Pilih File SHP"
-                            accept=".shp"
-                            density="compact"
-                        ></v-file-input>
-                      </div>
-                    </v-col>
-                    <v-col cols="12" sm="6" md="4">
-                      <div class="mb-n2 text-right text-caption font-weight-bold">
-                        SHX
-                      </div>
-                      <div class="bg-blue-lighten-4 rounded elevation-1">
-                        <v-file-input
-                            v-model="fileShx"
-                            show-size
-                            counter
-                            label="Pilih SHX"
-                            accept=".shx"
-                            density="compact"
-                        ></v-file-input>
-                      </div>
-                    </v-col>
-                    <v-col cols="12" sm="6" md="4">
-                      <div class="mb-n2 text-right text-caption font-weight-bold">
-                        DBF
-                      </div>
-                      <div class="bg-blue-lighten-4 rounded elevation-1">
-                        <v-file-input
-                            v-model="fileDbf"
-                            show-size
-                            counter
-                            label="Pilih DBF"
-                            accept=".dbf"
-                            density="compact"
-                        ></v-file-input>
-                      </div>
-                    </v-col>
-                    <v-col cols="12" sm="6" md="4">
-                      <div class="mb-n2 text-right text-caption font-weight-bold">
-                        PRJ
-                      </div>
-                      <div class="teal-lighten-4 rounded elevation-1">
-                        <v-file-input
-                            v-model="filePrj"
-                            show-size
-                            counter
-                            label="Pilih PRJ"
-                            accept=".prj"
-                            density="compact"
-                        ></v-file-input>
-                      </div>
-                    </v-col>
-                    <v-col cols="12" sm="6" md="4">
-                      <v-btn
-                          color="primary"
-                          variant="flat"
-                          @click="processConvertToGeojsonGzip"
-                      >Convert to Gzip dan Upload</v-btn>
-                    </v-col>
-                    <v-col cols="12" sm="6" md="4">
-                      <span>
-                          <a :href="`${downloadFileGeojsonGzip(itemModified.fileNameLow)}`"
-                             target="_blank">
-                          {{ itemModified.fileNameLow }}
-                          <v-icon color="white" size="small">mdi-download</v-icon>
-                        </a>
-                        </span>
-                    </v-col>
-                  </v-row>
-
-                </v-col>
-              </v-row>
             </v-container>
           </v-card-text>
 
@@ -563,7 +284,7 @@ import FDayaDukungService from "@/services/apiservices/f-dayadukung-service";
 
 import CloseConfirmDialog from "@/components/utils/CloseConfirmDialog";
 import FormMode from "@/models/form-mode";
-import FDayaDukung from "@/models/f-dayadukung";
+import FtDataset from "@/models/ft-dataset";
 import FileService from "@/services/apiservices/file-service";
 import UploadImageDialog from "@/components/utils/UploadImageDialog";
 import UploadSpasialDialog from "@/components/utils/UploadSpasialDialog.vue";
@@ -571,6 +292,7 @@ import axios from "axios";
 import UploadService from "@/services/apiservices/file-upload-service";
 import FDayaDukungPetaMap from "@/components/admin/data-peta/daya-dukung-peta/FDayaDukungPetaMap.vue";
 import UploadImageOriDialog from "@/components/utils/UploadImageOriDialog.vue";
+import {EnumDataSpaTypeList} from "@/models/e-data-spa-type";
 
 export default {
   components: {
@@ -584,7 +306,6 @@ export default {
   props: {
     formMode: String,
     itemsFDivision: Array,
-    itemsFDayaDukungType: Array,
     itemsFArea: Array,
   },
   data() {
@@ -614,7 +335,7 @@ export default {
 
       selectedItemIndex: -1,
       itemDefault: "",
-      itemModified: new FDayaDukung(0, "", ""),
+      itemModified: new FtDataset(0, "", ""),
       selectFDivision: { id: 0, kode1: "", description: "" },
 
       valid: false,
@@ -637,6 +358,9 @@ export default {
       fileShx: undefined,
       fileDbf: undefined,
       filePrj: undefined,
+
+      itemsDatasetType: EnumDataSpaTypeList
+
     };
   },
   computed: {
@@ -796,7 +520,7 @@ export default {
         this.itemModified.kode1 !== "" &&
         this.itemModified.description !== "" &&
         this.itemModified.fdivisionBean !== 0 &&
-        this.itemModified.fdayaDukungTypeBean !== 0
+        this.itemModified.datasetType !== 0
         //   &&
         // this.itemModified.fareaBean !== 0
       ) {
@@ -840,8 +564,9 @@ export default {
         this.initializeEditMode(item);
 
       } else {
-        (this.itemDefault = new FDayaDukung(0, "", "")),
-          (this.itemModified = new FDayaDukung(0, "", "")),
+        (this.itemDefault = new FtDataset(0, "", "")),
+          (this.itemModified = new FtDataset(0, "", "")),
+          this.itemModified.fileType = "geojson-gzip",
           (this.selectedIndex = -1)
       }
     },
@@ -1000,10 +725,10 @@ export default {
       console.log(val);
 
       if (
-          this.itemModified.markerImage1 !== undefined &&
-          this.itemModified.markerImage1 !== ""
+          this.itemModified.markerImage !== undefined &&
+          this.itemModified.markerImage !== ""
       ) {
-        FileService.deleteFile(this.itemModified.markerImage1).then(
+        FileService.deleteFile(this.itemModified.markerImage).then(
             (response) => {
               console.log(response.data);
             },
@@ -1015,7 +740,7 @@ export default {
 
       if (val.fileName !== "") {
         this.$refs.refUploadDialogMerker1.closeDialog();
-        this.itemModified.markerImage1 = val.fileName;
+        this.itemModified.markerImage = val.fileName;
         this.saveUpdateOnly();
       }
     },

@@ -4,7 +4,7 @@ import ConstApiUrls from "@/services/const-api-urls";
 
 const API_URL = ConstApiUrls.API_SERVICE_URL;
 
-class FtDatasetsetService {
+class FtDatasetService {
     getApiUrl() {
         return API_URL;
     }
@@ -148,4 +148,4 @@ class FtDatasetsetService {
     }
 }
 
-export default new FtDatasetsetService();
+export default new FtDatasetService();

@@ -1,0 +1,19 @@
+const EDinCarousel = Object.freeze({
+    // PROFIL
+    PROFIL_DINAS: 501,
+    VISI_MISI:502,
+    STRUKTUR_ORGANISASI:503,
+    PERATURAN_REGULASI:504,
+    SOP:505,
+    TUGAS_FUNGSI:506,
+    MANAJEMEN_TALENTA:507,
+
+    // PPID
+    PPID:601,
+
+    // LAYANAN
+    PERMOHONAN_INFORMASI: 701,
+    PENGAJUAN_KEBERATAN: 702,
+    PENYELESAIAN_SENGKETA: 703,
+})
+export default EDinCarousel

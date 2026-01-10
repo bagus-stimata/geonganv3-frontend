@@ -1,0 +1,93 @@
+{
+  "name": "geoportal",
+  "version": "0.1.11",
+  "private": true,
+  "scripts": {
+    "serve": "vue-cli-service serve",
+    "build": "vue-cli-service build",
+    "lint": "vue-cli-service lint"
+  },
+  "dependencies": {
+    "@dongido/vue-viaudio": "^0.3.5",
+    "@mdi/font": "5.9.55",
+    "@primeuix/themes": "^1.0.0",
+    "@selemondev/vue3-signature-pad": "^1.4.0",
+    "@turf/turf": "^7.2.0",
+    "@vueup/vue-quill": "^1.2.0",
+    "apexcharts": "^4.5.0",
+    "axios": "^1.7.9",
+    "buffer": "^6.0.3",
+    "core-js": "^3.8.3",
+    "crypto-js": "^4.2.0",
+    "date-fns": "^4.1.0",
+    "dexie": "^3.2.4",
+    "@vue-leaflet/vue-leaflet": "^0.10.1",
+    "esri-leaflet": "^3.0.18",
+    "esri-leaflet-renderers": "^3.0.1",
+    "leaflet": "^1.9.4",
+    "leaflet-fullscreen": "^1.0.2",
+    "file-saver": "^2.0.5",
+    "geojson-rbush": "^3.2.0",
+    "html2canvas": "^1.4.1",
+    "instagram-filters": "^1.1.0",
+    "mdi-vue": "^3.0.13",
+    "primeicons": "^7.0.0",
+    "primevue": "^4.3.1",
+    "rbush": "^4.0.1",
+    "read-excel-file": "^5.8.7",
+    "register-service-worker": "^1.7.2",
+    "roboto-fontface": "*",
+    "shapefile": "^0.6.6",
+    "shpjs": "^5.0.1",
+    "vue": "^3.5.18",
+    "vue-json-excel": "^0.3.0",
+    "vue-quill-editor": "^3.0.6",
+    "vue-recaptcha-v3": "^2.0.1",
+    "vue-router": "^4.0.13",
+    "vue-tree-chart-3": "^1.2.9",
+    "vue3-apexcharts": "^1.8.0",
+    "vue3-organization-chart": "^1.9.4",
+    "vue3-pdf-app": "^1.0.3",
+    "vue3-quill": "^0.3.1",
+    "vue3-recaptcha-v2": "^2.1.0",
+    "vue3-recaptcha2": "^1.8.0",
+    "vuetify": "^3.9.3",
+    "vuex": "^4.0.2",
+    "webfontloader": "^1.0.0",
+    "write-excel-file": "^2.0.11"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.12.16",
+    "@babel/eslint-parser": "^7.12.16",
+    "@vue/cli-plugin-babel": "~5.0.0",
+    "@vue/cli-plugin-eslint": "~5.0.0",
+    "@vue/cli-plugin-pwa": "~5.0.0",
+    "@vue/cli-plugin-vuex": "~5.0.0",
+    "@vue/cli-service": "~5.0.0",
+    "dexie": "^3.2.4",
+    "eslint": "^7.32.0",
+    "eslint-plugin-vue": "^8.0.3",
+    "vue-cli-plugin-vuetify": "^2.5.8",
+    "webpack-plugin-vuetify": "^3.1.2"
+  },
+  "eslintConfig": {
+    "root": true,
+    "env": {
+      "node": true
+    },
+    "extends": [
+      "plugin:vue/vue3-essential",
+      "eslint:recommended"
+    ],
+    "parserOptions": {
+      "parser": "@babel/eslint-parser"
+    },
+    "rules": {}
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead",
+    "not ie 11"
+  ]
+}

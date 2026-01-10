@@ -74,7 +74,7 @@ const routes = [
     {
         path: '/admin-data-peta-dataset',
         name: 'AdminDataPetaDatasetView',
-        component: () => import('@/views/admin/data-peta/DataPetaDatasetview.vue')
+        component: () => import('@/views/admin/data-peta/DataPetaDatasetView.vue')
     },
     {
         path: '/admin-data-peta-tabular',

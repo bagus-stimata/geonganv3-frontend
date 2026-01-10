@@ -6,7 +6,7 @@
 
   <script>
 
-  import FDayaDukungPetaTable from "@/components/admin/data-peta/daya-dukung-peta/FDayaDukungPetaTable.vue"
+  import FDayaDukungPetaTable from "@/components/admin/data-peta/dataset/FtDatasetTable.vue"
 
   export default {
     name: "DataPetaDatasetView",

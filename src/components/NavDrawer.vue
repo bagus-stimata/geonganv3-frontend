@@ -212,7 +212,15 @@ export default {
             },
             {
               title: "Data Tabular",
-              route: "/data-peta-tabular",
+              route: "/admin-data-peta-tabular",
+              icon: "",
+              visible: [ERole.ROLE_ADMIN].some((x) =>
+                  this.currentUser.roles.includes(x)
+              ) && this.currentUser.organizationLevel !== EOrganizationLevel.DIV,
+            },
+            {
+              title: "Dataset",
+              route: "/admin-data-peta-dataset",
               icon: "",
               visible: [ERole.ROLE_ADMIN].some((x) =>
                   this.currentUser.roles.includes(x)

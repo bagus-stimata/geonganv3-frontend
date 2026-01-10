@@ -254,14 +254,14 @@
 </template>
 
 <script>
-import FDayaDukungService from "@/services/apiservices/f-dayadukung-service";
+import FtDatasetService from "@/services/apiservices/ft-dataset-service";
 import FDivisionService from "@/services/apiservices/f-division-service";
 import FDayaDukungTypeService from "@/services/apiservices/f-dayadukung-type-service";
 import FDayaDukungType from "@/models/f-dayadukung-type";
 import DeleteConfirmDialog from "@/components/utils/DeleteConfirmDialog.vue";
 import FtDatasetDialog from "./FtDatasetDialog.vue";
 import FormMode from "@/models/form-mode";
-import FDayaDukung from "@/models/f-dayadukung";
+import FtDataset from "@/models/ft-dataset";
 import FileService from "@/services/apiservices/file-service";
 import FDayaDukungFilter from "@/models/payload/f-dayadukung-filter";
 import FAreaService from "@/services/apiservices/f-area-service";
@@ -312,7 +312,7 @@ export default {
       formMode: "",
       itemSelectedIndex: -1,
       itemSelected: "",
-      fDayaDukungs: [new FDayaDukung(0, "", "")],
+      fDayaDukungs: [new FtDataset()],
       itemsFDivision: [{ id: 0, kode1: "", description: "" }],
       itemsFArea: [],
       itemsFDayaDukungType: [new FDayaDukungType()],
@@ -359,9 +359,8 @@ export default {
       extendedFilter.order = "DESC";
       extendedFilter.search = this.search;
       extendedFilter.city = "";
-
-      FDayaDukungService.getPostAllFDayaDukungContainingExtGeojson(
-          extendedFilter
+      FtDatasetService.getPostAllFtDatasetContainingExt(
+          extendedFilter, false
       ).then(
           (response) => {
             const { items, totalPages, totalItems } = response.data;
@@ -475,7 +474,7 @@ export default {
     deleteItemConfirmedSingleSelect() {
 
       const deletedItem = this.fDayaDukungs[this.itemSelectedIndex];
-      FDayaDukungService.deleteFDayaDukung(deletedItem.id).then(
+      FtDatasetService.deleteFtDataset(deletedItem.id).then(
         () => {
           this.fDayaDukungs.splice(this.itemSelectedIndex, 1);
           this.closeDialog();
@@ -494,7 +493,7 @@ export default {
         for (let i = 0; i < items.length; i++) {
           itemIds.push(items[i].id);
         }
-        FDayaDukungService.deleteAllFDayaDukung(itemIds).then(
+        FtDatasetService.deleteAllFtDataset(itemIds).then(
           () => {
             if (this.showFilter) {
               this.runExtendedFilter();
@@ -516,7 +515,7 @@ export default {
       this.$refs.refFormDialog.setDialogState(false);
 
       this.$nextTick(() => {
-        this.itemSelected = Object.assign({}, new FDayaDukung());
+        this.itemSelected = Object.assign({}, new FtDataset());
         this.itemSelectedIndex = -1;
       });
     },

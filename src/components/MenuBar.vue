@@ -202,6 +202,7 @@ export default {
         "/login", "/register",
         "/registration-active",
         "/reset-success",
+          "/public-map",
 
         "/reset-atur-ulang",
         "/reset-masukkan-otp",

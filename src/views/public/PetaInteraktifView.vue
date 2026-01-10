@@ -1,12 +1,12 @@
 
 <template>
   <Menubar></Menubar>
-  <PetaPersebaran></PetaPersebaran>
+  <PetaInteraktif></PetaInteraktif>
 </template>
 
 <script setup>
 import Menubar from "@/components/MenuBar.vue";
-import PetaPersebaran from "@/components/public/peta-persebaran/PetaPersebaran.vue";
+import PetaInteraktif from "@/components/public/peta-interaktif/PetaInteraktif.vue";
 </script>
 
 <style scoped>

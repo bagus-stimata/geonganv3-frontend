@@ -137,7 +137,7 @@ const routes = [
     {
         path: '/public-map',
         name: 'PublicMapView',
-        component: () => import('../views/public/CekLokasiUsahaView.vue')
+        component: () => import('../views/public/PetaInteraktifView.vue')
     },
     {
         path: '/public-e-library',

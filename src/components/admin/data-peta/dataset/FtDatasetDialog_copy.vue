@@ -255,49 +255,6 @@
             </FDayaDukungPetaMap>
           </v-card-text>
 
-          <!-- Tabel metadata atribut GeoJSON: nama field, tipe, dan alias tampilan -->
-          <v-card-text v-if="propertyMetaRows && propertyMetaRows.length">
-            <div class="d-flex justify-space-between align-center mb-2">
-              <div class="text-subtitle-2">Metadata Atribut GeoJSON</div>
-              <v-btn
-                  v-if="propertyMetaRows && propertyMetaRows.length"
-                  small
-                  variant="outlined"
-                  color="primary"
-                  class="rounded-lg"
-                  @click="openPropertyGroupDialog"
-              >
-                Atur Kolom Grouping
-              </v-btn>
-            </div>
-            <v-table density="compact">
-              <thead>
-              <tr>
-                <th style="width: 40px;">#</th>
-                <th>Nama Field</th>
-                <th>Tipe (dari sample)</th>
-                <th>Alias Tampilan (opsional)</th>
-              </tr>
-              </thead>
-              <tbody>
-              <tr v-for="(row, idx) in propertyMetaRows" :key="row.name">
-                <td>{{ idx + 1 }}</td>
-                <td>{{ row.name }}</td>
-                <td>{{ row.type }}</td>
-                <td>
-                  <v-text-field
-                      v-model="row.alias"
-                      density="compact"
-                      variant="underlined"
-                      hide-details
-                      placeholder="Mis. 'Nama Desa', 'Kode Jembatan'"
-                  ></v-text-field>
-                </td>
-              </tr>
-              </tbody>
-            </v-table>
-          </v-card-text>
-
           <v-card-actions>
             <v-chip
                 class="ml-4"
@@ -371,46 +328,6 @@
         </template>
       </v-snackbar>
     </v-dialog>
-
-    <!-- Dialog pilih kolom grouping (propertyGroups) -->
-    <v-dialog v-model="dialogPropertyGroupShow" max-width="500">
-      <v-card>
-        <v-card-title class="text-subtitle-2">
-          Pilih Kolom Grouping
-        </v-card-title>
-
-        <v-card-text>
-          <div class="text-caption mb-2">
-            Pilih kolom yang akan dijadikan acuan grouping / kategori utama (mis. Nama Desa, Kecamatan, dsb).
-          </div>
-
-          <v-container class="pa-0" fluid>
-            <v-row>
-              <v-col
-                  v-for="row in propertyMetaRows"
-                  :key="row.name"
-                  cols="12"
-              >
-                <v-checkbox
-                    v-model="localPropertyGroups"
-                    :label="row.name"
-                    :value="row.name"
-                    density="compact"
-                    hide-details
-                />
-              </v-col>
-            </v-row>
-          </v-container>
-        </v-card-text>
-
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn variant="text" @click="dialogPropertyGroupShow = false">Batal</v-btn>
-          <v-btn color="primary" variant="flat" @click="applyPropertyGroups">Simpan</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
-
   </div>
 </template>
 
@@ -481,13 +398,7 @@ export default {
       geojsonFile: null,
       geojsonFileName: "",
 
-      itemsDatasetType: EnumDataSpaTypeList,
-
-      // Baris-baris metadata atribut GeoJSON (nama field, tipe, alias tampilan)
-      propertyMetaRows: [],
-      // Dialog pilih kolom grouping (propertyGroups)
-      dialogPropertyGroupShow: false,
-      localPropertyGroups: [],
+      itemsDatasetType: EnumDataSpaTypeList
 
     };
   },
@@ -633,100 +544,6 @@ export default {
       } finally {
         this.dialogLoading = false;
       }
-
-      // Setelah berhasil load dari server, refresh tabel metadata atribut
-      this.refreshPropertyMetaFromItem(this.itemModified);
-    },
-    refreshPropertyMetaFromItem(item) {
-      const rows = [];
-      if (!item) {
-        this.propertyMetaRows = rows;
-        return;
-      }
-
-      // Parse daftar nama property (propertyKeys bisa berupa string JSON atau array)
-      let keys = [];
-      if (Array.isArray(item.propertyKeys)) {
-        keys = item.propertyKeys;
-      } else if (typeof item.propertyKeys === "string" && item.propertyKeys.trim() !== "") {
-        try {
-          keys = JSON.parse(item.propertyKeys);
-        } catch (e) {
-          console.warn("[FtDatasetDialog] gagal parse propertyKeys string", e);
-        }
-      }
-
-      // Parse propertiesMeta (string JSON atau object)
-      let meta = item.propertiesMeta;
-      if (typeof meta === "string" && meta.trim() !== "") {
-        try {
-          meta = JSON.parse(meta);
-        } catch (e) {
-          console.warn("[FtDatasetDialog] gagal parse propertiesMeta string", e);
-          meta = {};
-        }
-      } else if (!meta || typeof meta !== "object") {
-        meta = {};
-      }
-
-      const propertyTypes = meta.propertyTypes || {};
-      const aliasMap = meta.alias || {};
-
-      keys.forEach((name) => {
-        rows.push({
-          name,
-          type: (propertyTypes[name] || []).join(" | "),
-          alias: aliasMap[name] || "",
-        });
-      });
-
-      this.propertyMetaRows = rows;
-    },
-    parsePropertyGroupsFromItem(item) {
-      if (!item || !item.propertyGroups) return [];
-
-      const raw = item.propertyGroups;
-
-      if (Array.isArray(raw)) return raw;
-
-      if (typeof raw === "string") {
-        const trimmed = raw.trim();
-        if (!trimmed) return [];
-        try {
-          const parsed = JSON.parse(trimmed);
-          return Array.isArray(parsed) ? parsed : [];
-        } catch (e) {
-          console.warn("[FtDatasetDialog] gagal parse propertyGroups", e);
-          return [];
-        }
-      }
-
-      return [];
-    },
-
-    stringifyPropertyGroups(groups) {
-      try {
-        return JSON.stringify(groups || []);
-      } catch (e) {
-        console.warn("[FtDatasetDialog] gagal stringify propertyGroups", e);
-        return "[]";
-      }
-    },
-
-    openPropertyGroupDialog() {
-      this.localPropertyGroups = this.parsePropertyGroupsFromItem(this.itemModified);
-      this.dialogPropertyGroupShow = true;
-    },
-
-    applyPropertyGroups() {
-      const groups = Array.isArray(this.localPropertyGroups)
-          ? this.localPropertyGroups.slice()
-          : [];
-
-      // Simpan sebagai JSON string biar konsisten dengan propertyKeys/propertiesMeta
-      this.itemModified.propertyGroups = this.stringifyPropertyGroups(groups);
-
-      this.dialogPropertyGroupShow = false;
     },
     onGeojsonFileSelected() {
       const file = Array.isArray(this.geojsonFile) ? this.geojsonFile[0] : this.geojsonFile;
@@ -814,11 +631,10 @@ export default {
         this.initializeEditMode(item);
 
       } else {
-          this.itemDefault = new FtDataset(0, "", "");
-          this.itemModified = new FtDataset(0, "", "");
-          this.itemModified.fileType = "geojson-gzip";
-          this.selectedIndex = -1;
-          this.itemModified.propertyGroups = "[]"
+        (this.itemDefault = new FtDataset(0, "", "")),
+          (this.itemModified = new FtDataset(0, "", "")),
+          this.itemModified.fileType = "geojson-gzip",
+          (this.selectedIndex = -1)
       }
     },
     setDialogState(value) {
@@ -862,51 +678,7 @@ export default {
         }
       }
 
-      // Sinkronkan alias dari tabel metadata ke propertiesMeta (JSON)
-      this.syncAliasToPropertiesMeta(payload);
-
       return payload;
-    },
-    syncAliasToPropertiesMeta(payload) {
-      if (!this.propertyMetaRows || !this.propertyMetaRows.length) {
-        return;
-      }
-
-      // Ambil meta mentah dari itemModified atau dari payload
-      let rawMeta = (this.itemModified && this.itemModified.propertiesMeta) || payload.propertiesMeta;
-      let meta;
-
-      if (typeof rawMeta === "string" && rawMeta.trim() !== "") {
-        try {
-          meta = JSON.parse(rawMeta);
-        } catch (e) {
-          console.warn("[FtDatasetDialog] gagal parse propertiesMeta saat sync alias", e);
-          meta = {};
-        }
-      } else if (rawMeta && typeof rawMeta === "object") {
-        meta = rawMeta;
-      } else {
-        meta = {};
-      }
-
-      if (!meta.alias) {
-        meta.alias = {};
-      }
-
-      this.propertyMetaRows.forEach((row) => {
-        const key = row.name;
-        const alias = (row.alias || "").trim();
-
-        if (alias) {
-          meta.alias[key] = alias;
-        } else if (meta.alias[key]) {
-          // Jika alias dikosongkan di UI, hapus dari meta
-          delete meta.alias[key];
-        }
-      });
-
-      // Pastikan payload.propertiesMeta dikirim sebagai string JSON
-      payload.propertiesMeta = JSON.stringify(meta);
     },
     save() {
       if (this.isItemModified === false) {
@@ -1035,9 +807,6 @@ export default {
               this.itemModified.hasGeojson =
                   (this.itemModified.featureCount || 0) > 0;
             }
-
-            // Refresh tabel metadata atribut berdasarkan data awal
-            this.refreshPropertyMetaFromItem(this.itemModified);
 
             // Snapshot default setelah normalisasi untuk tracking modified
             this.itemDefault = JSON.parse(JSON.stringify(this.itemModified));

@@ -17,6 +17,7 @@ export default class FtDataset {
         geojson = '{}',
         propertyKeys = '[]',
         propertiesMeta = '{}',
+        propertyGroups = '[]',
         geom = null,
         featureCount = 0,
         centroid = null,
@@ -52,6 +53,7 @@ export default class FtDataset {
         this.geojson = geojson;
         this.propertyKeys = propertyKeys;
         this.propertiesMeta = propertiesMeta;
+        this.propertyGroups = propertyGroups;
 
         // Geometry (opsional, biasanya dari backend)
         this.geom = geom;

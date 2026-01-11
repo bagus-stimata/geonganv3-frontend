@@ -472,29 +472,70 @@ export default {
       try {
         this.dialogLoading = true;
 
-        // Asumsi: FtDatasetService.getFtDatasetById(id, includeGeojson)
+        // Wajib includeGeojson=true supaya backend mengirim field geojson
         const resp = await FtDatasetService.getFtDatasetById(this.itemModified.id, true);
-        if (resp && resp.data) {
-          const incoming = resp.data;
+        const incoming = resp && resp.data ? resp.data : null;
 
-          // sinkronkan metadata ringan
-          if (typeof incoming.hasGeojson !== "undefined") {
-            this.itemModified.hasGeojson = !!incoming.hasGeojson;
-          }
-          if (typeof incoming.featureCount !== "undefined") {
-            this.itemModified.featureCount = incoming.featureCount;
-          }
-          if (typeof incoming.propertyKeys !== "undefined") {
-            this.itemModified.propertyKeys = incoming.propertyKeys;
-          }
-          if (typeof incoming.propertiesMeta !== "undefined") {
-            this.itemModified.propertiesMeta = incoming.propertiesMeta;
-          }
+        if (!incoming) {
+          this.snackBarMessage = "Gagal memuat data dari server";
+          this.snackbar = true;
+          return;
+        }
 
-          // isi geojson berat hanya saat diminta
-          if (typeof incoming.geojson === "string" && incoming.geojson.trim() !== "") {
-            this.itemModified.geojson = incoming.geojson;
+        // Sinkronkan metadata ringan
+        if (typeof incoming.hasGeojson !== "undefined") {
+          this.itemModified.hasGeojson = !!incoming.hasGeojson;
+        }
+        if (typeof incoming.featureCount !== "undefined") {
+          this.itemModified.featureCount = incoming.featureCount;
+        }
+        if (typeof incoming.propertyKeys !== "undefined") {
+          this.itemModified.propertyKeys = incoming.propertyKeys;
+        }
+        if (typeof incoming.propertiesMeta !== "undefined") {
+          this.itemModified.propertiesMeta = incoming.propertiesMeta;
+        }
+        if (typeof incoming.fileNameLow !== "undefined") {
+          this.itemModified.fileNameLow = incoming.fileNameLow;
+        }
+
+        // Backend bisa kirim geojson sebagai String ATAU sebagai object/JsonNode.
+        // Di sini kita normalisasi ke String supaya konsisten di frontend.
+        let incomingGeo = incoming.geojson;
+        let hasGeoContent = false;
+
+        if (typeof incomingGeo === "string") {
+          const trimmed = incomingGeo.trim();
+          hasGeoContent = trimmed !== "" && trimmed !== "{}";
+          if (hasGeoContent) {
+            this.itemModified.geojson = incomingGeo;
           }
+        } else if (incomingGeo != null) {
+          try {
+            const asString = JSON.stringify(incomingGeo);
+            const trimmed = asString.trim();
+            hasGeoContent = trimmed !== "" && trimmed !== "{}";
+            if (hasGeoContent) {
+              this.itemModified.geojson = asString;
+            }
+          } catch (e) {
+            console.error("Gagal stringify incoming.geojson", e);
+          }
+        }
+
+        // Jika ternyata field hasGeojson belum diset oleh backend,
+        // turunkan dari konten yang berhasil kita baca atau dari featureCount.
+        if (this.itemModified.hasGeojson === undefined || this.itemModified.hasGeojson === null) {
+          this.itemModified.hasGeojson = hasGeoContent || (this.itemModified.featureCount || 0) > 0;
+        }
+
+        if (hasGeoContent) {
+          // Load hanya untuk preview/download; jangan otomatis anggap akan di-save ulang
+          this.itemModified.withGeojson = false;
+        } else {
+          this.snackBarMessage =
+            "Server tidak mengirim GeoJSON (pastikan includeGeojson=true dan field geojson tidak di-strip).";
+          this.snackbar = true;
         }
       } catch (e) {
         console.error(e);
@@ -599,6 +640,46 @@ export default {
     setDialogState(value) {
       this.dialogShow = value;
     },
+    buildPayload() {
+      // Deep clone supaya nggak ngacak reactive object
+      const payload = JSON.parse(JSON.stringify(this.itemModified || {}));
+
+      // Pastikan datasetType dikirim sebagai string enum simpel
+      if (payload && typeof payload.datasetType === "object" && payload.datasetType !== null) {
+        payload.datasetType =
+          payload.datasetType.strCode ||
+          payload.datasetType.code ||
+          payload.datasetType.name ||
+          "GEOJSON";
+      }
+
+      // Bersihkan field tanggal & audit yang seharusnya di-maintain backend
+      if (payload && typeof payload.trDate === "object") {
+        // biarkan backend yang mengisi default trDate kalau perlu
+        delete payload.trDate;
+      }
+      delete payload.created;
+      delete payload.modified;
+      delete payload.modifiedBy;
+
+      // Semantik GeoJSON:
+      // - Jika withGeojson === true → kirim geojson apa adanya (backend yang putuskan clear/update)
+      // - Jika withGeojson falsy/undefined → jangan kirim field geojson supaya backend pakai geojson existing.
+      if (!payload.withGeojson) {
+        // User tidak mengubah geojson di form → jangan kirim ke backend
+        delete payload.geojson;
+      } else {
+        // User eksplisit mengubah atau menghapus geojson
+        if (payload.geojson == null) {
+          // anggap sebagai clear request
+          payload.geojson = "{}";
+        } else if (typeof payload.geojson !== "string") {
+          payload.geojson = String(payload.geojson);
+        }
+      }
+
+      return payload;
+    },
     save() {
       if (this.isItemModified === false) {
         //Close aja
@@ -607,59 +688,63 @@ export default {
         return;
       }
       if (this.$refs.form.validate()) {
-        if (this.formMode === FormMode.EDIT_FORM) {
-          FtDatasetService.updateFtDataset(this.itemModified).then(
-            () => {
-              console.log("=== masuk update dataset ===");
+        const payload = this.buildPayload();
 
-              this.$emit("eventFromFormDialogEdit", this.itemModified);
-            },
-            (error) => {
-              // console.log(error);
-              this.formDialogOptions.errorMessage = error.response.data.message;
-            }
+        if (this.formMode === FormMode.EDIT_FORM) {
+          FtDatasetService.updateFtDataset(payload).then(
+              () => {
+                console.log("=== masuk update dataset ===");
+
+                this.$emit("eventFromFormDialogEdit", this.itemModified);
+              },
+              (error) => {
+                this.formDialogOptions.errorMessage =
+                    error.response?.data?.message || "Gagal update FtDataset";
+              }
           );
         } else {
-          // console.log(JSON.stringify(this.itemModified))
           console.log("=== masuk create dataset ===");
 
-          FtDatasetService.createFtDataset(this.itemModified).then(
-            (response) => {
-              this.$emit("eventFromFormDialogNew", response.data);
-              console.log('oke masuk');
-            },
-            (error) => {
-              this.formDialogOptions.errorMessage = error.response.data.message;
-            }
+          FtDatasetService.createFtDataset(payload).then(
+              (response) => {
+                this.$emit("eventFromFormDialogNew", response.data);
+                console.log("oke masuk");
+              },
+              (error) => {
+                this.formDialogOptions.errorMessage =
+                    error.response?.data?.message || "Gagal create FtDataset";
+              }
           );
         }
       }
     },
+
     saveCreateOnly() {
-      FtDatasetService.createFtDataset(this.itemModified).then(
-        (response) => {
-          console.log("=== masuk saveCreateOnly ===");
-          /**
-           * dipaksa Save dan Update Dahulu
-           */
-          // this.initializeEditMode(response.data)
-          this.$emit("update:formMode", FormMode.EDIT_FORM);
-          this.itemModified.id = response.data.id;
-        },
-        (error) => {
-          this.formDialogOptions.errorMessage = error.response.data.message;
-        }
+      const payload = this.buildPayload();
+      FtDatasetService.createFtDataset(payload).then(
+          (response) => {
+            console.log("=== masuk saveCreateOnly ===");
+            // dipaksa Save dan Update Dahulu
+            this.$emit("update:formMode", FormMode.EDIT_FORM);
+            this.itemModified.id = response.data.id;
+          },
+          (error) => {
+            this.formDialogOptions.errorMessage =
+                error.response?.data?.message || "Gagal create FtDataset";
+          }
       );
     },
+
     saveUpdateOnly() {
-      FtDatasetService.updateFtDataset(this.itemModified).then(
-        () => {
-          console.log("=== masuk saveCreateOnly ===");
-        },
-        (error) => {
-          // console.log(error);
-          this.formDialogOptions.errorMessage = error.response.data.message;
-        }
+      const payload = this.buildPayload();
+      FtDatasetService.updateFtDataset(payload).then(
+          () => {
+            console.log("=== masuk saveUpdateOnly ===");
+          },
+          (error) => {
+            this.formDialogOptions.errorMessage =
+                error.response?.data?.message || "Gagal update FtDataset";
+          }
       );
     },
     closeForm() {
@@ -682,24 +767,59 @@ export default {
       // Saat edit, ambil data TANPA geojson dulu (ringan)
       FtDatasetService.getFtDatasetById(item.id, false).then(
           (response) => {
-            this.itemDefault = Object.assign({}, response.data);
-            this.itemModified = response.data;
+            // Ambil data ringan dari server
+            this.itemModified = response.data || {};
+
+            // Normalisasi datasetType: pastikan selalu string (enum code)
+            if (
+                this.itemModified &&
+                this.itemModified.datasetType &&
+                typeof this.itemModified.datasetType === "object"
+            ) {
+              this.itemModified.datasetType =
+                  this.itemModified.datasetType.strCode ||
+                  this.itemModified.datasetType.code ||
+                  this.itemModified.datasetType.name ||
+                  "GEOJSON";
+            }
+
+            // Normalisasi trDate: backend kadang kirim {} → jangan dikirim balik apa adanya
+            if (
+                this.itemModified &&
+                this.itemModified.trDate &&
+                typeof this.itemModified.trDate === "object"
+            ) {
+              // biarkan kosong; backend boleh isi default sendiri kalau null/absen
+              delete this.itemModified.trDate;
+            }
 
             // Normalisasi nilai default agar computed & UI stabil
-            if (this.itemModified.geojson === undefined || this.itemModified.geojson === null) {
+            if (
+                this.itemModified.geojson === undefined ||
+                this.itemModified.geojson === null
+            ) {
               this.itemModified.geojson = "{}";
             }
-            if (this.itemModified.hasGeojson === undefined || this.itemModified.hasGeojson === null) {
-              this.itemModified.hasGeojson = (this.itemModified.featureCount || 0) > 0;
+            if (
+                this.itemModified.hasGeojson === undefined ||
+                this.itemModified.hasGeojson === null
+            ) {
+              this.itemModified.hasGeojson =
+                  (this.itemModified.featureCount || 0) > 0;
             }
 
-            try{
-              this.$refs.refFDayaDukungPetaMap.resetTampilanPeta ()
-            }catch (e) {
-              e.toString()
-            }
+            // Snapshot default setelah normalisasi untuk tracking modified
+            this.itemDefault = JSON.parse(JSON.stringify(this.itemModified));
 
+            try {
+              if (this.$refs.refFDayaDukungPetaMap) {
+                this.$refs.refFDayaDukungPetaMap.resetTampilanPeta();
+              }
+            } catch (e) {
+              console.warn("resetTampilanPeta failed:", e);
+            }
           },
+
           (error) => {
             console.log(error);
           }
@@ -786,49 +906,68 @@ export default {
       }
     },
 
-    downloadFileImage(url){
-      const link = document.createElement('a');
-      link.href = url;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    },
 
     async downloadInlineGeojson() {
-      try {
-        await this.ensureGeojsonLoaded();
+      /**
+       * Gunakan  inline download GeoJSON ini hanya kalau dataset sudah
+       */
+      const resp = await FtDatasetService.getFtDatasetById(this.itemModified.id, true);
+      this.itemModified = resp && resp.data ? resp.data : null;
 
-        if (
-            !this.itemModified ||
-            typeof this.itemModified.geojson !== "string" ||
-            this.itemModified.geojson.trim() === "" ||
-            this.itemModified.geojson.trim() === "{}"
-        ) {
-          this.snackBarMessage = "GeoJSON belum dimuat / tidak tersedia";
-          this.snackbar = true;
+      if (!this.itemModified) {
+        this.$root.$emit('show-snackbar', 'Data FtDataset belum dimuat');
+        return;
+      }
+
+      const geo = this.itemModified.geojson;
+
+      // 1) Kalau belum ada geojson sama sekali
+      if (!geo) {
+        console.warn('[FtDatasetDialog] downloadInlineGeojson: geojson is null/undefined');
+        this.$root.$emit('show-snackbar', 'GeoJSON belum dimuat / tidak tersedia');
+        return;
+      }
+
+      let geoString;
+
+      // 2) Jika dari backend berupa STRING (kasus paling umum)
+      if (typeof geo === 'string') {
+        const trimmed = geo.trim();
+        if (trimmed === '' || trimmed === '{}') {
+          console.warn('[FtDatasetDialog] downloadInlineGeojson: geojson string kosong / {}');
+          this.$root.$emit('show-snackbar', 'GeoJSON belum dimuat / tidak tersedia');
           return;
         }
+        geoString = trimmed;
+      } else {
+        // 3) Kalau somehow sudah berupa OBJECT (misal sudah di-parse di tempat lain)
+        try {
+          geoString = JSON.stringify(geo, null, 2);
+        } catch (e) {
+          console.error('[FtDatasetDialog] downloadInlineGeojson: gagal stringify geojson object', e);
+          this.$root.$emit('show-snackbar', 'Gagal memproses GeoJSON untuk diunduh');
+          return;
+        }
+      }
 
-        const content = this.itemModified.geojson;
-        const baseName =
-            (this.itemModified.fileNameLow &&
-                this.itemModified.fileNameLow.replace(/\.geojson(\.gz)?$/i, "")) ||
-            this.itemModified.kode1 ||
-            "dataset-geojson";
-
-        const blob = new Blob([content], { type: "application/geo+json;charset=utf-8" });
+      // 4) Trigger download file .geojson
+      try {
+        const blob = new Blob([geoString], { type: 'application/geo+json' });
         const url = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
+
+        const link = document.createElement('a');
         link.href = url;
-        link.download = `${baseName}.geojson`;
+        link.download = (this.itemModified.kode1 || 'dataset') + '.geojson';
+
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+
         window.URL.revokeObjectURL(url);
+        console.log('[FtDatasetDialog] downloadInlineGeojson.after, file triggered');
       } catch (e) {
-        console.error(e);
-        this.snackBarMessage = "Gagal membuat file GeoJSON untuk di-download";
-        this.snackbar = true;
+        console.error('[FtDatasetDialog] downloadInlineGeojson: error creating download blob', e);
+        this.$root.$emit('show-snackbar', 'Gagal membuat file GeoJSON untuk diunduh');
       }
     },
 

@@ -152,7 +152,7 @@
                       v-model="itemModified.datasetType"
                       :items="itemsDatasetType"
                       :rules="rulesNotEmpty"
-                      item-value="id"
+                      item-value="code"
                       item-title="description"
                       auto-select-first
                       variant="outlined"
@@ -160,8 +160,8 @@
                       small-chips
                       deletable-chips
                       color="blue-grey lighten-2"
-                      label="Jenis Peta"
-                      hint="Jenis Peta"
+                      label="Jenis Data Spasial"
+                      hint="Jenis Data Spasial (GEOJSON, POSTGIS, CSV POINT, RASTER)"
                       persistent-hint
                       single-line
                       hide-details
@@ -192,7 +192,59 @@
             </v-container>
           </v-card-text>
 
-          <v-card-text  v-if="itemModified.fileNameLow">
+          <v-card-text>
+            <v-container>
+              <!-- Mode: pilih file baru (belum ada geojson tersimpan ATAU user sudah pilih file baru) -->
+              <v-row v-if="!hasStoredGeojson || geojsonFileName">
+                <v-col cols="12" sm="8" md="6">
+                  <v-file-input
+                    v-model="geojsonFile"
+                    label="Pilih File GeoJSON (.geojson)"
+                    accept=".geojson,.json"
+                    variant="outlined"
+                    density="compact"
+                    prepend-inner-icon="mdi-file-upload"
+                    @change="onGeojsonFileSelected"
+                    hide-details
+                  ></v-file-input>
+                </v-col>
+                <v-col cols="12" sm="4" md="6" v-if="geojsonFileName">
+                  <div class="text-caption mt-2">
+                    File terpilih:
+                    <strong>{{ geojsonFileName }}</strong>
+                  </div>
+                </v-col>
+              </v-row>
+              <!-- Mode: sudah ada GeoJSON tersimpan dari backend, tampilkan tombol download & hapus -->
+              <v-row v-else>
+                <v-col cols="12" sm="8" md="6">
+                  <div class="text-caption mt-2">
+                    GeoJSON sudah tersimpan pada dataset.
+                  </div>
+                </v-col>
+                <v-col cols="12" sm="4" md="6" class="d-flex align-center">
+                  <v-btn
+                    color="primary"
+                    variant="flat"
+                    class="mr-2 rounded-lg"
+                    @click="downloadInlineGeojson"
+                  >
+                    Download GeoJSON
+                  </v-btn>
+                  <v-btn
+                    color="error"
+                    variant="outlined"
+                    class="rounded-lg"
+                    @click="clearStoredGeojson"
+                  >
+                    Hapus GeoJSON
+                  </v-btn>
+                </v-col>
+              </v-row>
+            </v-container>
+          </v-card-text>
+
+          <v-card-text v-if="hasGeojsonForPreview">
             <v-btn color="primary" @click="cekTampilanPeta" class="mb-2 rounded-lg" variant="flat">Cek Tampilan pada Peta</v-btn>
             <FDayaDukungPetaMap
                 ref="refFDayaDukungPetaMap">
@@ -258,10 +310,6 @@
 
       </v-dialog>
 
-      <UploadSpasialDialog
-          ref="refUploadSpasial"
-          @eventUploadSuccess="completeUploadSuccessSpasial"
-      ></UploadSpasialDialog>
       <UploadImageOriDialog
           ref="refUploadDialogMerker1"
           :parent-id="itemModified.id || 0"
@@ -280,16 +328,13 @@
 </template>
 
 <script>
-import FDayaDukungService from "@/services/apiservices/f-dayadukung-service";
+import FtDatasetService from "@/services/apiservices/ft-dataset-service";
 
 import CloseConfirmDialog from "@/components/utils/CloseConfirmDialog";
 import FormMode from "@/models/form-mode";
 import FtDataset from "@/models/ft-dataset";
 import FileService from "@/services/apiservices/file-service";
 import UploadImageDialog from "@/components/utils/UploadImageDialog";
-import UploadSpasialDialog from "@/components/utils/UploadSpasialDialog.vue";
-import axios from "axios";
-import UploadService from "@/services/apiservices/file-upload-service";
 import FDayaDukungPetaMap from "@/components/admin/data-peta/daya-dukung-peta/FDayaDukungPetaMap.vue";
 import UploadImageOriDialog from "@/components/utils/UploadImageOriDialog.vue";
 import {EnumDataSpaTypeList} from "@/models/e-data-spa-type";
@@ -298,8 +343,6 @@ export default {
   components: {
     UploadImageOriDialog,
     FDayaDukungPetaMap,
-    // FDayaDukungPetaMap,
-    UploadSpasialDialog,
     CloseConfirmDialog,
     UploadImageDialog,
   },
@@ -348,16 +391,8 @@ export default {
 
       transparent: "rgba(255, 255, 255, 0)",
 
-      // selectedJenisKompresi: {id: 1, description: "GeoJSON -> Gzip (Paling cepat untuk file besar)"},
-      itemsJenisKompresi: [
-        {id: "geojson-only", description: "GeoJSON Tanpa Kompresi"},
-        {id: "geojson-gzip", description: "GeoJSON -> Gzip (Paling cepat untuk file besar)"},
-        {id: "arcgis-gzip", description: "SHP, SHX, DBF -> Gzip"}
-      ],
-      fileShp: undefined,
-      fileShx: undefined,
-      fileDbf: undefined,
-      filePrj: undefined,
+      geojsonFile: [],
+      geojsonFileName: "",
 
       itemsDatasetType: EnumDataSpaTypeList
 
@@ -369,6 +404,39 @@ export default {
       const modifiedItem = JSON.stringify(this.itemModified);
       return defaultItem !== modifiedItem;
     },
+    hasGeojsonForPreview() {
+      const hasGeojsonContent =
+        this.itemModified &&
+        typeof this.itemModified.geojson === "string" &&
+        this.itemModified.geojson.trim() !== "" &&
+        this.itemModified.geojson.trim() !== "{}";
+
+      const hasFileNameLow =
+        this.itemModified &&
+        typeof this.itemModified.fileNameLow === "string" &&
+        this.itemModified.fileNameLow.trim() !== "";
+
+      const hasLocalSelectedFile =
+        typeof this.geojsonFileName === "string" &&
+        this.geojsonFileName.trim() !== "";
+
+      return hasGeojsonContent || hasFileNameLow || hasLocalSelectedFile;
+    },
+    hasStoredGeojson() {
+      // GeoJSON tersimpan di dataset (bukan hanya file baru yang dipilih)
+      const hasGeojsonContent =
+        this.itemModified &&
+        typeof this.itemModified.geojson === "string" &&
+        this.itemModified.geojson.trim() !== "" &&
+        this.itemModified.geojson.trim() !== "{}";
+
+      // Jika user sudah memilih file baru (geojsonFileName), kita anggap mode "pilih file"
+      const hasLocalSelectedFile =
+        typeof this.geojsonFileName === "string" &&
+        this.geojsonFileName.trim() !== "";
+
+      return hasGeojsonContent && !hasLocalSelectedFile;
+    },
   },
   watch: {
   },
@@ -378,162 +446,63 @@ export default {
       // this.$refs.refFDayaDukungPetaMap.tampilkanPeta(this.itemModified);
       this.$refs.refFDayaDukungPetaMap.tampilkanPeta(this.itemModified);
     },
-    processConvertToGeojsonGzip() {
-        const formData = new FormData();
-        formData.append("fileSHP", this.fileShp);
-        formData.append("fileSHX", this.fileShx);
-        formData.append("fileDBF", this.fileDbf);
-        formData.append("filePRJ", this.filePrj);
 
-      this.dialogLoading = true
+    onGeojsonFileSelected() {
+      const files = this.geojsonFile;
+      const file = Array.isArray(files) ? files[0] : files;
 
-      axios.post("https://desgreentools.des-green.org/desgreen/tools/convert-shapefile-to-geojsongzip", formData, {
-          headers: {
-            "Authorization": "Basic 123Welcome123",
-            "Content-Type": "multipart/form-data"
-          },
-          responseType: 'blob' // kalau server kirim file gzip
-        })
-            .then(response => {
-              const disposition = response.headers['content-disposition'];
-              const fileName = this.fileShp.name || this.fileShp; // handle File object atau string
-              const baseName = fileName.replace(/\.shp$/i, '');
-              let filename = `${baseName}.geojson.gz`;
-
-              if (disposition && disposition.includes('filename=')) {
-                const match = disposition.match(/filename="?(.+)"?/);
-                if (match && match[1]) {
-                  filename = match[1];
-                }
-              }
-
-              const blob = new Blob([response.data], { type: 'application/gzip' });
-              const file = new File([blob], filename, { type: "application/gzip" });
-
-              // const newFormData = new FormData();
-              // newFormData.append("file", file);
-
-              // Kirim ke endpoint REST kedua
-              UploadService.uploadGeoJsonGzip(file, (event) => {
-                this.progress = Math.round((100 * event.loaded) / event.total);
-              })
-                  .then((response) => {
-                    const messageFileName = response.data.message;
-                    /**
-                     * Mendapat response nama file
-                     */
-
-                    const messageToParent = {
-                      fileName: messageFileName,
-                      description: this.description,
-                      senderMessage: "arcgis-gzip",
-                    };
-                    this.completeUploadSuccessSpasial(messageToParent);
-
-                    this.dialogLoading = false;
-                  })
-                  .catch((err) => {
-                    this.progress = 0;
-                    this.message = "Could not upload the image! " + err;
-                    this.currentFile = undefined;
-
-                    this.dialogLoading = false;
-                  });
-
-            })
-          .catch(error => {
-            console.error("❌ Upload ke Flask gagal:", error);
-            this.dialogLoading = false;
-          });
-
-    },
-
-    downloadFile(item) {
-      return FileService.file_url(item);
-    },
-    downloadFileGeojsonGzip(item) {
-      return FileService.fileGeojsonGzip(item);
-    },
-
-    downloadFileGeojsonGzipManual(filename) {
-      const url = this.downloadFileGeojsonGzip(filename);
-      fetch(url, { method: 'GET' })
-          .then(response => {
-            if (!response.ok) throw new Error('Network response was not ok');
-            return response.blob();
-          })
-          .then(blob => {
-            const downloadUrl = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            // Ganti ekstensi hasil download menjadi .geojson
-            link.href = downloadUrl;
-            link.download = filename.replace(/\.geojson\.gz$/i, '.geojson');
-            document.body.appendChild(link);
-            link.click();
-            window.URL.revokeObjectURL(downloadUrl);
-            document.body.removeChild(link);
-          })
-          .catch(error => {
-            alert('Gagal download: ' + error);
-          });
-    },
-
-
-    completeUploadSuccessSpasial(val) {
-      const isGeoGzip = val.senderMessage === "geojson-gzip" || val.senderMessage === "arcgis-gzip";
-      const isLowres = val.senderMessage === "lowres";
-      const isHighres = val.senderMessage === "highres";
-
-      const updateFile = (targetKey) => {
-        if (val.fileName) {
-          this.$refs.refUploadSpasial.closeDialog();
-          this.itemModified[targetKey] = val.fileName;
-          this.saveUpdateOnly();
+      if (!file) {
+        this.geojsonFile = [];
+        this.geojsonFileName = "";
+        if (this.itemModified && Object.prototype.hasOwnProperty.call(this.itemModified, "geojson")) {
+          this.itemModified.geojson = "{}";
         }
-      };
-
-      const deleteAndUpdate = (targetKey, deleteFn) => {
-        const currentFile = this.itemModified[targetKey];
-
-        if (currentFile) {
-          deleteFn(currentFile).then(
-              () =>
-                  console.log(`Delete File ${currentFile}`
-              ),
-              (error) => console.log(error?.response)
-          );
-        }
-        updateFile(targetKey);
-      };
-
-      if (isGeoGzip) {
-        deleteAndUpdate("fileNameLow", FileService.deleteFileGeojsonGzip);
-      } else if (isLowres) {
-        deleteAndUpdate("fileNameLow", FileService.deleteFile);
-      } else if (isHighres) {
-        deleteAndUpdate("fileNameHigh", FileService.deleteFile);
+        return;
       }
-    },
 
-    showDialogUploadSpasial(senderMessage) {
-      if (
-        this.itemModified.kode1 !== "" &&
-        this.itemModified.description !== "" &&
-        this.itemModified.fdivisionBean !== 0 &&
-        this.itemModified.datasetType !== 0
-        //   &&
-        // this.itemModified.fareaBean !== 0
-      ) {
-        if (this.itemModified.id === 0) {
-          this.saveCreateOnly();
-        }
-        this.$refs.refUploadSpasial.showDialog(senderMessage, true);
-      } else {
-        this.snackBarMessage =
-          "Kode, Deskripsi, Divisi, Jenis dan Kecamatan harus diisi dahulu";
+      // Pastikan objek yang dibaca adalah File/Blob
+      if (!(file instanceof Blob)) {
+        console.error("File yang dipilih bukan Blob/File:", file);
+        this.snackBarMessage = "Format file tidak dikenali browser sebagai File";
         this.snackbar = true;
+        return;
       }
+
+      this.geojsonFileName = file.name || "";
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const result = e.target && e.target.result ? e.target.result : "";
+          const text = typeof result === "string" ? result : result.toString();
+
+          if (this.itemModified) {
+            this.itemModified.geojson = text;
+            this.itemModified.fileNameLow = this.geojsonFileName;
+            this.itemModified.withGeojson = true;
+
+            // Setelah geojson tersedia, render peta untuk cek tampilan
+            this.$nextTick(() => {
+              try {
+                this.cekTampilanPeta();
+              } catch (mapErr) {
+                console.error("Gagal menampilkan peta:", mapErr);
+              }
+            });
+          }
+        } catch (err) {
+          console.error(err);
+          this.snackBarMessage = "Gagal membaca file GeoJSON";
+          this.snackbar = true;
+        }
+      };
+      reader.onerror = () => {
+        this.snackBarMessage = "Gagal membaca file GeoJSON";
+        this.snackbar = true;
+      };
+      reader.readAsText(file);
     },
+
 
     completeUploadSuccess: function (val) {
       if (
@@ -582,7 +551,7 @@ export default {
       }
       if (this.$refs.form.validate()) {
         if (this.formMode === FormMode.EDIT_FORM) {
-          FDayaDukungService.updateFDayaDukung(this.itemModified).then(
+          FtDatasetService.updateFtDataset(this.itemModified).then(
             () => {
               // console.log(response.data)
               this.$emit("eventFromFormDialogEdit", this.itemModified);
@@ -594,7 +563,7 @@ export default {
           );
         } else {
           console.log(JSON.stringify(this.itemModified))
-          FDayaDukungService.createFDayaDukung(this.itemModified).then(
+          FtDatasetService.createFtDataset(this.itemModified).then(
             (response) => {
               this.$emit("eventFromFormDialogNew", response.data);
               console.log('oke masuk');
@@ -607,7 +576,7 @@ export default {
       }
     },
     saveCreateOnly() {
-      FDayaDukungService.createFDayaDukung(this.itemModified).then(
+      FtDatasetService.createFtDataset(this.itemModified).then(
         (response) => {
           /**
            * dipaksa Save dan Update Dahulu
@@ -622,7 +591,7 @@ export default {
       );
     },
     saveUpdateOnly() {
-      FDayaDukungService.updateFDayaDukung(this.itemModified).then(
+      FtDatasetService.updateFtDataset(this.itemModified).then(
         () => {},
         (error) => {
           // console.log(error);
@@ -647,7 +616,7 @@ export default {
     initializeEditMode(item) {
       this.formDialogOptions.errorMessage = "";
 
-      FDayaDukungService.getFDayaDukungById(item.id).then(
+      FtDatasetService.getFtDatasetById(item.id).then(
         (response) => {
           // console.log(response.data)
           this.itemDefault = Object.assign({}, response.data);
@@ -704,10 +673,10 @@ export default {
     },
     showDialogUploadMarker1() {
       if (
-          this.itemModified.kode1 !== "" &&
-          this.itemModified.description !== "" &&
-          this.itemModified.fdivisionBean !== 0 &&
-          this.itemModified.fsectorTypeBean !== 0
+        this.itemModified.kode1 !== "" &&
+        this.itemModified.description !== "" &&
+        this.itemModified.fdivisionBean !== 0 &&
+        this.itemModified.datasetType !== ""
       ) {
         if (this.itemModified.id === 0) {
           // this.$emit('eventSaveItemWithoutClose', false)
@@ -715,8 +684,8 @@ export default {
         }
         this.$refs.refUploadDialogMerker1.showDialog();
       } else {
-        this.snackBarMesage =
-            "Kode, Deskripsi, Divisi dan Jenis Sektor harus diisi dahulu";
+        this.snackBarMessage =
+          "Kode, Deskripsi, Divisi dan Jenis Data Spasial harus diisi dahulu";
         this.snackbar = true;
       }
     },
@@ -751,6 +720,59 @@ export default {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+    },
+
+    downloadInlineGeojson() {
+      try {
+        if (
+          !this.itemModified ||
+          typeof this.itemModified.geojson !== "string" ||
+          this.itemModified.geojson.trim() === "" ||
+          this.itemModified.geojson.trim() === "{}"
+        ) {
+          this.snackBarMessage = "Tidak ada GeoJSON tersimpan untuk di-download";
+          this.snackbar = true;
+          return;
+        }
+
+        const content = this.itemModified.geojson;
+        const baseName =
+          (this.itemModified.fileNameLow &&
+            this.itemModified.fileNameLow.replace(/\.geojson(\.gz)?$/i, "")) ||
+          this.itemModified.kode1 ||
+          "dataset-geojson";
+
+        const blob = new Blob([content], { type: "application/geo+json" });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `${baseName}.geojson`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } catch (e) {
+        console.error(e);
+        this.snackBarMessage = "Gagal membuat file GeoJSON untuk di-download";
+        this.snackbar = true;
+      }
+    },
+
+    clearStoredGeojson() {
+      if (this.itemModified) {
+        this.itemModified.geojson = "{}";
+        this.itemModified.withGeojson = false;
+      }
+      this.geojsonFile = [];
+      this.geojsonFileName = "";
+
+      try {
+        if (this.$refs.refFDayaDukungPetaMap) {
+          this.$refs.refFDayaDukungPetaMap.resetTampilanPeta();
+        }
+      } catch (e) {
+        console.error(e);
+      }
     },
 
   },

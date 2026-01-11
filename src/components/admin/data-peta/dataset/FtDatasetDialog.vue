@@ -364,6 +364,36 @@
             </v-table>
           </v-card-text>
 
+          <!-- Tabel data per feature (editable seperti QGIS attribute table) -->
+          <v-card-text v-if="featureRows && featureRows.length">
+            <div class="text-subtitle-2 mb-1">Data Per Feature</div>
+            <div class="text-caption mb-2">
+              Tabel ini menampilkan nilai properti tiap feature dari GeoJSON yang sudah dimuat dan bisa diedit.
+            </div>
+
+            <v-table density="compact">
+              <thead>
+              <tr>
+                <th style="width: 40px;">#</th>
+                <th v-for="col in featureColumns" :key="col">{{ col }}</th>
+              </tr>
+              </thead>
+              <tbody>
+              <tr v-for="(row, idx) in featureRows" :key="idx">
+                <td>{{ idx + 1 }}</td>
+                <td v-for="col in featureColumns" :key="col">
+                  <v-text-field
+                      v-model="row[col]"
+                      variant="underlined"
+                      density="compact"
+                      hide-details
+                  ></v-text-field>
+                </td>
+              </tr>
+              </tbody>
+            </v-table>
+          </v-card-text>
+
           <v-card-actions>
             <v-chip
                 class="ml-4"
@@ -556,6 +586,8 @@ export default {
       // Dialog pilih kolom grouping (propertyGroups)
       dialogPropertyGroupShow: false,
       localPropertyGroups: [],
+      featureColumns: [],
+      featureRows: [],
 
     };
   },
@@ -605,6 +637,109 @@ export default {
   },
 
   methods: {
+    refreshFeatureRowsFromGeojson() {
+      this.featureRows = [];
+      this.featureColumns = [];
+
+      if (!this.itemModified || !this.itemModified.geojson) {
+        return;
+      }
+
+      let geo;
+      try {
+        if (typeof this.itemModified.geojson === "string") {
+          const trimmed = this.itemModified.geojson.trim();
+          if (!trimmed || trimmed === "{}") {
+            return;
+          }
+          geo = JSON.parse(trimmed);
+        } else {
+          geo = this.itemModified.geojson;
+        }
+      } catch (e) {
+        console.warn("[FtDatasetDialog] gagal parse geojson untuk feature table", e);
+        return;
+      }
+
+      if (!geo || !Array.isArray(geo.features) || !geo.features.length) {
+        return;
+      }
+
+      // Kolom prefer dari propertyMetaRows biar urutan konsisten
+      let cols = [];
+      if (this.propertyMetaRows && this.propertyMetaRows.length) {
+        cols = this.propertyMetaRows.map((row) => row.name);
+      } else {
+        const firstProps = geo.features[0].properties || {};
+        cols = Object.keys(firstProps);
+      }
+
+      this.featureColumns = cols;
+
+      this.featureRows = geo.features.map((f) => {
+        const props = (f && f.properties) ? f.properties : {};
+        const row = {};
+        cols.forEach((name) => {
+          const val = props[name];
+          row[name] = val === undefined || val === null ? "" : val;
+        });
+        return row;
+      });
+    },
+
+    ensureGeojsonSyncedFromTable() {
+      if (!this.featureRows || !this.featureRows.length) return;
+      if (!this.itemModified || !this.itemModified.geojson) return;
+
+      let geo;
+      try {
+        if (typeof this.itemModified.geojson === "string") {
+          const trimmed = this.itemModified.geojson.trim();
+          if (!trimmed || trimmed === "{}") return;
+          geo = JSON.parse(trimmed);
+        } else {
+          geo = this.itemModified.geojson;
+        }
+      } catch (e) {
+        console.warn("[FtDatasetDialog] gagal parse geojson saat sync dari feature table", e);
+        return;
+      }
+
+      if (!geo || !Array.isArray(geo.features) || !geo.features.length) return;
+
+      if (geo.features.length !== this.featureRows.length) {
+        console.warn(
+            "[FtDatasetDialog] jumlah features dan featureRows tidak sama, skip sync",
+            geo.features.length,
+            this.featureRows.length
+        );
+        return;
+      }
+
+      const cols = this.featureColumns || [];
+
+      geo.features.forEach((feat, idx) => {
+        const props = (feat && feat.properties) ? feat.properties : {};
+        const row = this.featureRows[idx] || {};
+
+        cols.forEach((name) => {
+          if (!name) return;
+          props[name] = row[name];
+        });
+
+        feat.properties = props;
+      });
+
+      try {
+        this.itemModified.geojson = JSON.stringify(geo);
+        this.itemModified.withGeojson = true;
+        this.itemModified.hasGeojson = true;
+      } catch (e) {
+        console.warn("[FtDatasetDialog] gagal stringify geojson setelah sync feature table", e);
+      }
+    },
+
+
     showDialogUpload(){
       if (this.itemModified.kode1 !==undefined &&
           this.itemModified.description !==undefined &&
@@ -734,6 +869,7 @@ export default {
 
       // Setelah berhasil load dari server, refresh tabel metadata atribut
       this.refreshPropertyMetaFromItem(this.itemModified);
+      this.refreshFeatureRowsFromGeojson();
     },
     refreshPropertyMetaFromItem(item) {
       const rows = [];
@@ -860,6 +996,9 @@ export default {
             this.itemModified.withGeojson = true;
             this.itemModified.hasGeojson = true;
 
+            this.refreshPropertyMetaFromItem(this.itemModified);
+            this.refreshFeatureRowsFromGeojson();
+
             // Setelah geojson tersedia, render peta untuk cek tampilan
             this.$nextTick(() => {
               try {
@@ -897,12 +1036,16 @@ export default {
           this.itemModified.fileType = "geojson-gzip";
           this.selectedIndex = -1;
           this.itemModified.propertyGroups = "[]"
+
+          this.featureColumns = [];
+          this.featureRows = [];
       }
     },
     setDialogState(value) {
       this.dialogShow = value;
     },
     buildPayload() {
+      this.ensureGeojsonSyncedFromTable();
       // Deep clone supaya nggak ngacak reactive object
       const payload = JSON.parse(JSON.stringify(this.itemModified || {}));
 
@@ -997,10 +1140,11 @@ export default {
         const payload = this.buildPayload();
 
         if (this.formMode === FormMode.EDIT_FORM) {
-          let includeGeojson = false;
-          if (payload.geojson){
-            includeGeojson = true
-          }
+          // let includeGeojson = false;
+          // if (payload.withGeojson) {
+          //   includeGeojson = true
+          // }
+          const includeGeojson = !!payload.withGeojson;
           // console.log(JSON.stringify(this.localPropertyGroups));
 
           FtDatasetService.updateFtDataset(payload, includeGeojson).then(
@@ -1122,6 +1266,9 @@ export default {
 
             // Refresh tabel metadata atribut berdasarkan data awal
             this.refreshPropertyMetaFromItem(this.itemModified);
+
+            this.featureColumns = [];
+            this.featureRows = [];
 
             // Snapshot default setelah normalisasi untuk tracking modified
             this.itemDefault = JSON.parse(JSON.stringify(this.itemModified));
@@ -1294,6 +1441,9 @@ export default {
       this.geojsonFile = null;
       this.geojsonFileName = "";
 
+      this.featureColumns = [];
+      this.featureRows = [];
+
       try {
         if (this.$refs.refFDayaDukungPetaMap) {
           this.$refs.refFDayaDukungPetaMap.resetTampilanPeta();
@@ -1308,13 +1458,6 @@ export default {
 </script>
 
 <style scoped>
-.card-hover-opacity {
-  opacity: 0.4;
-}
-.card-not-hover-opacity {
-  opacity: 1;
-  transition: opacity 0.4s ease-in-out;
-}
 
 .show-btns {
   color: blue !important;

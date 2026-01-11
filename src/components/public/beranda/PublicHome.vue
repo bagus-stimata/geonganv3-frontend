@@ -25,27 +25,27 @@
           <v-row class="align-center justify-center">
             <v-col class="px-3 mx-3" cols="12" md="5" sm="12" >
               <v-text-field
-                  style="box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2);"
+                  style="box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2); text-transform: none;"
                   prepend-inner-icon="mdi-magnify"
                   density="compact"
-                  class="rounded-xl bg-white text-caption pt-1 pb-3 px-3"
+                  class="rounded-xl bg-white pt-1 pb-3 px-3"
                   variant="plain"
                   hide-details
-                  placeholder="Cari Berdasarkan Nama Dataset/Kata Kunci"
+                  placeholder="Cari dengan kata kunci"
               >
                 <template #append-inner>
                   <div class="d-flex flex-row align-center">
                     <v-divider vertical></v-divider>
                     <v-btn @click="activateDeepSearchGeojson" size="regular" class="px-2 font-weight-bold" :color="isActiveDeepSearch?'blue':''" density="comfortable" variant="text">
-                      <v-icon v-if="isActiveDeepSearch" color="blue">mdi-map-check</v-icon>
-                      <v-icon v-else>mdi-map</v-icon>
-                      <span :class="isActiveDeepSearch?'text-blue':'text-grey-darken-2'" class="ml-1 font-weight-bold text-subtitle-2">Deep</span>
+                      <v-chip prepend-icon="mdi-map" :class="isActiveDeepSearch?'text-blue':'text-grey-darken-2'" class="ml-1 font-weight-bold text-caption" style="text-transform: none;">
+                        Deep
+                      </v-chip>
                       <v-tooltip
                           activator="parent"
                           location="top"
-                      >Deep search dataset peta</v-tooltip>
+                      >Pencarian lebih dalam ke isi geospasial</v-tooltip>
                     </v-btn>
-                    <v-btn :color="isActiveDeepSearch?'indigo' : 'green'" class="rounded-be-xl rounded-te-xl font-weight-bold text-white" variant="flat" size="small">Search</v-btn>
+                    <v-btn :color="isActiveDeepSearch?'indigo' : 'green'" class="rounded-be-xl rounded-te-xl font-weight-bold text-white" variant="flat" size="small" style="text-transform: none;">Search</v-btn>
                   </div>
                 </template>
               </v-text-field>

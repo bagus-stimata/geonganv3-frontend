@@ -121,6 +121,8 @@ class FtDatasetService {
      *   mempertahankan geojson lama + geom + centroid (sesuai aturan prepareForSave).
      */
     updateFtDataset(payload) {
+        console.log(JSON.stringify(payload));
+
         return axios.put(
             `/api/geoportal/updateFtDataset/${payload.id}`,
             payload,

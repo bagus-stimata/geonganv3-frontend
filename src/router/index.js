@@ -81,6 +81,15 @@ const routes = [
         name: 'AdminDataPetaTabularView',
         component: () => import('@/views/admin/data-peta/DataPetaTabularView.vue')
     },
+
+    {
+        path: '/setting-peta-sosialisasi',
+        name: 'AdminDataPetaTabularViewDummy',
+        component: () => import('@/views/admin/data-peta/DataPetaTabularView.vue')
+    },
+
+
+
     {
         path: '/admin-satuan',
         name: 'AdminSatuan',

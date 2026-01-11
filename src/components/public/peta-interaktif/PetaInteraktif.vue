@@ -49,7 +49,6 @@
                   density="compact"
                   label="Cari"
                   hide-details
-                  siz
                   class="rounded-lg text-caption border-opacity-25 mt-2 mx-2"
                   variant="outlined"
               ></v-text-field>
@@ -129,6 +128,7 @@
       </l-control>
       <l-control position="topright">
         <v-btn
+            @click="routeToHome"
             variant="elevated"
             class="rounded-lg text-white mx-md-2 mt-md-2 ma-1 color-bg-second"
             size="small"
@@ -547,6 +547,9 @@ export default {
     },
   },
   methods: {
+    routeToHome(){
+      this.$router.push("/home")
+    },
     showDialogPickMapset(){
       this.$refs.refPickMapsetDialog.showDialog()
     },

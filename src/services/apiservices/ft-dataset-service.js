@@ -120,15 +120,19 @@ class FtDatasetService {
      * - Kalau lo TIDAK kirim field `geojson` di `item`, maka backend akan
      *   mempertahankan geojson lama + geom + centroid (sesuai aturan prepareForSave).
      */
-    updateFtDataset(payload) {
-        console.log(JSON.stringify(payload));
+    updateFtDataset(payload, includeGeojson = false) {
+        // note: includeGeojson true = backend boleh balikin field `geojson`
+        // (berguna kalau setelah save lo mau langsung refresh data lengkap)
+
+        // console.log(payload.propertyGroups);
 
         return axios.put(
-            `/api/geoportal/updateFtDataset/${payload.id}`,
+            API_URL + `updateFtDataset/${payload.id}`,
             payload,
             {
+                headers: authHeader(),
                 params: {
-                    includeGeojson: false, // mode update ringan
+                    includeGeojson: includeGeojson === true,
                 },
             }
         );

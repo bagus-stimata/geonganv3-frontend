@@ -49,6 +49,59 @@
           <v-card-title>
             <v-container class="pa-4">
               <v-row>
+                <v-container class="pa-4 text-center">
+                  <v-row align="center" justify="center">
+                    <v-hover>
+                      <template v-slot:default="{ isHovering, props }">
+                        <v-card
+                            v-bind="props"
+                            class="align-self-center"
+                            :elevation="isHovering ? 10 : 1"
+                            :class="[{ 'on-hover': isHovering }, isHovering?'card-hover-opacity':'card-not-hover-opacity']"
+                        >
+                          <v-img
+                              :lazy-src="lookupImageUrlLazy(itemModified)"
+                              :src="lookupImageUrl(itemModified)"
+                              width="220"
+                              height="220"
+                              cover
+
+                          >
+                            <v-card-title class="text-h6 fill-height">
+                              <v-row
+                                  class="fill-height flex-column"
+                                  justify="space-between"
+                              >
+                                <v-spacer/>
+                                <div class="align-self-center">
+                                  <v-btn
+                                      :class="{ 'show-btns': isHovering }"
+                                      :color="transparent"
+                                      icon
+                                      size="large"
+                                      dark
+                                      variant="outlined"
+                                      @click="showDialogUpload"
+                                  >
+                                    <v-icon
+                                        :class="{ 'show-btns': isHovering }"
+                                        :color="transparent"
+                                        size="large"
+                                    >
+                                      mdi-upload
+                                    </v-icon>
+                                  </v-btn>
+                                </div>
+                              </v-row>
+
+                            </v-card-title>
+                          </v-img>
+                        </v-card>
+                      </template>
+                    </v-hover>
+                  </v-row>
+                </v-container>
+
                 <v-col cols="12" md="12" sm="6">
                   <v-row>
                     <v-col cols="12" sm="6" md="3">
@@ -257,19 +310,32 @@
 
           <!-- Tabel metadata atribut GeoJSON: nama field, tipe, dan alias tampilan -->
           <v-card-text v-if="propertyMetaRows && propertyMetaRows.length">
-            <div class="d-flex justify-space-between align-center mb-2">
-              <div class="text-subtitle-2">Metadata Atribut GeoJSON</div>
+            <div class="align-center mb-2">
               <v-btn
                   v-if="propertyMetaRows && propertyMetaRows.length"
                   small
-                  variant="outlined"
+                  variant="elevated"
                   color="primary"
-                  class="rounded-lg"
+                  class="rounded-lg font-weight-bold"
                   @click="openPropertyGroupDialog"
+                  style="text-transform: none;"
               >
                 Atur Kolom Grouping
               </v-btn>
             </div>
+            <div v-if="itemModified.propertyGroups" class="mt-1 mb-4">
+              <v-chip
+                  v-for="col in parsePropertyGroupsFromItem(itemModified)"
+                  :key="col"
+                  class="ma-1"
+                  color="primary"
+                  variant="outlined"
+                  size="small"
+              >
+                {{ col }}
+              </v-chip>
+            </div>
+            <div class="text-subtitle-2">Metadata Atribut GeoJSON</div>
             <v-table density="compact">
               <thead>
               <tr>
@@ -385,21 +451,23 @@
           </div>
 
           <v-container class="pa-0" fluid>
-            <v-row>
-              <v-col
-                  v-for="row in propertyMetaRows"
-                  :key="row.name"
-                  cols="12"
-              >
-                <v-checkbox
-                    v-model="localPropertyGroups"
-                    :label="row.name"
-                    :value="row.name"
-                    density="compact"
-                    hide-details
-                />
-              </v-col>
-            </v-row>
+            <div class="property-group-scroll">
+              <v-row>
+                <v-col
+                    v-for="row in propertyMetaRows"
+                    :key="row.name"
+                    cols="12"
+                >
+                  <v-checkbox
+                      v-model="localPropertyGroups"
+                      :label="row.name"
+                      :value="row.name"
+                      density="compact"
+                      hide-details
+                  />
+                </v-col>
+              </v-row>
+            </div>
           </v-container>
         </v-card-text>
 
@@ -537,6 +605,36 @@ export default {
   },
 
   methods: {
+    showDialogUpload(){
+      if (this.itemModified.kode1 !==undefined &&
+          this.itemModified.description !==undefined &&
+          this.itemModified.fdivisionBean !==undefined){
+        if (this.itemModified.id===0){
+          this.saveCreateOnly()
+        }
+        this.$refs.refUploadDialog.showDialog()
+      }else{
+        this.snackBarMessage = 'Kode, Deskripsi dan Divisi harus diisi dahulu'
+        this.snackbar = true
+      }
+    },
+    completeUploadSuccess: function (val){
+      if (this.itemModified.avatarImage !==undefined && this.itemModified.avatarImage !== '' ) {
+        FileService.deleteImage(this.itemModified.avatarImage).then(
+            () => {
+            },
+            (error) => {
+              console.log(error.response)
+            }
+        )
+      }
+      if (val.fileName !==""){
+        this.$refs.refUploadDialog.closeDialog()
+        this.itemModified.avatarImage = val.fileName
+        this.saveUpdateOnly()
+      }
+    },
+
     async cekTampilanPeta(){
       try {
         await this.ensureGeojsonLoaded();
@@ -785,27 +883,7 @@ export default {
     },
 
 
-    completeUploadSuccess: function (val) {
-      if (
-        this.itemModified.avatarImage !== undefined &&
-        this.itemModified.avatarImage !== ""
-      ) {
-        FileService.deleteImage(this.itemModified.avatarImage).then(
-          () => {
-            console.log(`Delete Image ${this.itemModified.avatarImage}`);
-          },
-          (error) => {
-            console.log(error.response);
-          }
-        );
-      }
 
-      if (val.fileName !== "") {
-        this.$refs.refUploadDialog.closeDialog();
-        this.itemModified.avatarImage = val.fileName;
-        this.saveUpdateOnly();
-      }
-    },
 
     showDialog(selectedIndex, item) {
       this.dialogShow = !this.dialogShow;
@@ -919,7 +997,13 @@ export default {
         const payload = this.buildPayload();
 
         if (this.formMode === FormMode.EDIT_FORM) {
-          FtDatasetService.updateFtDataset(payload).then(
+          let includeGeojson = false;
+          if (payload.geojson){
+            includeGeojson = true
+          }
+          // console.log(JSON.stringify(this.localPropertyGroups));
+
+          FtDatasetService.updateFtDataset(payload, includeGeojson).then(
               () => {
                 console.log("=== masuk update dataset ===");
 
@@ -1235,5 +1319,11 @@ export default {
 .show-btns {
   color: blue !important;
   opacity: 1;
+}
+</style>
+<style scoped>
+.property-group-scroll {
+  max-height: 340px;
+  overflow-y: auto;
 }
 </style>

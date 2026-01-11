@@ -217,25 +217,29 @@
               </v-row>
               <!-- Mode: sudah ada GeoJSON tersimpan dari backend, tampilkan tombol download & hapus -->
               <v-row v-else>
-                <v-col cols="12" sm="8" md="6">
-                  <div class="text-caption mt-2">
-                    GeoJSON sudah tersimpan pada dataset.
-                  </div>
-                </v-col>
                 <v-col cols="12" sm="4" md="6" class="d-flex align-center">
                   <v-btn
-                    color="primary"
-                    variant="flat"
-                    class="mr-2 rounded-lg"
-                    @click="downloadInlineGeojson"
+                      v-if="!hasGeojsonLoaded"
+                      color="blue-darken-1"
+                      variant="outlined"
+                      class="mr-2 rounded-lg"
+                      @click="loadGeojsonFromServer"
+                  >
+                    Load GeoJSON
+                  </v-btn>
+                  <v-btn
+                      color="primary"
+                      variant="flat"
+                      class="mr-2 rounded-lg"
+                      @click="downloadInlineGeojson"
                   >
                     Download GeoJSON
                   </v-btn>
                   <v-btn
-                    color="error"
-                    variant="outlined"
-                    class="rounded-lg"
-                    @click="clearStoredGeojson"
+                      color="error"
+                      variant="outlined"
+                      class="rounded-lg"
+                      @click="clearStoredGeojson"
                   >
                     Hapus GeoJSON
                   </v-btn>
@@ -391,7 +395,7 @@ export default {
 
       transparent: "rgba(255, 255, 255, 0)",
 
-      geojsonFile: [],
+      geojsonFile: null,
       geojsonFileName: "",
 
       itemsDatasetType: EnumDataSpaTypeList
@@ -404,55 +408,107 @@ export default {
       const modifiedItem = JSON.stringify(this.itemModified);
       return defaultItem !== modifiedItem;
     },
+
     hasGeojsonForPreview() {
       const hasGeojsonContent =
-        this.itemModified &&
-        typeof this.itemModified.geojson === "string" &&
-        this.itemModified.geojson.trim() !== "" &&
-        this.itemModified.geojson.trim() !== "{}";
-
-      const hasFileNameLow =
-        this.itemModified &&
-        typeof this.itemModified.fileNameLow === "string" &&
-        this.itemModified.fileNameLow.trim() !== "";
+          this.itemModified &&
+          typeof this.itemModified.geojson === "string" &&
+          this.itemModified.geojson.trim() !== "" &&
+          this.itemModified.geojson.trim() !== "{}";
 
       const hasLocalSelectedFile =
-        typeof this.geojsonFileName === "string" &&
-        this.geojsonFileName.trim() !== "";
+          typeof this.geojsonFileName === "string" &&
+          this.geojsonFileName.trim() !== "";
 
-      return hasGeojsonContent || hasFileNameLow || hasLocalSelectedFile;
+      // Preview cuma kalau ada GeoJSON beneran di memory (dari server atau file lokal)
+      return hasGeojsonContent || hasLocalSelectedFile;
+    },
+    hasGeojsonLoaded() {
+      return (
+          this.itemModified &&
+          typeof this.itemModified.geojson === "string" &&
+          this.itemModified.geojson.trim() !== "" &&
+          this.itemModified.geojson.trim() !== "{}"
+      );
     },
     hasStoredGeojson() {
-      // GeoJSON tersimpan di dataset (bukan hanya file baru yang dipilih)
-      const hasGeojsonContent =
-        this.itemModified &&
-        typeof this.itemModified.geojson === "string" &&
-        this.itemModified.geojson.trim() !== "" &&
-        this.itemModified.geojson.trim() !== "{}";
+      // lightweight flag dari backend (misal hasGeojson = featureCount>0)
+      const hasFlag = !!(this.itemModified && this.itemModified.hasGeojson);
 
-      // Jika user sudah memilih file baru (geojsonFileName), kita anggap mode "pilih file"
       const hasLocalSelectedFile =
-        typeof this.geojsonFileName === "string" &&
-        this.geojsonFileName.trim() !== "";
+          typeof this.geojsonFileName === "string" &&
+          this.geojsonFileName.trim() !== "";
 
-      return hasGeojsonContent && !hasLocalSelectedFile;
+      // kalau user pilih file baru, balik ke mode pilih file
+      return hasFlag && !hasLocalSelectedFile;
     },
   },
+
   watch: {
   },
 
   methods: {
-    cekTampilanPeta(){
-      // this.$refs.refFDayaDukungPetaMap.tampilkanPeta(this.itemModified);
-      this.$refs.refFDayaDukungPetaMap.tampilkanPeta(this.itemModified);
+    async cekTampilanPeta(){
+      try {
+        await this.ensureGeojsonLoaded();
+        this.$refs.refFDayaDukungPetaMap.tampilkanPeta(this.itemModified);
+      } catch (e) {
+        console.error(e);
+        this.snackBarMessage = "Gagal menampilkan peta";
+        this.snackbar = true;
+      }
+    },
+    async ensureGeojsonLoaded() {
+      // Kalau dataset sudah ditandai punya GeoJSON di server tetapi konten belum dimuat,
+      // baru panggil backend untuk load GeoJSON berat.
+      if (this.hasStoredGeojson && !this.hasGeojsonLoaded) {
+        await this.loadGeojsonFromServer();
+      }
     },
 
+    async loadGeojsonFromServer() {
+      if (!this.itemModified || !this.itemModified.id) return;
+
+      try {
+        this.dialogLoading = true;
+
+        // Asumsi: FtDatasetService.getFtDatasetById(id, includeGeojson)
+        const resp = await FtDatasetService.getFtDatasetById(this.itemModified.id, true);
+        if (resp && resp.data) {
+          const incoming = resp.data;
+
+          // sinkronkan metadata ringan
+          if (typeof incoming.hasGeojson !== "undefined") {
+            this.itemModified.hasGeojson = !!incoming.hasGeojson;
+          }
+          if (typeof incoming.featureCount !== "undefined") {
+            this.itemModified.featureCount = incoming.featureCount;
+          }
+          if (typeof incoming.propertyKeys !== "undefined") {
+            this.itemModified.propertyKeys = incoming.propertyKeys;
+          }
+          if (typeof incoming.propertiesMeta !== "undefined") {
+            this.itemModified.propertiesMeta = incoming.propertiesMeta;
+          }
+
+          // isi geojson berat hanya saat diminta
+          if (typeof incoming.geojson === "string" && incoming.geojson.trim() !== "") {
+            this.itemModified.geojson = incoming.geojson;
+          }
+        }
+      } catch (e) {
+        console.error(e);
+        this.snackBarMessage = "Gagal memuat GeoJSON dari server";
+        this.snackbar = true;
+      } finally {
+        this.dialogLoading = false;
+      }
+    },
     onGeojsonFileSelected() {
-      const files = this.geojsonFile;
-      const file = Array.isArray(files) ? files[0] : files;
+      const file = Array.isArray(this.geojsonFile) ? this.geojsonFile[0] : this.geojsonFile;
 
       if (!file) {
-        this.geojsonFile = [];
+        this.geojsonFile = null;
         this.geojsonFileName = "";
         if (this.itemModified && Object.prototype.hasOwnProperty.call(this.itemModified, "geojson")) {
           this.itemModified.geojson = "{}";
@@ -480,6 +536,7 @@ export default {
             this.itemModified.geojson = text;
             this.itemModified.fileNameLow = this.geojsonFileName;
             this.itemModified.withGeojson = true;
+            this.itemModified.hasGeojson = true;
 
             // Setelah geojson tersedia, render peta untuk cek tampilan
             this.$nextTick(() => {
@@ -553,7 +610,8 @@ export default {
         if (this.formMode === FormMode.EDIT_FORM) {
           FtDatasetService.updateFtDataset(this.itemModified).then(
             () => {
-              // console.log(response.data)
+              console.log("=== masuk update dataset ===");
+
               this.$emit("eventFromFormDialogEdit", this.itemModified);
             },
             (error) => {
@@ -562,7 +620,9 @@ export default {
             }
           );
         } else {
-          console.log(JSON.stringify(this.itemModified))
+          // console.log(JSON.stringify(this.itemModified))
+          console.log("=== masuk create dataset ===");
+
           FtDatasetService.createFtDataset(this.itemModified).then(
             (response) => {
               this.$emit("eventFromFormDialogNew", response.data);
@@ -578,6 +638,7 @@ export default {
     saveCreateOnly() {
       FtDatasetService.createFtDataset(this.itemModified).then(
         (response) => {
+          console.log("=== masuk saveCreateOnly ===");
           /**
            * dipaksa Save dan Update Dahulu
            */
@@ -592,7 +653,9 @@ export default {
     },
     saveUpdateOnly() {
       FtDatasetService.updateFtDataset(this.itemModified).then(
-        () => {},
+        () => {
+          console.log("=== masuk saveCreateOnly ===");
+        },
         (error) => {
           // console.log(error);
           this.formDialogOptions.errorMessage = error.response.data.message;
@@ -616,21 +679,30 @@ export default {
     initializeEditMode(item) {
       this.formDialogOptions.errorMessage = "";
 
-      FtDatasetService.getFtDatasetById(item.id).then(
-        (response) => {
-          // console.log(response.data)
-          this.itemDefault = Object.assign({}, response.data);
-          this.itemModified = response.data;
-          try{
-            this.$refs.refFDayaDukungPetaMap.resetTampilanPeta ()
-          }catch (e) {
-            e.toString()
-          }
+      // Saat edit, ambil data TANPA geojson dulu (ringan)
+      FtDatasetService.getFtDatasetById(item.id, false).then(
+          (response) => {
+            this.itemDefault = Object.assign({}, response.data);
+            this.itemModified = response.data;
 
-        },
-        (error) => {
-          console.log(error);
-        }
+            // Normalisasi nilai default agar computed & UI stabil
+            if (this.itemModified.geojson === undefined || this.itemModified.geojson === null) {
+              this.itemModified.geojson = "{}";
+            }
+            if (this.itemModified.hasGeojson === undefined || this.itemModified.hasGeojson === null) {
+              this.itemModified.hasGeojson = (this.itemModified.featureCount || 0) > 0;
+            }
+
+            try{
+              this.$refs.refFDayaDukungPetaMap.resetTampilanPeta ()
+            }catch (e) {
+              e.toString()
+            }
+
+          },
+          (error) => {
+            console.log(error);
+          }
       );
     },
     lookupFDivision(fdivisionBean) {
@@ -722,27 +794,29 @@ export default {
       document.body.removeChild(link);
     },
 
-    downloadInlineGeojson() {
+    async downloadInlineGeojson() {
       try {
+        await this.ensureGeojsonLoaded();
+
         if (
-          !this.itemModified ||
-          typeof this.itemModified.geojson !== "string" ||
-          this.itemModified.geojson.trim() === "" ||
-          this.itemModified.geojson.trim() === "{}"
+            !this.itemModified ||
+            typeof this.itemModified.geojson !== "string" ||
+            this.itemModified.geojson.trim() === "" ||
+            this.itemModified.geojson.trim() === "{}"
         ) {
-          this.snackBarMessage = "Tidak ada GeoJSON tersimpan untuk di-download";
+          this.snackBarMessage = "GeoJSON belum dimuat / tidak tersedia";
           this.snackbar = true;
           return;
         }
 
         const content = this.itemModified.geojson;
         const baseName =
-          (this.itemModified.fileNameLow &&
-            this.itemModified.fileNameLow.replace(/\.geojson(\.gz)?$/i, "")) ||
-          this.itemModified.kode1 ||
-          "dataset-geojson";
+            (this.itemModified.fileNameLow &&
+                this.itemModified.fileNameLow.replace(/\.geojson(\.gz)?$/i, "")) ||
+            this.itemModified.kode1 ||
+            "dataset-geojson";
 
-        const blob = new Blob([content], { type: "application/geo+json" });
+        const blob = new Blob([content], { type: "application/geo+json;charset=utf-8" });
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
@@ -761,9 +835,10 @@ export default {
     clearStoredGeojson() {
       if (this.itemModified) {
         this.itemModified.geojson = "{}";
-        this.itemModified.withGeojson = false;
+        this.itemModified.withGeojson = true;
+        this.itemModified.hasGeojson = false;
       }
-      this.geojsonFile = [];
+      this.geojsonFile = null;
       this.geojsonFileName = "";
 
       try {

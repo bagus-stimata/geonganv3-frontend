@@ -20,34 +20,18 @@
         </v-col>
       </v-row>
     </v-card-title>
+
     <v-expand-transition>
       <v-card
-        class="ml-2 mr-2 elevation-0 bg-grey-lighten-4"
-        v-show="showFilter === true"
+          class="ml-2 mr-2 elevation-0 bg-grey-lighten-4"
+          v-show="showFilter === true"
       >
         <v-card-text>
           <v-row>
-            <v-col cols="12" sm="4" md="4">
+            <v-col cols="12" sm="6" md="6">
               <v-autocomplete
-                v-model="filterFdivisions"
-                :items="itemsFDivision"
-                item-value="id"
-                item-title="description"
-                density="compact"
-                variant="outlined"
-                chips
-                small-chips
-                deletable-chips
-                clearable
-                label="Produsen Data"
-                multiple
-                hide-details
-              ></v-autocomplete>
-            </v-col>
-            <v-col cols="12" sm="4" md="4">
-              <v-autocomplete
-                  v-model="filterFdayaDukungType"
-                  :items="itemsFDayaDukungType"
+                  v-model="filterFdivisions"
+                  :items="itemsFDivision"
                   item-value="id"
                   item-title="description"
                   density="compact"
@@ -56,49 +40,35 @@
                   small-chips
                   deletable-chips
                   clearable
-                  label="Jenis Peta"
+                  label="Produsen Data"
                   multiple
                   hide-details
               ></v-autocomplete>
             </v-col>
-            <v-col cols="12" sm="4" md="4">
-              <v-autocomplete
-                v-model="filterFareaBean"
-                :items="itemsFArea"
-                item-value="id"
-                item-title="description"
-                density="compact"
-                variant="outlined"
-                small-chips
-                hide-details
-                label="Kecamatan"
-                class="ml-1 mr-1"
-                multiple
-                clearable
-              ></v-autocomplete>
-            </v-col>
-            <v-col cols="6" sm="2" md="2">
+            <v-col cols="6" sm="3" md="2" class="d-flex align-center">
               <v-btn color="primary" size="small" @click="runExtendedFilter">
-                Terapkan<v-icon size="small" class="ml-1" color="green-lighten-2">mdi-filter</v-icon>
+                Terapkan
+                <v-icon size="small" class="ml-1" color="green-lighten-2">mdi-filter</v-icon>
               </v-btn>
             </v-col>
           </v-row>
         </v-card-text>
       </v-card>
     </v-expand-transition>
+
     <v-data-table-server
-      v-model="selectedItems"
-      :single-select="!multiSelect"
-      :show-select="multiSelect"
-      :headers="headers"
-      :items="fDayaDukungsFiltered"
-      v-model:page="currentPage"
-      :items-per-page="pageSize"
-      hide-default-footer
-      class="elevation-0"
-      :items-length="totalItems"
-      @page-count="totalTablePages = totalPaginationPages"
-      density="compact"
+        v-model="selectedItems"
+        :single-select="!multiSelect"
+        :show-select="multiSelect"
+        :headers="headers"
+        :items="ftDatasetsFiltered"
+        v-model:page="currentPage"
+        :items-per-page="pageSize"
+        hide-default-footer
+        class="elevation-0"
+        :items-length="totalItems"
+        @page-count="totalTablePages = totalPaginationPages"
+        density="compact"
     >
       <template v-slot:top>
         <v-row align="center" class="ml-4 mr-4">
@@ -140,12 +110,11 @@
           *{{ item.kode1 }}
         </div>
       </template>
+
       <template v-slot:[`item.avatarImage`]="{ item }">
         <v-img
-            :lazy-src="
-            lookupImageUrlLazy(lookupFDayaDukungType(item.fdayaDukungTypeBean))
-          "
-            :src="lookupImageUrl(lookupFDayaDukungType(item.fdayaDukungTypeBean))"
+            :lazy-src="lookupImageUrlLazy(item)"
+            :src="lookupImageUrl(item)"
             alt="avatar"
             width="80px"
             height="80px"
@@ -154,27 +123,7 @@
         >
         </v-img>
       </template>
-      <template v-slot:[`item.fareaBean`]="{ item }">
-        <div>
-          <div class="text-caption small">
-            {{ lookupFArea(item.fareaBean).description }}
-          </div>
-        </div>
-      </template>
-      <template v-slot:[`item.fdayaDukungTypeBean`]="{ item }">
-        <div>
-          <div>
-            <span class="text-caption small">
-              {{ lookupFDayaDukungType(item.fdayaDukungTypeBean).description }}
-            </span>
-            <span v-if="item.showToMap"><v-icon size="small" color="blue">mdi-map</v-icon></span>
-          </div>
-          <div>
-            <span v-if="item.selected"><v-icon color="blue" size="small">mdi-check-circle</v-icon></span>
-            {{ item.tahun }}
-          </div>
-        </div>
-      </template>
+
       <template v-slot:[`item.fdivisionBean`]="{ item }">
         <div>
           <div>{{ lookupFDivision(item.fdivisionBean).description }}</div>
@@ -184,9 +133,33 @@
         </div>
       </template>
 
+      <template v-slot:[`item.hasGeojson`]="{ item }">
+        <v-chip
+            size="x-small"
+            :color="item.hasGeojson ? 'green' : 'grey'"
+            variant="flat"
+        >
+          {{ item.hasGeojson ? "Ada GeoJSON" : "Belum Ada" }}
+        </v-chip>
+      </template>
+
       <template v-slot:[`item.actions`]="{ item }">
-        <v-btn @click="showDialogEdit(item)" color="warning" size="small" variant="text" icon="mdi-pencil" :disabled="multiSelect"></v-btn>
-        <v-btn @click="deleteDialogShow(item)" color="red accent-4" size="small" variant="text" icon="mdi-delete" :disabled="multiSelect"></v-btn>
+        <v-btn
+            @click="showDialogEdit(item)"
+            color="warning"
+            size="small"
+            variant="text"
+            icon="mdi-pencil"
+            :disabled="multiSelect"
+        ></v-btn>
+        <v-btn
+            @click="deleteDialogShow(item)"
+            color="red accent-4"
+            size="small"
+            variant="text"
+            icon="mdi-delete"
+            :disabled="multiSelect"
+        ></v-btn>
       </template>
     </v-data-table-server>
 
@@ -214,19 +187,19 @@
         </v-col>
       </v-row>
     </v-container>
+
     <FDayaDukungPetaDialog
         v-model:formMode="formMode"
         :itemsFDivision="itemsFDivision"
-        :itemsFDayaDukungType="itemsFDayaDukungType"
-        :itemsFArea="itemsFArea"
         ref="refFormDialog"
         @eventFromFormDialogNew="saveDataNew"
         @eventFromFormDialogEdit="saveDataEdit"
     ></FDayaDukungPetaDialog>
+
     <DeleteConfirmDialog
-      ref="refDeleteConfirmDialog"
-      @eventFromDeleteConfirmDialog1="deleteItemConfirmedSingleSelect"
-      @eventFromDeleteConfirmDialog2="deleteItemConfirmedMultiSelect"
+        ref="refDeleteConfirmDialog"
+        @eventFromDeleteConfirmDialog1="deleteItemConfirmedSingleSelect"
+        @eventFromDeleteConfirmDialog2="deleteItemConfirmedMultiSelect"
     ></DeleteConfirmDialog>
 
     <v-dialog width="100px" v-model="dialogLoading">
@@ -234,20 +207,23 @@
         <v-row justify="center">
           <v-col cols="12" class="align-center">
             <v-progress-circular
-              :size="40"
-              :width="5"
-              v-if="loading"
-              indeterminate
-              color="primary"
+                :size="40"
+                :width="5"
+                v-if="loading"
+                indeterminate
+                color="primary"
             ></v-progress-circular>
           </v-col>
         </v-row>
       </v-card>
     </v-dialog>
+
     <v-snackbar v-model="snackbar">
       {{ snackBarMessage }}
       <template v-slot:actions="{ attrs }">
-        <v-btn variant="text" v-bind="attrs" @click="snackbar = false"> Close </v-btn>
+        <v-btn variant="text" v-bind="attrs" @click="snackbar = false">
+          Close
+        </v-btn>
       </template>
     </v-snackbar>
   </v-card>
@@ -256,15 +232,13 @@
 <script>
 import FtDatasetService from "@/services/apiservices/ft-dataset-service";
 import FDivisionService from "@/services/apiservices/f-division-service";
-import FDayaDukungTypeService from "@/services/apiservices/f-dayadukung-type-service";
-import FDayaDukungType from "@/models/f-dayadukung-type";
 import DeleteConfirmDialog from "@/components/utils/DeleteConfirmDialog.vue";
 import FtDatasetDialog from "./FtDatasetDialog.vue";
 import FormMode from "@/models/form-mode";
 import FtDataset from "@/models/ft-dataset";
 import FileService from "@/services/apiservices/file-service";
 import FDayaDukungFilter from "@/models/payload/f-dayadukung-filter";
-import FAreaService from "@/services/apiservices/f-area-service";
+
 export default {
   components: {
     FDayaDukungPetaDialog: FtDatasetDialog,
@@ -291,8 +265,6 @@ export default {
 
       showFilter: false,
       filterFdivisions: [],
-      filterFdayaDukungType: [],
-      filterFareaBean: [],
 
       search: "",
       headers: [
@@ -305,6 +277,7 @@ export default {
         { title: "", key: "avatarImage", width: "14%" },
         { title: "Deskripsi", key: "description", width: "20%" },
         { title: "Tahun", key: "tahun" },
+        { title: "GeoJSON", key: "hasGeojson", width: "12%" },
         { title: "Produsen Data", key: "fdivisionBean" },
         { title: "Actions", key: "actions", sortable: false },
       ],
@@ -312,17 +285,15 @@ export default {
       formMode: "",
       itemSelectedIndex: -1,
       itemSelected: "",
-      fDayaDukungs: [new FtDataset()],
+      ftDatasets: [new FtDataset()],
       itemsFDivision: [{ id: 0, kode1: "", description: "" }],
-      itemsFArea: [],
-      itemsFDayaDukungType: [new FDayaDukungType()],
     };
   },
   watch: {
     currentPage(newPage) {
-      console.log(newPage)
+      console.log(newPage);
       if (newPage) {
-        this.fetchFDayaDukung();
+        this.fetchFtDataset();
       }
     },
     pageSize(newValue) {
@@ -330,7 +301,7 @@ export default {
       this.currentPage = 1;
       if (refreshData) {
         console.log("Change PageSize " + newValue);
-        this.fetchFDayaDukung();
+        this.fetchFtDataset();
       }
     },
   },
@@ -338,8 +309,8 @@ export default {
     currentUser() {
       return this.$store.state.auth.user;
     },
-    fDayaDukungsFiltered() {
-      return this.fDayaDukungs;
+    ftDatasetsFiltered() {
+      return this.ftDatasets;
     },
   },
   methods: {
@@ -350,21 +321,20 @@ export default {
     runExtendedFilter() {
       const extendedFilter = new FDayaDukungFilter();
       extendedFilter.fdivisionIds = this.filterFdivisions;
-
-      extendedFilter.fdayaDukungTypeIds = this.filterFdayaDukungType;
-
       extendedFilter.pageNo = this.currentPage;
       extendedFilter.pageSize = this.pageSize;
       extendedFilter.sortBy = "id";
       extendedFilter.order = "DESC";
       extendedFilter.search = this.search;
       extendedFilter.city = "";
+
       FtDatasetService.getPostAllFtDatasetContainingExt(
-          extendedFilter, false
+          extendedFilter,
+          false
       ).then(
           (response) => {
             const { items, totalPages, totalItems } = response.data;
-            this.fDayaDukungs = items;
+            this.ftDatasets = items;
             this.totalPaginationPages = totalPages;
             this.totalItems = totalItems;
           },
@@ -373,6 +343,7 @@ export default {
           }
       );
     },
+
     searchOnEnter(event) {
       if (this.search !== event.target.value) {
         this.currentPage = 1;
@@ -380,135 +351,113 @@ export default {
         this.runExtendedFilter();
       }
     },
+
     fetchParent() {
       if (this.currentUser.organizationLevel === "DIV") {
         FDivisionService.getFDivisionById(this.currentUser.fdivisionBean).then(
-          (response) => {
-            this.itemsFDivision = [response.data];
-          },
-          (error) => {
-            console.log(error.response);
-          }
+            (response) => {
+              this.itemsFDivision = [response.data];
+            },
+            (error) => {
+              console.log(error.response);
+            }
         );
       } else {
         FDivisionService.getAllFDivision().then(
-          (response) => {
-            this.itemsFDivision = response.data;
-          },
-          (error) => {
-            console.log(error.response);
-          }
+            (response) => {
+              this.itemsFDivision = response.data;
+            },
+            (error) => {
+              console.log(error.response);
+            }
         );
       }
-      FDayaDukungTypeService.getAllFDayaDukungType().then(
-          (response) => {
-            this.itemsFDayaDukungType = response.data;
-            this.itemsFDayaDukungType = this.itemsFDayaDukungType.filter(
-                (item) => item.description.toUpperCase().includes("PETA") || item.kode1.toUpperCase().includes("PETA")
-            );
-          },
-          (error) => {
-            console.log(error.response);
-          }
-      );
-      FAreaService.getAllFAreaPublic().then(
-        (response) => {
-          this.itemsFArea = response.data;
-        },
-        (error) => {
-          console.log(error.response);
-        }
-      );
     },
-    fetchFDayaDukung() {
-      if (this.showFilter) {
-        this.runExtendedFilter();
-      } else {
-        this.runExtendedFilter();
-      }
+
+    fetchFtDataset() {
+      this.runExtendedFilter();
     },
+
     showDialogNew() {
       this.itemSelectedIndex = -1;
       const itemModified = Object.assign({}, "");
       this.formMode = FormMode.NEW_FORM;
       this.$refs.refFormDialog.showDialog(this.itemSelectedIndex, itemModified);
     },
+
     saveDataNew(itemFromRest) {
       this.itemSelected = itemFromRest;
       this.closeDialog();
-      this.fetchFDayaDukung();
+      this.fetchFtDataset();
     },
 
     showDialogEdit(item) {
-      this.itemSelectedIndex = this.fDayaDukungsFiltered.indexOf(item);
+      this.itemSelectedIndex = this.ftDatasetsFiltered.indexOf(item);
       const itemModified = Object.assign({}, item);
       this.formMode = FormMode.EDIT_FORM;
       this.$refs.refFormDialog.showDialog(
-        this.itemSelectedIndex,
-        itemModified,
-        this.itemsFDivision
+          this.itemSelectedIndex,
+          itemModified,
+          this.itemsFDivision
       );
     },
+
     saveDataEdit(item) {
       this.itemSelected = item;
-      this.fetchFDayaDukung();
+      this.fetchFtDataset();
       this.closeDialog();
     },
 
     deleteDialogShow(item) {
-      this.itemSelectedIndex = this.fDayaDukungsFiltered.indexOf(item);
+      this.itemSelectedIndex = this.ftDatasetsFiltered.indexOf(item);
       this.itemSelected = Object.assign({}, item);
       this.$refs.refDeleteConfirmDialog.showDialog(
-        this.itemSelectedIndex,
-        item.username
+          this.itemSelectedIndex,
+          item.description || item.kode1 || String(item.id)
       );
     },
+
     deleteDialogMultiShow() {
       if (this.multiSelect === true) {
         this.$refs.refDeleteConfirmDialog.showDialogMulti(
-          this.selectedItems,
-          `${this.selectedItems.length} items selected`
+            this.selectedItems,
+            `${this.selectedItems.length} items selected`
         );
       }
     },
-    deleteItemConfirmedSingleSelect() {
 
-      const deletedItem = this.fDayaDukungs[this.itemSelectedIndex];
+    deleteItemConfirmedSingleSelect() {
+      const deletedItem = this.ftDatasets[this.itemSelectedIndex];
       FtDatasetService.deleteFtDataset(deletedItem.id).then(
-        () => {
-          this.fDayaDukungs.splice(this.itemSelectedIndex, 1);
-          this.closeDialog();
-        },
-        (error) => {
-          console.log(error);
-          this.snackBarMessage = "gagal hapus (digunakan oleh data anakk)";
-          this.snackbar = true;
-          this.$refs.refDeleteConfirmDialog.setDialogState(false);
-        }
-      );
-    },
-    deleteItemConfirmedMultiSelect(items) {
-      if (items.length > -1) {
-        let itemIds = [];
-        for (let i = 0; i < items.length; i++) {
-          itemIds.push(items[i].id);
-        }
-        FtDatasetService.deleteAllFtDataset(itemIds).then(
           () => {
-            if (this.showFilter) {
-              this.runExtendedFilter();
-            } else {
-              this.fetchFDayaDukung();
-            }
-            this.selectedItems = [];
+            this.ftDatasets.splice(this.itemSelectedIndex, 1);
             this.closeDialog();
           },
           (error) => {
-            console.log("error " + error);
+            console.log(error);
+            this.snackBarMessage = "gagal hapus (digunakan oleh data anakk)";
+            this.snackbar = true;
+            this.$refs.refDeleteConfirmDialog.setDialogState(false);
           }
+      );
+    },
+
+    deleteItemConfirmedMultiSelect(items) {
+      if (items.length > -1) {
+        const itemIds = items.map((x) => x.id);
+        FtDatasetService.deleteAllFtDataset(itemIds).then(
+            () => {
+              this.fetchFtDataset();
+              this.selectedItems = [];
+              this.closeDialog();
+            },
+            (error) => {
+              console.log("error " + error);
+            }
         );
       }
     },
+
     closeDialog() {
       this.formMode = "";
       this.$refs.refDeleteConfirmDialog.setDialogState(false);
@@ -525,16 +474,7 @@ export default {
       else if (trueFalse === false) return "gray";
       else return "gray";
     },
-    lookupFDayaDukungType(fdayadukungTypeBean) {
-      const str = this.itemsFDayaDukungType.filter(
-          (x) => x.id === fdayadukungTypeBean
-      );
-      if (str.length > 0) {
-        return str[0];
-      } else {
-        return "-";
-      }
-    },
+
     lookupFDivision(fdivisionBean) {
       const str = this.itemsFDivision.filter((x) => x.id === fdivisionBean);
       if (str.length > 0) {
@@ -543,24 +483,18 @@ export default {
         return "-";
       }
     },
-    lookupFArea(fareaBean) {
-      const str = this.itemsFArea.filter((x) => x.id === fareaBean);
-      if (str.length > 0) {
-        return str[0];
-      } else {
-        return "-";
-      }
-    },
+
     lookupImageUrl(item) {
       if (item.avatarImage === undefined || item.avatarImage === "") {
-        return require('@/assets/images/no_image_available.jpeg')
+        return require("@/assets/images/no_image_available.jpeg");
       } else {
         return FileService.image_url_low(item.avatarImage);
       }
     },
+
     lookupImageUrlLazy(item) {
       if (item.avatarImage === undefined || item.avatarImage === "") {
-        return require('@/assets/images/no_image_available.jpeg')
+        return require("@/assets/images/no_image_available.jpeg");
       } else {
         return FileService.image_url_verylow(item.avatarImage);
       }
@@ -570,15 +504,8 @@ export default {
     if (!this.currentUser) {
       this.$router.push("/login");
     } else {
-      await  this.fetchParent()
-
-      //Karena ada data Tipe yang harus selesai load dulu, maka fetchFDayaDukung harus di delay
-      // setTimeout(() => {
-      //   this.fetchFDayaDukung();
-      // }, 250); // delay 1000 ms = 1 detik
-
-      this.fetchFDayaDukung();
-
+      await this.fetchParent();
+      this.fetchFtDataset();
     }
   },
 };

@@ -384,6 +384,11 @@ export default {
         if (value.selected === true ) {
           const geojsonResponse = await response.json();
 
+          if (!geojsonResponse || !Array.isArray(geojsonResponse.features)) {
+            console.warn("GeoJSON tidak memiliki fitur yang valid", geojsonResponse);
+            return;
+          }
+
           this.itemSpaDayaDukungGeojson.push({
             id: value.id,
             data: {
@@ -416,7 +421,7 @@ export default {
       this.valueChangedSpaMainGeoJson(this.itemModified)
     },
     resetTampilanPeta(){
-      this.itemSpaMainGeojson = [];
+      this.itemSpaDayaDukungGeojson = [];
     },
     jsonToHtmlTable(jsonValue) {
       const myObj = jsonValue;

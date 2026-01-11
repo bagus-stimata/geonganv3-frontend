@@ -4,124 +4,149 @@
       <v-img
           :src="backgroundImage"
           alt="Banner Image"
-          class="banner-image image-with-overlay"
-          height="700"
+          class="banner-image image-with-overlay py-16"
+          height="100vh"
           gradient="to left, rgba(0,0,0,.9), rgba(0,0,0,0.1)"
           cover
       >
-        <div style="position: relative; top: 170px">
-          <v-row>
-            <v-col class="text-center d-flex">
-              <v-spacer />
-              <v-img
-                  max-height="160"
-                  max-width="110"
-                  contain
-                  :src="require('@/assets/logo.png')"
-              />
-              <v-spacer />
+        <div class="text-center" style="width: 100%">
+          <v-row class="mt-10">
+            <v-spacer></v-spacer>
+            <v-col class="mt-10" cols="12" md="6" sm="6">
+              <div class="text-md-h2 text-h3 font-weight-black text-white text-center">Lebih mudah paham data lewat peta</div>
+            </v-col>
+            <v-spacer></v-spacer>
+          </v-row>
+          <v-row class="mt-1 align-center justify-center" >
+            <v-col cols="12" md="6" sm="6">
+              <div class="text-subtitle-1 font-weight-bold text-white text-center">Dapatkan insight dengan cepat, untuk keputusan yang tepat</div>
             </v-col>
           </v-row>
-
-          <v-row>
-            <v-col>
-              <div class="title text-center">
-                <h2>
-                  <div class="waviy">
-                    <span style="--i: 1" class="orange--text">G</span>
-                    <span style="--i: 2" class="orange--text">E</span>
-                    <span style="--i: 1" class="orange--text">O</span>
-                    <span style="--i: 1" class="orange--text">.</span>
-                    <span style="--i: 2">P</span>
-                    <span style="--i: 1">O</span>
-                    <span style="--i: 1">R</span>
-                    <span style="--i: 2">T</span>
-                    <span style="--i: 2">A</span>
-                    <span style="--i: 2">L</span>
-                  </div>
-                </h2>
-                <div class="mt-0 my-title1">DISKOMINFO</div><br>
-                <div class="mt-n2 my-title2">KABUPATEN NGANJUK</div>
-              </div>
-            </v-col>
-          </v-row>
-
-          <v-row class="mt-0">
-            <v-col />
-            <v-col cols="12" class="text-center">
+          <v-row class="align-center justify-center">
+            <v-col class="px-3 mx-3" cols="12" md="5" sm="12" >
               <v-text-field
-                  v-if="false"
-                  v-model="search"
-                  outlined
-                  class="v-text-field__slot text-center white rounded-pill elevation-16"
-                  append-inner-icon="mdi-magnify"
+                  style="box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2);"
+                  prepend-inner-icon="mdi-magnify"
+                  density="compact"
+                  class="rounded-xl bg-white text-caption pt-1 pb-3 px-3"
+                  variant="plain"
                   hide-details
-                  single-line
-                  placeholder="Masukkan Kata Kunci.. (Enter untuk mencari)"
-                  @keyup.enter="searchData"
-              />
-              <!-- custom input tetap sama UI-nya -->
-              <div class="search-container">
-                <input
-                    type="text"
-                    v-model="search"
-                    @keyup.enter="searchData"
-                    placeholder="Masukkan Kata Kunci.. (Enter untuk mencari)"
-                    class="centered-input"
-                />
-                <v-icon class="input-icon">mdi-magnify</v-icon>
-              </div>
+                  placeholder="Cari Berdasarkan Nama Dataset/Kata Kunci"
+              >
+                <template #append-inner>
+                  <div class="d-flex flex-row align-center">
+                    <v-divider vertical></v-divider>
+                    <v-btn @click="activateDeepSearchGeojson" size="regular" class="px-2 font-weight-bold" :color="isActiveDeepSearch?'blue':''" density="comfortable" variant="text">
+                      <v-icon v-if="isActiveDeepSearch" color="blue">mdi-map-check</v-icon>
+                      <v-icon v-else>mdi-map</v-icon>
+                      <span :class="isActiveDeepSearch?'text-blue':'text-grey-darken-2'" class="ml-1 font-weight-bold text-subtitle-2">Deep</span>
+                      <v-tooltip
+                          activator="parent"
+                          location="top"
+                      >Deep search dataset peta</v-tooltip>
+                    </v-btn>
+                    <v-btn :color="isActiveDeepSearch?'indigo' : 'green'" class="rounded-be-xl rounded-te-xl font-weight-bold text-white" variant="flat" size="small">Search</v-btn>
+                  </div>
+                </template>
+              </v-text-field>
             </v-col>
-            <v-col />
           </v-row>
         </div>
+        <v-sheet class="mx-auto bg-transparent" elevation="0" width="100%">
+          <v-slide-group
+              v-model="model"
+              class="pa-4 bg-transparent"
+              center-active
+              mandatory
+              :show-arrows="false"
+          >
+            <v-slide-group-item
+                v-for="set in mapsetItems"
+                :key="set.id"
+                v-slot="{ isSelected, toggle }"
+            >
+              <div class="sg-item-wrap" @click="toggle">
+                <v-card
+                    class="sg-card rounded-xl pa-2"
+                    :class="{ 'sg-card--active': isSelected }"
+                >
+                  <v-row>
+                    <v-col cols="5">
+                      <v-img
+                          width="100%"
+                          :height="isMobile ? (isSelected ? '160' : '130') : (isSelected ? '224' : '186')"
+                          cover
+                          :src="require('@/assets/images/basemap.jpeg')"
+                          class="rounded-xl"
+                      />
+                    </v-col>
+                    <v-col cols="7" class="py-4">
+                      <div class="text-md-h6 text-subtitle-1 font-weight-bold text-indigo">
+                        {{set.title}}
+                      </div>
+                      <div class="text-md-subtitle-1 text-subtitle-2 font-weight-light text-grey">
+                        {{ set.desc }}
+                      </div>
+                    </v-col>
+                  </v-row>
+                </v-card>
+              </div>
+            </v-slide-group-item>
+          </v-slide-group>
+        </v-sheet>
       </v-img>
     </v-card>
-
-    <div class="text-center mt-n16">
-      <v-row class="text-center">
-        <v-spacer />
-        <v-card class="d-flex text-center rounded-lg" elevation="15" style="z-index:2">
-          <CustomButton label="Katalog Peta" icon="mdi-database" link="public-dataset" />
-          <CustomButton label="Data OPD" icon="mdi-home" link="/" />
-          <CustomButton label="Peta Interaktif" icon="mdi-map" link="public-map" />
-          <CustomButton label="Berita" icon="mdi-library" link="public-berita" />
-        </v-card>
-        <v-spacer />
-      </v-row>
-    </div>
-
-    <HomeSearchResult
-        ref="refHomeSearchResult"
-        id="target-scroll-section"
-    />
-
-    <div class="elevation-0" v-if="false">
-      <CustomButton link="aa" icon="aa" label="aa" />
-    </div>
-
-    <div>
-      <div class="text-h5 green--text text--darken-2 font-weight-bold text-center">
-        CAPAIAN KINERJA INDIKATOR MAKRO
-      </div>
-
-      <div class="mt-6 text-center">
-        <PublicHomeCharts />
-      </div>
-    </div>
+    <HomePetaInteraktif></HomePetaInteraktif>
+    <HomeNews :fnewsFiltered="fnewsFiltered"></HomeNews>
+    <YoutubeVideo
+    ></YoutubeVideo>
   </div>
 </template>
 
 <script>
-import CustomButton from "@/components/public/beranda/CustomButton.vue";
-import HomeSearchResult from "@/components/public/beranda/HomeSearchResult.vue";
-import PublicHomeCharts from "@/components/public/beranda/PublicHomeCharts.vue";
+import YoutubeVideo from "@/components/public/beranda/YoutubeVideo.vue";
+import HomePetaInteraktif from "@/components/public/beranda/HomePetaInteraktif.vue";
+import HomeNews from "@/components/public/beranda/HomeNews.vue";
 
 export default {
   name: "PublicHome",
-  components: {PublicHomeCharts, HomeSearchResult, CustomButton},
+  components: {HomeNews, HomePetaInteraktif, YoutubeVideo},
   data() {
     return {
+      fnewsFiltered:[],
+      mapsetItems: [
+        {
+          id: 1,
+          title: 'Dataset Titik UMKM',
+          desc: 'Persebaran UMKM & lokasi usaha (point layer).',
+          img: require('@/assets/images/basemap.jpeg'),
+          color: 'indigo',
+        },
+        {
+          id: 2,
+          title: 'RDTR Zona Peruntukan',
+          desc: 'Zonasi pemanfaatan ruang (polygon) untuk RDTR.',
+          img: require('@/assets/images/basemap.jpeg'),
+          color: 'deep-purple',
+        },
+        {
+          id: 3,
+          title: 'Jaringan Jalan',
+          desc: 'Klasifikasi jalan nasional/prov/kab (line layer).',
+          img: require('@/assets/images/basemap.jpeg'),
+          color: 'teal',
+        },
+        {
+          id: 4,
+          title: 'Batas Administrasi',
+          desc: 'Kabupaten/Kecamatan/Desa (polygon).',
+          img: require('@/assets/images/basemap.jpeg'),
+          color: 'blue',
+        },
+      ],
+      model: 0,            // index 0..14
+      cycleTimer: null,
+      cycleMs: 4500,
       toggle_exclusive: undefined,
       isDarkMode: false,
       switchOn: "beranda",
@@ -133,36 +158,32 @@ export default {
       pageSizes: [3],
       itemsPerSlide: 3,
 
-      model: null,
       search: "",
       itemsFDivision: [],
-      backgroundImage: require("@/assets/carousel/carousel-2.png"),
-
+      backgroundImage: require("@/assets/images/homeimage.jpg"),
+      isActiveDeepSearch: false,
     };
   },
+  computed: {
+    isMobile() {
+      const d = this.$vuetify && this.$vuetify.display
+      return d ? d.smAndDown : false
+    },
+  },
   methods: {
-    searchData() {
-      if (this.search.length < 3) {
-        return;
-      }
-
-      //Scroll ke paling Bawah Halaman
-      // window.scrollTo({
-      //   top: document.body.scrollHeight,
-      //   behavior: 'smooth'
-      // });
-      const element = document.getElementById('target-scroll-section');
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth' });
-      }
-      this.$refs.refHomeSearchResult.fetchData(this.search);
-
-      // console.log("searchData");
-
+    activateDeepSearchGeojson(){
+      this.isActiveDeepSearch = !this.isActiveDeepSearch
     },
   },
   mounted() {
-
+    this.model = 1;
+    this.cycleTimer = window.setInterval(() => {
+      const total = 4;
+      this.model = (Number(this.model) + 1) % total;
+    }, this.cycleMs);
+  },
+  beforeUnmount() {
+    if (this.cycleTimer) window.clearInterval(this.cycleTimer);
   },
 };
 </script>
@@ -171,30 +192,45 @@ export default {
 
 <style scoped>
 
-.search-container {
-  position: relative;
-  display: inline-block;
+.sg-item-wrap{
+  /* setiap item punya "slot" yang selalu center */
+  width: min(700px, 94vw);                /* >= width aktif */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 4px;
 }
 
-.centered-input {
-  color: white;
-  text-align: center;
-  font-weight: bold;
-  padding: 10px 40px 10px 20px; /* Sesuaikan padding agar ada ruang untuk ikon */
-  font-size: 16px;
-  border: 1px solid #ccc;
-  border-radius: 50px; /* Membuat input menjadi melingkar */
-  outline: none;
-  width: 500px;
-  background-color: transparent;
-  flex-grow: 1;
+.sg-card{
+  width: min(560px, 80vw);
+  height: 200px;
+  transition: width 220ms ease, height 220ms ease, transform 220ms ease;
 }
 
-.input-icon {
-  margin-top: 10px;
-  position: absolute;
-  right: 10px; /* Posisi ikon di kanan input */
-  color: #ccc;
-  pointer-events: none; /* Ikon tidak bisa di-klik */
+.sg-card--active{
+  width: min(700px, 88vw);
+  height: 240px;
+  transform: translateZ(0);
+}
+
+@media (max-width: 600px){
+  .sg-item-wrap{
+    width: 94vw;
+    padding: 2px;
+  }
+
+  .sg-card{
+    height: 150px;
+  }
+
+  .sg-card--active{
+    height: 180px;
+  }
+}
+
+/* <style scoped> */
+:deep(.v-slide-group__prev),
+:deep(.v-slide-group__next) {
+  display: none !important;
 }
 </style>

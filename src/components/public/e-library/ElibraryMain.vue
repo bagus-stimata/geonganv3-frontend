@@ -36,7 +36,7 @@
                 </v-col>
               </v-row>
 
-              <v-row class="mt-5">
+              <v-row class="mt-2">
                 <v-col>
                   <v-btn small outlined color="red" @click="resetFilter">
                     <v-icon small>mdi-refresh</v-icon>

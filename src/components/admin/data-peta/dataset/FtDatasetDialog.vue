@@ -49,100 +49,71 @@
           <v-card-title>
             <v-container class="pa-4">
               <v-row>
-                <v-container class="pa-4 text-center">
-                  <v-row align="center" justify="center">
-                    <v-hover>
-                      <template v-slot:default="{ isHovering, props }">
-                        <v-card
-                            v-bind="props"
-                            class="align-self-center"
-                            :elevation="isHovering ? 10 : 1"
-                            :class="[{ 'on-hover': isHovering }, isHovering?'card-hover-opacity':'card-not-hover-opacity']"
-                        >
-                          <v-img
-                              :lazy-src="lookupImageUrlLazy(itemModified)"
-                              :src="lookupImageUrl(itemModified)"
-                              width="220"
-                              height="220"
-                              cover
 
+                <v-col cols="12" sm="12" md="5">
+                  <v-container class="pa-2 text-center">
+                    <v-row align="center" justify="center">
+                      <v-hover>
+                        <template v-slot:default="{ isHovering, props }">
+                          <v-card
+                              v-bind="props"
+                              class="align-self-center"
+                              :elevation="isHovering ? 10 : 1"
+                              :class="[{ 'on-hover': isHovering }, isHovering?'card-hover-opacity':'card-not-hover-opacity']"
                           >
-                            <v-card-title class="text-h6 fill-height">
-                              <v-row
-                                  class="fill-height flex-column"
-                                  justify="space-between"
-                              >
-                                <v-spacer/>
-                                <div class="align-self-center">
-                                  <v-btn
-                                      :class="{ 'show-btns': isHovering }"
-                                      :color="transparent"
-                                      icon
-                                      size="large"
-                                      dark
-                                      variant="outlined"
-                                      @click="showDialogUpload"
-                                  >
-                                    <v-icon
+                            <v-img
+                                :lazy-src="lookupImageUrlLazy(itemModified)"
+                                :src="lookupImageUrl(itemModified)"
+                                min-width="320"
+                                min-height="320"
+                                cover
+                            >
+                                <v-row
+                                    class="fill-height flex-column"
+                                    justify="space-between"
+                                >
+                                  <v-spacer/>
+                                  <div class="align-self-center">
+                                    <v-btn
                                         :class="{ 'show-btns': isHovering }"
                                         :color="transparent"
+                                        icon
                                         size="large"
+                                        dark
+                                        variant="outlined"
+                                        @click="showDialogUpload"
                                     >
-                                      mdi-upload
-                                    </v-icon>
-                                  </v-btn>
-                                </div>
-                              </v-row>
+                                      <v-icon
+                                          :class="{ 'show-btns': isHovering }"
+                                          :color="transparent"
+                                          size="large"
+                                      >
+                                        mdi-upload
+                                      </v-icon>
+                                    </v-btn>
+                                  </div>
+                                </v-row>
+                            </v-img>
+                          </v-card>
+                        </template>
+                      </v-hover>
+                    </v-row>
+                  </v-container>
+                </v-col>
 
-                            </v-card-title>
-                          </v-img>
-                        </v-card>
-                      </template>
-                    </v-hover>
-                  </v-row>
-                </v-container>
-
-                <v-col cols="12" md="12" sm="6">
-                  <v-row>
-                    <v-col cols="12" sm="6" md="3">
+                <v-col cols="12" sm="12" md="7">
+                  <v-row no-gutters>
+                    <v-col cols="12" sm="12" md="6">
                       <v-text-field
                         v-model="itemModified.kode1"
                         label="Kode"
                         :rules="rulesNotEmpty"
                         variant="outlined"
                         density="compact"
+                        class="mr-2"
                       ></v-text-field>
                     </v-col>
-                    <v-col cols="12" sm="6" md="9">
-                      <v-text-field
-                        v-model="itemModified.description"
-                        :rules="rulesNotEmpty"
-                        label="Nama PETA "
-                        variant="outlined"
-                        density="compact"
-                      ></v-text-field>
-                    </v-col>
-                  </v-row>
-                  <v-row>
-                    <v-col cols="12" sm="4" md="3">
-                      <v-text-field
-                        v-model="itemModified.tahun"
-                        label="Tahun "
-                        variant="outlined"
-                        density="compact"
-                      ></v-text-field>
-                    </v-col>
-                    <v-col cols="12" sm="8" md="8" v-if="true">
-                      <v-text-field
-                          v-model="itemModified.sumberData"
-                          label="Catatan/Sumber Data"
-                          variant="outlined"
-                          density="compact"
-                      ></v-text-field>
-                    </v-col>
-                  </v-row>
-                  <v-row>
-                    <v-col cols="12" sm="6" md="3">
+                    <v-col cols="12" sm="12" md="6" class="align-center flex-column">
                       <v-switch
                           v-model="itemModified.statusActive"
                           :label="itemModified.statusActive ? 'Aktif' : 'Non-Aktif'"
@@ -152,105 +123,80 @@
                           color="primary"
                       ></v-switch>
                     </v-col>
-                    <v-col cols="12" sm="6" md="5" v-if="false">
-                      <v-switch
-                          v-model="itemModified.showToPublic"
-                          :label="itemModified.showToPublic? 'Tampilkan pada Halaman Public': 'Jangan Tampilkan pada Halaman Public'"
-                          class="pa-3"
+                  </v-row>
+                  <v-row no-gutters>
+                    <v-col cols="12">
+                      <v-text-field
+                          v-model="itemModified.description"
+                          :rules="rulesNotEmpty"
+                          label="Judul Peta"
+                          variant="outlined"
                           density="compact"
-                          hide-details
-                          color="primary"
-                      ></v-switch>
-                    </v-col>
-                    <v-col cols="12" sm="6" md="4">
-                      <v-switch
-                          v-model="itemModified.showToMap"
-                          :label="itemModified.showToMap? 'Tampilkan Pada Peta Beranda': 'Jangan Tampilkan Pada Peta Beranda'"
-                          class="pa-3"
-                          density="compact"
-                          hide-details
-                          color="primary"
-                      ></v-switch>
+                      ></v-text-field>
                     </v-col>
                   </v-row>
+                  <v-row no-gutters>
+                    <v-col cols="12">
+                      <v-textarea
+                          rows="3"
+                          auto-grow
+                          v-model="itemModified.notes"
+                          label="Keterangan"
+                          variant="outlined"
+                          density="compact"
+                      ></v-textarea>
+                    </v-col>
+                  </v-row>
+                  <v-row no-gutters>
+                    <v-col cols="12" sm="12" md="3">
+                      <v-text-field
+                        v-model="itemModified.tahun"
+                        label="Tahun "
+                        variant="outlined"
+                        density="compact"
+                        class="mr-1"
+                      ></v-text-field>
+                    </v-col>
+                    <v-col cols="12" sm="12" md="9">
+                      <v-text-field
+                          v-model="itemModified.sumberData"
+                          label="Sumber Data"
+                          variant="outlined"
+                          density="compact"
+                      ></v-text-field>
+                    </v-col>
+                  </v-row>
+                  <v-row no-gutters>
+                    <v-col cols="12" sm="12" md="12">
+                      <v-autocomplete
+                          v-model="itemModified.fdivisionBean"
+                          :items="itemsFDivision"
+                          :rules="rulesNotEmpty"
+                          item-value="id"
+                          item-title="description"
+                          auto-select-first
+                          small-chips
+                          deletable-chips
+                          color="blue-grey-lighten-2"
+                          label="Pemilik Data"
+                          persistent-hint
+                          variant="outlined"
+                          density="compact"
+                      ></v-autocomplete>
+                    </v-col>
+
+                  </v-row>
+
                 </v-col>
               </v-row>
             </v-container>
           </v-card-title>
 
           <v-card-text>
-            <v-container>
-              <v-row>
-                <v-col cols="12" sm="6" md="4">
-                  <v-autocomplete
-                    v-model="itemModified.fdivisionBean"
-                    :items="itemsFDivision"
-                    :rules="rulesNotEmpty"
-                    item-value="id"
-                    item-title="description"
-                    auto-select-first
-                    small-chips
-                    deletable-chips
-                    color="blue-grey-lighten-2"
-                    label="Pemilik Data"
-                    hint="Pemilik Data"
-                    persistent-hint
-                    single-line
-                    variant="outlined"
-                    density="compact"
-                  ></v-autocomplete>
-                </v-col>
-                <v-col cols="12" sm="6" md="4">
-                  <v-autocomplete
-                      v-model="itemModified.datasetType"
-                      :items="itemsDatasetType"
-                      :rules="rulesNotEmpty"
-                      item-value="code"
-                      item-title="description"
-                      auto-select-first
-                      variant="outlined"
-                      density="compact"
-                      small-chips
-                      deletable-chips
-                      color="blue-grey lighten-2"
-                      label="Jenis Data Spasial"
-                      hint="Jenis Data Spasial (GEOJSON, POSTGIS, CSV POINT, RASTER)"
-                      persistent-hint
-                      single-line
-                      hide-details
-                  ></v-autocomplete>
-                </v-col>
-                <v-col cols="12" sm="6" md="4" v-if="false">
-                  <v-autocomplete
-                      v-model="itemModified.fareaBean"
-                      :items="itemsFArea"
-                      :rules="rulesNotEmpty"
-                      item-value="id"
-                      item-title="description"
-                      auto-select-first
-                      small-chips
-                      deletable-chips
-                      color="blue-grey-lighten-2"
-                      label="Kecamatan"
-                      hint="Kecamatan"
-                      persistent-hint
-                      single-line
-                      variant="outlined"
-                      density="compact"
-                  ></v-autocomplete>
-                </v-col>
-              </v-row>
-
-
-            </v-container>
-          </v-card-text>
-
-          <v-card-text>
-            <v-container>
-              <!-- Mode: pilih file baru (belum ada geojson tersimpan ATAU user sudah pilih file baru) -->
-              <v-row v-if="!hasStoredGeojson || geojsonFileName">
-                <v-col cols="12" sm="8" md="6">
-                  <v-file-input
+            <!-- Mode: pilih file baru (belum ada geojson tersimpan ATAU user sudah pilih file baru) -->
+            <v-row v-if="!hasStoredGeojson || geojsonFileName">
+              <v-col cols="12" sm="8" md="6">
+                <v-file-input
                     v-model="geojsonFile"
                     label="Pilih File GeoJSON (.geojson)"
                     accept=".geojson,.json"
@@ -259,38 +205,86 @@
                     prepend-inner-icon="mdi-file-upload"
                     @change="onGeojsonFileSelected"
                     hide-details
-                  ></v-file-input>
-                </v-col>
-                <v-col cols="12" sm="4" md="6" v-if="geojsonFileName">
-                  <div class="text-caption mt-2">
-                    File terpilih:
-                    <strong>{{ geojsonFileName }}</strong>
-                  </div>
-                </v-col>
-              </v-row>
-              <!-- Mode: sudah ada GeoJSON tersimpan dari backend, tampilkan tombol download & hapus -->
-              <v-row v-else>
-                <v-col cols="12" sm="4" md="6" class="d-flex align-center">
-                  <v-btn
-                      color="primary"
-                      variant="flat"
-                      class="mr-2 rounded-lg"
-                      @click="downloadInlineGeojson"
-                  >
-                    Download GeoJSON
-                  </v-btn>
-                  <v-btn
-                      color="error"
-                      variant="outlined"
-                      class="rounded-lg"
-                      @click="clearStoredGeojson"
-                  >
-                    Hapus GeoJSON
-                  </v-btn>
-                </v-col>
-              </v-row>
-            </v-container>
+                ></v-file-input>
+              </v-col>
+              <v-col cols="12" sm="4" md="6" v-if="geojsonFileName">
+                <div class="text-caption mt-2">
+                  File terpilih:
+                  <strong>{{ geojsonFileName }}</strong>
+                </div>
+              </v-col>
+            </v-row>
+            <!-- Mode: sudah ada GeoJSON tersimpan dari backend, tampilkan tombol download & hapus -->
+            <v-row v-else>
+              <v-col cols="12" sm="4" md="6" class="d-flex align-center">
+                <v-btn
+                    color="primary"
+                    variant="flat"
+                    class="mr-2 rounded-lg"
+                    @click="downloadInlineGeojson"
+                >
+                  Download GeoJSON
+                </v-btn>
+                <v-btn
+                    color="error"
+                    variant="outlined"
+                    class="rounded-lg"
+                    @click="clearStoredGeojson"
+                >
+                  Hapus GeoJSON
+                </v-btn>
+              </v-col>
+            </v-row>
+
           </v-card-text>
+
+
+          <v-card-text>
+
+            <v-row>
+            <v-col cols="12" sm="12" md="5">
+              <v-autocomplete
+                  v-model="itemModified.datasetType"
+                  :items="itemsDatasetType"
+                  :rules="rulesNotEmpty"
+                  item-value="code"
+                  item-title="description"
+                  auto-select-first
+                  variant="outlined"
+                  density="compact"
+                  small-chips
+                  deletable-chips
+                  color="blue-grey lighten-2"
+                  label="Jenis Data Spasial"
+                  hide-details
+              ></v-autocomplete>
+            </v-col>
+
+            <v-col cols="12" sm="6" md="5" v-if="false">
+              <v-switch
+                  v-model="itemModified.showToPublic"
+                  :label="itemModified.showToPublic? 'Tampilkan pada Halaman Public': 'Jangan Tampilkan pada Halaman Public'"
+                  class="pa-3"
+                  density="compact"
+                  hide-details
+                  color="primary"
+              ></v-switch>
+            </v-col>
+            <v-col cols="12" sm="12" md="6">
+              <v-switch
+                  v-model="itemModified.showToMap"
+                  :label="itemModified.showToMap? 'Tampilkan Pada Peta Beranda': 'Jangan Tampilkan Pada Peta Beranda'"
+                  density="compact"
+                  hide-details
+                  color="primary"
+              ></v-switch>
+            </v-col>
+
+          </v-row>
+
+          </v-card-text>
+
+          <v-divider></v-divider>
 
           <v-card-text v-if="false">
             <div class="text-subtitle-2">Metadata Atribut GeoJSON</div>
@@ -325,7 +319,7 @@
 
           <!-- Tabel metadata atribut GeoJSON: nama field, tipe, dan alias tampilan -->
           <v-card-text v-if="propertyMetaRows && propertyMetaRows.length">
-            <div class="d-flex align-center mb-2">
+            <div class="d-flex align-center mb-1">
               <v-btn
                   v-if="propertyMetaRows && propertyMetaRows.length"
                   small
@@ -352,16 +346,20 @@
             </div>
           </v-card-text>
 
-          <v-btn
-              color="green-darken-1"
-              variant="elevated"
-              class="ml-4 rounded-lg"
-              @click="loadGeojsonFromServer"
-              style="text-transform: none;"
-          >
-            <span v-if="!hasGeojsonLoaded" class="d-flex align-center">Load Peta Geojson <v-icon class="ml-1">mdi-map</v-icon></span>
-            <span v-if="hasGeojsonLoaded" class="text-light-blue-lighten-4">Refresh Peta</span>
-          </v-btn>
+          <v-divider></v-divider>
+
+          <v-card-text>
+            <v-btn
+                color="green-darken-1"
+                variant="elevated"
+                class="ml-4 rounded-lg"
+                @click="loadGeojsonFromServer"
+                style="text-transform: none;"
+            >
+              <span v-if="!hasGeojsonLoaded" class="d-flex align-center">Load Peta Geojson <v-icon class="ml-1">mdi-map</v-icon></span>
+              <span v-if="hasGeojsonLoaded" class="text-light-blue-lighten-4">Refresh Peta</span>
+            </v-btn>
+          </v-card-text>
 
           <v-card-text v-if="hasGeojsonForPreview">
             <FDayaDukungPetaMap
@@ -415,7 +413,7 @@
             </div>
           </v-card-text>
 
-          <v-card-actions>
+          <v-card-actions class="bg-amber-lighten-4">
             <v-chip
                 class="ml-4"
                 color="error"
@@ -450,7 +448,7 @@
                 variant="flat"
                 @click="saveAndClose"
                 :disabled="!valid || isItemModified === false"
-                class="hidden-sm-and-down"
+                class="hidden-sm-and-down mr-4"
             >
               Save & Close
             </v-btn>
@@ -499,7 +497,7 @@
       </v-snackbar>
     </v-dialog>
 
-    <!-- Dialog pilih kolom tampil di peta (propertyGroups) -->
+    <!-- Dialog pilih kolom tampil di peta (propertiesShow) -->
     <v-dialog v-model="dialogPropertyGroupShow" max-width="500">
       <v-card>
         <v-card-title class="text-subtitle-2">
@@ -532,7 +530,7 @@
                 </v-col>
                 <v-col cols="2">
                   <v-checkbox
-                      v-model="localPropertyGroups"
+                      v-model="localPropertiesShow"
                       :value="row.name"
                       density="compact"
                       hide-details
@@ -546,7 +544,7 @@
         <v-card-actions>
           <v-spacer></v-spacer>
           <v-btn variant="text" @click="dialogPropertyGroupShow = false">Batal</v-btn>
-          <v-btn color="primary" variant="flat" @click="applyPropertyGroups">Simpan</v-btn>
+          <v-btn color="primary" variant="flat" @click="applyPropertiesShow">Simpan</v-btn>
         </v-card-actions>
       </v-card>
     </v-dialog>
@@ -625,9 +623,9 @@ export default {
 
       // Baris-baris metadata atribut GeoJSON (nama field, tipe, alias tampilan)
       propertyMetaRows: [],
-      // Dialog pilih kolom grouping (propertyGroups)
+      // Dialog pilih kolom grouping (propertiesShow)
       dialogPropertyGroupShow: false,
-      localPropertyGroups: [],
+      localPropertiesShow: [],
       featureColumns: [],
       featureRows: [],
       featureFilterInput: "",
@@ -668,8 +666,8 @@ export default {
       return hasFlag && !hasLocalSelectedFile;
     },
     propertyGroupChips() {
-      // Ambil propertyGroups tersimpan; jika kosong, fallback ke semua propertyMetaRows
-      const groups = this.parsePropertyGroupsFromItem(this.itemModified);
+      // Ambil propertiesShow tersimpan; jika kosong, fallback ke semua propertyMetaRows
+      const groups = this.parsePropertiesShowFromItem(this.itemModified);
       if (groups && groups.length) {
         return groups;
       }
@@ -994,10 +992,10 @@ export default {
 
       this.propertyMetaRows = rows;
     },
-    parsePropertyGroupsFromItem(item) {
-      if (!item || !item.propertyGroups) return [];
+    parsePropertiesShowFromItem(item) {
+      if (!item || !item.propertiesShow) return [];
 
-      const raw = item.propertyGroups;
+      const raw = item.propertiesShow;
 
       if (Array.isArray(raw)) return raw;
 
@@ -1008,7 +1006,7 @@ export default {
           const parsed = JSON.parse(trimmed);
           return Array.isArray(parsed) ? parsed : [];
         } catch (e) {
-          console.warn("[FtDatasetDialog] gagal parse propertyGroups", e);
+          console.warn("[FtDatasetDialog] gagal parse propertiesShow", e);
           return [];
         }
       }
@@ -1016,31 +1014,31 @@ export default {
       return [];
     },
 
-    stringifyPropertyGroups(groups) {
+    stringifyPropertiesShow(groups) {
       try {
         return JSON.stringify(groups || []);
       } catch (e) {
-        console.warn("[FtDatasetDialog] gagal stringify propertyGroups", e);
+        console.warn("[FtDatasetDialog] gagal stringify propertiesShow", e);
         return "[]";
       }
     },
 
     openPropertyGroupDialog() {
-      this.localPropertyGroups = this.parsePropertyGroupsFromItem(this.itemModified);
+      this.localPropertiesShow = this.parsePropertiesShowFromItem(this.itemModified);
       // Default: semua kolom tampil pada peta
-      if ((!this.localPropertyGroups || this.localPropertyGroups.length === 0) && this.propertyMetaRows && this.propertyMetaRows.length) {
-        this.localPropertyGroups = this.propertyMetaRows.map((r) => r.name);
+      if ((!this.localPropertiesShow || this.localPropertiesShow.length === 0) && this.propertyMetaRows && this.propertyMetaRows.length) {
+        this.localPropertiesShow = this.propertyMetaRows.map((r) => r.name);
       }
       this.dialogPropertyGroupShow = true;
     },
 
-    applyPropertyGroups() {
-      const groups = Array.isArray(this.localPropertyGroups)
-          ? this.localPropertyGroups.slice()
+    applyPropertiesShow() {
+      const groups = Array.isArray(this.localPropertiesShow)
+          ? this.localPropertiesShow.slice()
           : [];
 
       // Simpan sebagai JSON string biar konsisten dengan propertyKeys/propertiesMeta
-      this.itemModified.propertyGroups = this.stringifyPropertyGroups(groups);
+      this.itemModified.propertiesShow = this.stringifyPropertiesShow(groups);
 
       this.dialogPropertyGroupShow = false;
     },
@@ -1107,7 +1105,7 @@ export default {
           this.itemModified = new FtDataset(0, "", "");
           this.itemModified.fileType = "geojson-gzip";
           this.selectedIndex = -1;
-          this.itemModified.propertyGroups = "[]"
+          this.itemModified.propertiesShow = "[]"
 
           this.featureColumns = [];
           this.featureRows = [];

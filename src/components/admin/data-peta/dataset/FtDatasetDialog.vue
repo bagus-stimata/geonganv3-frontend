@@ -336,31 +336,62 @@
 
           <v-divider></v-divider>
 
-          <v-card-text>
-            <v-btn
-                color="green-darken-1"
-                variant="elevated"
-                class="ml-4 rounded-lg"
-                @click="loadGeojsonFromServer"
-                style="text-transform: none;"
+          <v-card-text v-if="itemModified.hasGeojson">
+            <v-btn-toggle
+                v-model="togglePetaDanEditMode"
+                rounded="lg"
+                divided
+                border
+                color="primary"
+                class="ml-4"
             >
-              <span v-if="!hasGeojsonLoaded" class="d-flex align-center">Load Peta Geojson <v-icon class="ml-1">mdi-map</v-icon></span>
-              <span v-if="hasGeojsonLoaded" class="text-light-blue-lighten-4">Refresh Peta</span>
-            </v-btn>
+              <v-btn
+                  value="LOAD_PETA_GEOJSON"
+                  color="green-darken-1"
+                  @click="loadGeojsonFromServer"
+                  style="text-transform: none;"
+              >
+                <span class="d-flex align-center">
+                  Load Peta GeoJSON
+                  <v-icon class="ml-1">mdi-map</v-icon>
+                </span>
+              </v-btn>
+
+              <v-btn
+                  value="EDIT_DATA_GEOJSON"
+                  color="orange-darken-1"
+                  @click="loadGeojsonFromServer"
+                  style="text-transform: none;"
+              >
+                <span class="d-flex align-center">
+                  Load & Edit Data
+                  <v-icon class="ml-1">mdi-pen</v-icon>
+                </span>
+              </v-btn>
+            </v-btn-toggle>
           </v-card-text>
 
-          <v-card-text v-if="hasGeojsonForPreview">
+
+          <!-- Load Peta GeoJSON -->
+          <v-card-text v-if="hasGeojsonForPreview && togglePetaDanEditMode==='LOAD_PETA_GEOJSON'">
             <FDayaDukungPetaMap
                 ref="refFDayaDukungPetaMap">
             </FDayaDukungPetaMap>
           </v-card-text>
 
-          <v-card-text  v-if="hasGeojsonForPreview">
+          <!-- Load & Edit Data -->
+          <v-card-text  v-if="hasGeojsonForPreview && togglePetaDanEditMode==='EDIT_DATA_GEOJSON'">
             <div class="text-caption">
               Tabel ini menampilkan nilai properti tiap feature dari GeoJSON yang sudah dimuat dan <span class="font-weight-bold">bisa diedit</span>.
             </div>
-            <div class="mb-n4">
-              <v-checkbox label="Kolom yang Ditampilkan pada Peta Saja" density="compact"></v-checkbox>
+            <div class="ml-2">
+              <v-checkbox
+                  v-model="featureShowOnlyMapColumns"
+                  label="Kolom yang Ditampilkan pada Peta Saja"
+                  density="compact"
+                  hide-details
+                  @change="syncFeatureColumnsView"
+              ></v-checkbox>
             </div>
             <div>
               <v-text-field
@@ -384,7 +415,7 @@
                 <tr>
                   <th class="col-idx" style="width: 40px; min-width: 40px;">#</th>
                   <th
-                      v-for="col in featureColumns"
+                      v-for="col in featureColumnsView"
                       :key="col"
                       class="resizable-th"
                       :style="getFeatureColStyle(col)"
@@ -405,7 +436,7 @@
                   <td class="col-idx">{{ idx + 1 }}</td>
 
                   <td
-                      v-for="col in featureColumns"
+                      v-for="col in featureColumnsView"
                       :key="col"
                       :style="getFeatureColStyle(col)"
                   >
@@ -434,6 +465,7 @@
             >
               {{ formDialogOptions.errorMessage }}
             </v-chip>
+            <v-spacer></v-spacer>
             <v-btn
                 color="red-darken-1"
                 variant="outlined"
@@ -635,13 +667,17 @@ export default {
       // Dialog pilih kolom grouping (propertiesShow)
       dialogPropertyGroupShow: false,
       localPropertiesShow: [],
+
       featureColumns: [],
+      featureColumnsView: [],
       featureRows: [],
+      featureShowOnlyMapColumns: false,
       featureFilterInput: "",
       featureFilterText: "",
 
       featureColWidths: {},
       featureResizeCtx: null,
+      togglePetaDanEditMode: null,
     };
   },
   computed: {
@@ -696,7 +732,10 @@ export default {
       if (!q || q.length <= 2) {
         return this.featureRows;
       }
-      const cols = this.featureColumns || [];
+      const cols =
+          this.featureColumnsView && this.featureColumnsView.length
+              ? this.featureColumnsView
+              : (this.featureColumns || []);
       return this.featureRows.filter((row) =>
         cols.some((col) => {
           const value = row[col];
@@ -711,11 +750,35 @@ export default {
     featureColumns(newVal) {
       if (Array.isArray(newVal) && newVal.length) {
         this.ensureFeatureColWidthDefaults();
+        this.syncFeatureColumnsView();
       }
     },
   },
 
   methods: {
+    getMapOnlyColumns() {
+      // Ambil dari propertiesShow (hasil dialog “Kolom Yang ditampilkan pada Peta”)
+      const selected = this.parsePropertiesShowFromItem(this.itemModified);
+      if (Array.isArray(selected) && selected.length) {
+        return selected;
+      }
+      // Fallback: kalau belum diset, anggap semua kolom aktif
+      return (this.featureColumns || []).slice();
+    },
+
+    syncFeatureColumnsView() {
+      const all = Array.isArray(this.featureColumns) ? this.featureColumns : [];
+
+      if (!this.featureShowOnlyMapColumns) {
+        this.featureColumnsView = all.slice();
+        return;
+      }
+
+      const mapCols = this.getMapOnlyColumns();
+      // Pastikan hanya kolom yang memang ada di table
+      this.featureColumnsView = (mapCols || []).filter((c) => all.includes(c));
+    },
+
     getFeatureColStyle(col) {
       const w = this.featureColWidths && this.featureColWidths[col];
       if (!w) return {};
@@ -927,6 +990,7 @@ export default {
         this.snackbar = true;
       }
     },
+
     async ensureGeojsonLoaded() {
       // Kalau dataset sudah ditandai punya GeoJSON di server tetapi konten belum dimuat,
       // baru panggil backend untuk load GeoJSON berat.
@@ -1112,7 +1176,45 @@ export default {
       this.itemModified.propertiesShow = this.stringifyPropertiesShow(groups);
 
       this.dialogPropertyGroupShow = false;
+      this.syncFeatureColumnsView();
     },
+    reinitAfterApply() {
+      // snapshot ulang biar isItemModified jadi false setelah Apply
+      try {
+        this.itemDefault = JSON.parse(JSON.stringify(this.itemModified));
+      } catch (e) {
+        this.itemDefault = Object.assign({}, this.itemModified);
+      }
+
+      // reset “mode pilih file” (penting setelah Hapus GeoJSON)
+      this.geojsonFile = null;
+      this.geojsonFileName = "";
+
+      // reset UI table/filter
+      this.featureFilterInput = "";
+      this.featureFilterText = "";
+      this.featureShowOnlyMapColumns = false;
+
+      // reset resize drag state
+      this.featureResizeCtx = null;
+      document.body.style.cursor = "";
+
+      // rebuild meta + rows dari itemModified (kayak baru load dialog)
+      this.refreshPropertyMetaFromItem(this.itemModified);
+      this.refreshFeatureRowsFromGeojson();
+      this.syncFeatureColumnsView();
+
+      // kalau geojson sudah dihapus, pastikan heavy UI bener-bener drop
+      if (!this.itemModified || !this.itemModified.hasGeojson) {
+        this.itemModified.geojson = "{}";
+        this.itemModified.withGeojson = false;
+
+        this.featureRows = [];
+        this.featureColumns = [];
+        this.featureColumnsView = [];
+      }
+    },
+
     onGeojsonFileSelected() {
       const file = Array.isArray(this.geojsonFile) ? this.geojsonFile[0] : this.geojsonFile;
 
@@ -1350,42 +1452,80 @@ export default {
       }
     },
 
-    applyChanges() {
-      this.doSaveChanges(false);
+    async applyChanges() {
+      try {
+        if (this.$refs.form && typeof this.$refs.form.validate === "function") {
+          const ok = await this.$refs.form.validate();
+          if (ok === false) return;
+        }
+        if (!this.valid) return;
+
+        // kalau user edit table, sync balik ke geojson sebelum save
+        this.ensureGeojsonSyncedFromTable();
+
+        this.dialogLoading = true;
+
+        if (this.formMode === "NEW_FORM" || !this.itemModified || !this.itemModified.id) {
+          await this.saveCreateOnly();
+        } else {
+          await this.saveUpdateOnly();
+        }
+        await this.reloadLightDatasetById(); //
+        // IMPORTANT: reset state like freshly opened dialog, but do NOT close
+        this.reinitAfterApply();
+
+        this.snackBarMessage = "Tersimpan (Apply)";
+        this.snackbar = true;
+      } catch (e) {
+        console.error(e);
+        this.snackBarMessage = "Gagal Apply";
+        this.snackbar = true;
+      } finally {
+        this.dialogLoading = false;
+      }
     },
 
-    saveAndClose() {
-      this.doSaveChanges(true);
+    async saveAndClose() {
+      await this.applyChanges();
+      if (this.isItemModified === false) {
+        this.closeForm();
+      }
     },
 
     saveCreateOnly() {
       const payload = this.buildPayload();
-      FtDatasetService.createFtDataset(payload).then(
-          (response) => {
-            console.log("=== masuk saveCreateOnly ===");
-            // dipaksa Save dan Update Dahulu
-            this.$emit("update:formMode", FormMode.EDIT_FORM);
-            this.itemModified.id = response.data.id;
-          },
-          (error) => {
-            this.formDialogOptions.errorMessage =
-                error.response?.data?.message || "Gagal create FtDataset";
-          }
-      );
+      return new Promise((resolve, reject) => {
+        FtDatasetService.createFtDataset(payload).then(
+            (response) => {
+              this.$emit("update:formMode", FormMode.EDIT_FORM);
+              if (response?.data?.id) this.itemModified.id = response.data.id;
+              resolve(response);
+            },
+            (error) => {
+              this.formDialogOptions.errorMessage =
+                  error.response?.data?.message || "Gagal create FtDataset";
+              reject(error);
+            }
+        );
+      });
     },
 
     saveUpdateOnly() {
       const payload = this.buildPayload();
-      FtDatasetService.updateFtDataset(payload).then(
-          () => {
-            console.log("=== masuk saveUpdateOnly ===");
-          },
-          (error) => {
-            this.formDialogOptions.errorMessage =
-                error.response?.data?.message || "Gagal update FtDataset";
-          }
-      );
+      const includeGeojson = !!payload.withGeojson;
+
+      return new Promise((resolve, reject) => {
+        FtDatasetService.updateFtDataset(payload, includeGeojson).then(
+            (resp) => resolve(resp),
+            (error) => {
+              this.formDialogOptions.errorMessage =
+                  error.response?.data?.message || "Gagal update FtDataset";
+              reject(error);
+            }
+        );
+      });
     },
+
     closeForm() {
       if (!this.isItemModified) {
         this.dialogShow = false;
@@ -1610,15 +1750,35 @@ export default {
 
     clearStoredGeojson() {
       if (this.itemModified) {
+        // Mark clear
         this.itemModified.geojson = "{}";
         this.itemModified.withGeojson = true;
         this.itemModified.hasGeojson = false;
+
+        // Reset lightweight meta biar UI nggak terasa masih ada data
+        this.itemModified.featureCount = 0;
+        this.itemModified.propertyKeys = "[]";
+        this.itemModified.propertiesMeta = "{}";
+        if (typeof this.itemModified.fileNameLow !== "undefined") {
+          this.itemModified.fileNameLow = "";
+        }
       }
+
+      // clear mode file
       this.geojsonFile = null;
       this.geojsonFileName = "";
 
+      // drop all heavy UI
       this.featureColumns = [];
+      this.featureColumnsView = [];
       this.featureRows = [];
+      this.featureFilterInput = "";
+      this.featureFilterText = "";
+      this.featureShowOnlyMapColumns = false;
+
+      this.featureColWidths = {};
+      this.featureResizeCtx = null;
+      document.body.style.cursor = "";
 
       try {
         if (this.$refs.refFDayaDukungPetaMap) {
@@ -1628,7 +1788,51 @@ export default {
         console.error(e);
       }
     },
+    async reloadLightDatasetById() {
+      if (!this.itemModified?.id) return;
 
+      const resp = await FtDatasetService.getFtDatasetById(this.itemModified.id, false);
+      const incoming = resp?.data;
+      if (!incoming) return;
+
+      this.itemModified = incoming;
+
+      // normalize
+      if (this.itemModified.datasetType && typeof this.itemModified.datasetType === "object") {
+        this.itemModified.datasetType =
+            this.itemModified.datasetType.strCode ||
+            this.itemModified.datasetType.code ||
+            this.itemModified.datasetType.name ||
+            "GEOJSON";
+      }
+
+      // keep geojson unloaded (light)
+      this.itemModified.geojson = "{}";
+      this.itemModified.withGeojson = false;
+      if (this.itemModified.hasGeojson == null) {
+        this.itemModified.hasGeojson = (this.itemModified.featureCount || 0) > 0;
+      }
+
+      this.refreshPropertyMetaFromItem(this.itemModified);
+
+      // drop heavy parts
+      this.featureColumns = [];
+      this.featureColumnsView = [];
+      this.featureRows = [];
+      this.featureFilterInput = "";
+      this.featureFilterText = "";
+      this.featureShowOnlyMapColumns = false;
+      this.featureColWidths = {};
+      this.featureResizeCtx = null;
+
+      this.itemDefault = JSON.parse(JSON.stringify(this.itemModified));
+
+      try {
+        this.$refs.refFDayaDukungPetaMap?.resetTampilanPeta();
+      } catch (e) {
+        console.warn(e);
+      }
+    },
   },
 
   beforeUnmount() {

@@ -202,22 +202,22 @@ export default {
             //   ) && this.currentUser.organizationLevel !== EOrganizationLevel.DIV,
             // },
 
-            {
-              title: "Data GeoJSON",
-              route: "/data-peta-peta",
-              icon: "",
-              visible: [ERole.ROLE_ADMIN].some((x) =>
-                  this.currentUser.roles.includes(x)
-              ) && this.currentUser.organizationLevel !== EOrganizationLevel.DIV,
-            },
-            {
-              title: "Data Tabular",
-              route: "/admin-data-peta-tabular",
-              icon: "",
-              visible: [ERole.ROLE_ADMIN].some((x) =>
-                  this.currentUser.roles.includes(x)
-              ) && this.currentUser.organizationLevel !== EOrganizationLevel.DIV,
-            },
+            // {
+            //   title: "Data GeoJSON",
+            //   route: "/data-peta-peta",
+            //   icon: "",
+            //   visible: [ERole.ROLE_ADMIN].some((x) =>
+            //       this.currentUser.roles.includes(x)
+            //   ) && this.currentUser.organizationLevel !== EOrganizationLevel.DIV,
+            // },
+            // {
+            //   title: "Data Tabular",
+            //   route: "/admin-data-peta-tabular",
+            //   icon: "",
+            //   visible: [ERole.ROLE_ADMIN].some((x) =>
+            //       this.currentUser.roles.includes(x)
+            //   ) && this.currentUser.organizationLevel !== EOrganizationLevel.DIV,
+            // },
             {
               title: "Dataset",
               route: "/admin-data-peta-dataset",

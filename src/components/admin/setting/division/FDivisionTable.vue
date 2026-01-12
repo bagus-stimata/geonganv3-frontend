@@ -10,7 +10,7 @@
               v-on:keyup.enter="searchOnEnter"
               v-on:blur="searchOnEnter"
               append-icon="mdi-magnify"
-              hint="Kode, Deskripsi (press ENTER to search)"
+              hint="Kode, Deskripsi (press ⏎ to search)"
               label="Search"
               variant="underlined"
           ></v-text-field>

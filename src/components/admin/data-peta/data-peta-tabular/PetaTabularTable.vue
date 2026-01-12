@@ -10,8 +10,8 @@
               v-on:keyup.enter="searchOnEnter"
               v-on:blur="searchOnEnter"
               append-inner-icon="mdi-magnify"
-              hint="Kode, Deskripsi (press ENTER to search)"
-              label="Cari dengan kata kunci"
+              hint="Kode, Deskripsi (press ⏎ to search)"
+              label="Search ⏎"
               variant="underlined"
           ></v-text-field>
           <v-btn @click="showFilterDialog" icon dark variant="text" color="blue" size="small">

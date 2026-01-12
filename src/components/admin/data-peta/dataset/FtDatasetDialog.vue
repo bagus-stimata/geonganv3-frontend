@@ -396,7 +396,7 @@
             <div>
               <v-text-field
                   v-model="featureFilterInput"
-                  label="Filter data minimal 2 karakter...(Enter mulai filter)"
+                  label="Filter data minimal 2 karakter ( ⏎ Enter mulai filter)"
                   variant="outlined"
                   density="compact"
                   hide-details
@@ -412,45 +412,91 @@
             <div class="feature-table-scroll">
               <v-table density="compact" class="feature-attr-table">
                 <thead>
-                <tr>
-                  <th class="col-idx" style="width: 40px; min-width: 40px;">#</th>
-                  <th
+                  <tr>
+                    <th class="col-idx" style="width: 40px; min-width: 40px;">#</th>
+                    <th
                       v-for="col in featureColumnsView"
                       :key="col"
                       class="resizable-th"
                       :style="getFeatureColStyle(col)"
-                  >
-                    <div class="th-wrap">
-                      <span class="th-text">{{ col }}</span>
-                      <span
+                    >
+                      <div class="th-wrap">
+                        <span class="th-text">{{ col }}</span>
+                        <span
                           class="col-resizer"
                           @mousedown.prevent="startResizeFeatureCol($event, col)"
-                      ></span>
-                    </div>
-                  </th>
-                </tr>
+                        ></span>
+                      </div>
+                    </th>
+                  </tr>
                 </thead>
 
                 <tbody>
-                <tr v-for="(row, idx) in filteredFeatureRows" :key="idx">
-                  <td class="col-idx">{{ idx + 1 }}</td>
+                  <tr v-for="(row, idx) in pagedFeatureRows" :key="idx">
+                    <td class="col-idx">
+                      {{ (featureCurrentPage - 1) * featureItemsPerPage + idx + 1 }}
+                    </td>
 
-                  <td
+                    <td
                       v-for="col in featureColumnsView"
                       :key="col"
                       :style="getFeatureColStyle(col)"
-                  >
-                    <v-text-field
+                    >
+                      <v-text-field
                         v-model="row[col]"
                         variant="underlined"
                         density="compact"
                         hide-details
-                    ></v-text-field>
-                  </td>
-                </tr>
+                      ></v-text-field>
+                    </td>
+                  </tr>
                 </tbody>
               </v-table>
+            </div>
 
+            <div class="d-flex align-center justify-end mt-2">
+              <span class="text-caption mr-3">
+                Halaman {{ featureCurrentPage }} / {{ featurePageCount }}
+              </span>
+              <v-btn
+                variant="text"
+                size="small"
+                class="mr-1"
+                :disabled="featureCurrentPage <= 1"
+                @click="featureCurrentPage = 1"
+                style="text-transform: none;"
+              >
+                « Awal
+              </v-btn>
+              <v-btn
+                variant="text"
+                size="small"
+                class="mr-1"
+                :disabled="featureCurrentPage <= 1"
+                @click="featureCurrentPage = featureCurrentPage - 1"
+                style="text-transform: none;"
+              >
+                ‹ Prev
+              </v-btn>
+              <v-btn
+                variant="text"
+                size="small"
+                class="mr-1"
+                :disabled="featureCurrentPage >= featurePageCount"
+                @click="featureCurrentPage = featureCurrentPage + 1"
+                style="text-transform: none;"
+              >
+                Next ›
+              </v-btn>
+              <v-btn
+                variant="text"
+                size="small"
+                :disabled="featureCurrentPage >= featurePageCount"
+                @click="featureCurrentPage = featurePageCount"
+                style="text-transform: none;"
+              >
+                Akhir »
+              </v-btn>
             </div>
           </v-card-text>
 
@@ -671,9 +717,14 @@ export default {
       featureColumns: [],
       featureColumnsView: [],
       featureRows: [],
-      featureShowOnlyMapColumns: false,
+      // Batas aman agar tabel edit tidak terlalu berat untuk GeoJSON besar
+      maxFeatureTableGeojsonChars: 30 * 1024 * 1024, // ~30 MB (perkiraan dari panjang string)
+      maxFeatureTableRows: 8000,
+      featureShowOnlyMapColumns: true,
       featureFilterInput: "",
       featureFilterText: "",
+      featureItemsPerPage: 15,
+      featureCurrentPage: 1,
 
       featureColWidths: {},
       featureResizeCtx: null,
@@ -681,10 +732,25 @@ export default {
     };
   },
   computed: {
+
     isItemModified() {
       const defaultItem = JSON.stringify(this.itemDefault);
       const modifiedItem = JSON.stringify(this.itemModified);
       return defaultItem !== modifiedItem;
+    },
+    pagedFeatureRows() {
+      const perPage = this.featureItemsPerPage || 15;
+      const page = this.featureCurrentPage || 1;
+      const rows = this.filteredFeatureRows || [];
+      const start = (page - 1) * perPage;
+      return rows.slice(start, start + perPage);
+    },
+    featurePageCount() {
+      const perPage = this.featureItemsPerPage || 15;
+      const rows = this.filteredFeatureRows || [];
+      if (!perPage) return 1;
+      const pages = Math.ceil(rows.length / perPage);
+      return pages || 1;
     },
 
     hasGeojsonForPreview() {
@@ -751,6 +817,15 @@ export default {
       if (Array.isArray(newVal) && newVal.length) {
         this.ensureFeatureColWidthDefaults();
         this.syncFeatureColumnsView();
+      }
+    },
+    filteredFeatureRows() {
+      // Pastikan current page tidak melewati jumlah halaman yang tersedia
+      if (this.featureCurrentPage > this.featurePageCount) {
+        this.featureCurrentPage = this.featurePageCount;
+      }
+      if (this.featureCurrentPage < 1) {
+        this.featureCurrentPage = 1;
       }
     },
   },
@@ -840,6 +915,7 @@ export default {
       } else {
         this.featureFilterText = "";
       }
+      this.featureCurrentPage = 1;
     },
     async refreshFeatureRowsFromGeojson() {
       this.featureRows = [];
@@ -847,6 +923,21 @@ export default {
 
       if (!this.itemModified || !this.itemModified.geojson) {
         return;
+      }
+
+      // Guard 1: batasi berdasarkan ukuran string GeoJSON (batas soft sekitar 10 MB untuk UI tabel)
+      if (typeof this.itemModified.geojson === "string") {
+        const approxMb = this.itemModified.geojson.length / (1024 * 1024);
+        if (approxMb > 10) {
+          console.warn(
+            "[FtDatasetDialog] skip build feature table: geojson string too large for table view (~" +
+              approxMb.toFixed(1) +
+              " MB)"
+          );
+          this.snackBarMessage = "GeoJSON terlalu besar untuk ditampilkan sebagai tabel.";
+          this.snackbar = true;
+          return;
+        }
       }
 
       let geo;
@@ -866,6 +957,22 @@ export default {
       }
 
       if (!geo || !Array.isArray(geo.features) || !geo.features.length) {
+        return;
+      }
+
+      const totalFeatures = geo.features.length;
+      // Guard 2: batasi jumlah feature yang diizinkan untuk mode edit tabel
+      if (this.maxFeatureTableRows && totalFeatures > this.maxFeatureTableRows) {
+        console.warn(
+          "[FtDatasetDialog] skip build feature table: too many features for table view",
+          totalFeatures
+        );
+        this.snackBarMessage =
+          "Dataset GeoJSON memiliki " +
+          totalFeatures +
+          " fitur. Tabel edit dinonaktifkan untuk menjaga performa. " +
+          "Silakan filter/pecah data terlebih dahulu jika ingin diedit melalui tabel.";
+        this.snackbar = true;
         return;
       }
 
@@ -998,8 +1105,9 @@ export default {
         this.dialogLoading = true;
         await this.ensureGeojsonLoaded();
         await this.refreshFeatureRowsFromGeojson();
+        // Sinkronkan kolom tabel dengan opsi "Kolom yang Ditampilkan pada Peta Saja"
+        this.syncFeatureColumnsView();
         this.dialogLoading = false;
-
       } catch (e) {
         console.error(e);
         this.snackBarMessage = "Gagal memuat data untuk diedit";
@@ -1210,6 +1318,7 @@ export default {
       this.refreshPropertyMetaFromItem(this.itemModified);
       this.refreshFeatureRowsFromGeojson();
       this.syncFeatureColumnsView();
+      this.featureCurrentPage = 1;
 
       // kalau geojson sudah dihapus, pastikan heavy UI bener-bener drop
       if (!this.itemModified || !this.itemModified.hasGeojson) {
@@ -1419,6 +1528,7 @@ export default {
           (error) => {
             this.formDialogOptions.errorMessage =
               error.response?.data?.message || "Gagal update FtDataset";
+            console.error(error);
           }
         );
       } else {

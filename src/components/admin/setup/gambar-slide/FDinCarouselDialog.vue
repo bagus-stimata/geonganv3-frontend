@@ -50,7 +50,7 @@
             <v-container>
               <v-row>
                 <v-col cols="12" md="12" sm="12">
-                  <v-container class="pa-4 text-center">
+                  <v-container class="pa-4 text-center" v-if="itemModified.fdinCarouselTypeBean!==2">
                     <v-row align="center" justify="center">
                       <v-hover>
                         <template v-slot:default="{ isHovering, props }">
@@ -105,31 +105,22 @@
                 </v-col>
               </v-row>
               <v-row>
-                <v-col cols="12" sm="12" md="6">
+                <v-col cols="12" sm="12" md="12">
                   <v-text-field
                     v-model="itemModified.kode1"
                     :rules="rulesLength"
-                    label="Judul Image"
+                    label="Judul"
                     variant="outlined"
                     density="compact"
-                  ></v-text-field>
-                </v-col>
-                <v-col cols="12" sm="4" md="4">
-                  <v-switch
-                    v-model="itemModified.statusActive"
-                    :label="itemModified.statusActive ? 'Aktif' : 'Non-Aktif'"
-                    class="pa-3"
-                    density="compact"
                     hide-details
-                    color="primary"
-                  ></v-switch>
+                  ></v-text-field>
                 </v-col>
               </v-row>
               <v-row>
                 <v-col cols="12" sm="6" md="12">
                   <v-textarea
                       v-model="itemModified.description"
-                      :rules="rulesLength"
+                      :rules="rulesNotEmpty"
                       label="Deskripsi"
                       variant="outlined"
                       density="compact"
@@ -141,24 +132,6 @@
               <v-row>
                 <v-col cols="12" sm="8" md="6">
                   <v-autocomplete
-                    v-model="itemModified.fdinCarouselTypeBean"
-                    :items="itemsFDinCarouselType"
-                    :rules="rulesNotEmpty"
-                    item-value="id"
-                    item-title="description"
-                    auto-select-first
-                    density="compact"
-                    chips
-                    deletable-chips
-                    variant="outlined"
-                    color="blue-grey lighten-2"
-                    label="Tipe"
-                    hint="Tipe"
-                    persistent-hint
-                  ></v-autocomplete>
-                </v-col>
-                <v-col cols="12" sm="8" md="6">
-                  <v-autocomplete
                       v-model="itemModified.fdivisionBean"
                       :items="itemsFDivision"
                       :rules="rulesNotEmpty"
@@ -167,13 +140,53 @@
                       auto-select-first
                       density="compact"
                       chips
-                      deletable-chips
+                      closable-chips
                       variant="outlined"
                       color="blue-grey lighten-2"
                       label="Div/Bidang"
                       hint="Div/Bidang"
                       persistent-hint
                   ></v-autocomplete>
+                </v-col>
+
+                <v-col cols="12" sm="8" md="6">
+                  <v-autocomplete
+                    v-model="itemModified.fdinCarouselTypeBean"
+                    :items="itemsFDinCarouselType"
+                    :rules="rulesNotEmpty"
+                    item-value="id"
+                    item-title="description"
+                    auto-select-first
+                    density="compact"
+                    chips
+                    closable-chips
+                    variant="outlined"
+                    color="blue-grey lighten-2"
+                    label="Tipe"
+                    hint="Tipe"
+                    persistent-hint
+                  ></v-autocomplete>
+                </v-col>
+
+                <v-col cols="12" sm="12" md="12" v-if="itemModified.fdinCarouselTypeBean ===2">
+                  <v-text-field
+                      v-model="itemModified.remark"
+                      label="Youtube Key/Remark"
+                      variant="outlined"
+                      density="compact"
+                      hide-details
+                  ></v-text-field>
+                </v-col>
+
+                <v-col cols="12" sm="4" md="4">
+                  <v-switch
+                      v-model="itemModified.statusActive"
+                      :label="itemModified.statusActive ? 'Aktif' : 'Non-Aktif'"
+                      class="pa-3"
+                      density="compact"
+                      hide-details
+                      color="primary"
+                  ></v-switch>
                 </v-col>
               </v-row>
             </v-container>

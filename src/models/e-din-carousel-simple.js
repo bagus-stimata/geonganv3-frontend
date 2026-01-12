@@ -1,7 +1,6 @@
 const EDinCarouselSimple = Object.freeze({
     HOME : 1,
-    PEMUDA_DESA: 2,
-    DESA_CANTIK: 3,
+    HOME_YOUTUBE: 2
 })
 const EDinCarouselSimples = Object.freeze([
     {
@@ -9,13 +8,10 @@ const EDinCarouselSimples = Object.freeze([
         description: 'HOME'
     },
     {
-        id: EDinCarouselSimple.PEMUDA_DESA,
-        description: 'PEMUDA DESA'
+        id: EDinCarouselSimple.HOME_YOUTUBE,
+        description: 'HOME_YOUTUBE'
     },
-    {
-        id: EDinCarouselSimple.DESA_CANTIK,
-        description: 'DESA CANTIK'
-    },
+
 
 ])
 export  {EDinCarouselSimple as default, EDinCarouselSimples}

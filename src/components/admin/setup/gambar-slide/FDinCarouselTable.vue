@@ -2,8 +2,8 @@
   <v-card class="elevation-0">
     <v-card-title>
       <v-row class="align-center">
-        <v-col cols="12" sm="12" md="6">
-          <span class="font-weight-bold">CAROUSEL GAMBAR SLIDE</span>
+        <v-col class="font-weight-bold" cols="12" sm="12" md="6">
+          CAROUSEL/GAMBAR SLIDE
         </v-col>
         <v-col cols="12" sm="12" md="6">
           <v-text-field
@@ -17,13 +17,14 @@
         </v-col>
       </v-row>
     </v-card-title>
-    <v-data-table
+    <v-data-table-server
       v-model="selectedItems"
       :single-select="!multiSelect"
       :show-select="multiSelect"
       :headers="headers"
       :items="fdinCarouselsFiltered"
       v-model:page="currentPage"
+      :items-length="totalItems"
       :items-per-page="pageSize"
       hide-default-footer
       class="elevation-0"
@@ -78,21 +79,57 @@
           <div class="text-caption">{{item.description}}</div>
         </div>
       </template>
-      <template v-slot:[`item.avatarImage`]="{item}">
-        <v-img
-            :src="lookupImageUrl(item)"
-            width="80px"
-            height="80px"
-            cover
-            class="ma-2 rounded">
-        </v-img>
+
+      <template v-slot:[`item.avatarImage`]="{ item }">
+        <div class="avatar-thumb ma-2 rounded overflow-hidden">
+          <!-- VIDEO (YouTube) -->
+          <v-hover v-if="item.fdinCarouselTypeBean === 2">
+            <template #default="{ isHovering, props }">
+              <div v-bind="props" class="position-relative w-100 h-100">
+                <v-img
+                    :src="getYoutubeThumbUrl(item)"
+                    width="80"
+                    height="80"
+                    cover
+                >
+                  <template #placeholder>
+                    <v-skeleton-loader type="image" />
+                  </template>
+                </v-img>
+
+                <v-fade-transition>
+                  <div
+                      v-if="isHovering"
+                      class="d-flex align-center justify-center position-absolute"
+                      style="inset:0;background:rgba(0,0,0,.35);"
+                  >
+                    <v-icon color="white" size="36">mdi-play-circle</v-icon>
+                  </div>
+                </v-fade-transition>
+              </div>
+            </template>
+          </v-hover>
+
+          <!-- IMAGE -->
+          <v-img
+              v-else
+              :src="lookupImageUrl(item)"
+              width="80"
+              height="80"
+              cover
+          >
+            <template #placeholder>
+              <v-skeleton-loader type="image" />
+            </template>
+          </v-img>
+        </div>
       </template>
 
       <template v-slot:[`item.actions`]="{ item }">
         <v-btn @click="showDialogEdit(item)" color="warning" size="small" variant="text" icon="mdi-pencil" :disabled="multiSelect"></v-btn>
         <v-btn @click="deleteDialogShow(item)" color="red accent-4" size="small" variant="text" icon="mdi-delete" :disabled="multiSelect"></v-btn>
       </template>
-    </v-data-table>
+    </v-data-table-server>
     <v-container>
       <v-row justify="end" align="center">
         <v-col cols="4" md="2" sm="2">
@@ -150,8 +187,6 @@ import FormMode from "@/models/form-mode";
 import FDinCarousel from "@/models/f-din-carousel";
 import FileService from "@/services/apiservices/file-service";
 import {EDinCarouselSimples} from "@/models/e-din-carousel-simple";
-// import EDinCarouselSimple from "@/models/e-din-carousel-simple";
-import FDinCarouselFilter from "@/models/payload/f-din-carousel-filter";
 
 export default {
   components: { FDinCarouselDialog, DeleteDialog },
@@ -164,6 +199,7 @@ export default {
       selectedItems: [],
 
       currentPage: 1,
+      totalItems: 0,
       totalTablePages: 1,
       totalPaginationPages: 1,
       pageSize: 10,
@@ -246,19 +282,12 @@ export default {
       }
     },
     fetchFDinCarousel() {
-      const fdinCarouselFilter = new FDinCarouselFilter();
-      fdinCarouselFilter.pageNo = this.currentPage;
-      fdinCarouselFilter.pageSize = this.pageSize;
-      fdinCarouselFilter.search = this.search;
-
-      // fdinCarouselFilter.fdivisionIds = this.filterFdivisionBean;
-      if (fdinCarouselFilter.fdivisionIds.length === 0) fdinCarouselFilter.fdivisionIds = [];
-      fdinCarouselFilter.fdinCarouselTypeIds = []
-      FDinCarouselService.getAllFDinCarouselContainingExt(fdinCarouselFilter).then(
+      FDinCarouselService.getAllFDinCarouselContaining(this.currentPage, this.pageSize, "id", "DESC", this.search).then(
         (response) => {
-          const { items, totalPages } = response.data;
+          const { items, totalPages, totalItems } = response.data;
           this.fdinCarousels = items;
           this.totalPaginationPages = totalPages;
+          this.totalItems = totalItems;
         },
         (error) => {
           console.log(error.response);
@@ -403,11 +432,59 @@ export default {
     lookupImageUrl(item){
       if (item.avatarImage===undefined || item.avatarImage===""){
         return require('@/assets/images/no_image_available.jpeg')
-
       }else {
         return FileService.image_url_verylow(item.avatarImage)
       }
     },
+
+    lookupYoutubeVideoId(item) {
+      const raw = (item?.remark || "").toString().trim();
+      if (!raw) return "";
+
+      // Accept accidental format: "VIDEOID&t=94s" (missing "?")
+      if (!raw.includes("?") && raw.includes("&t=")) {
+        const [id, tPart] = raw.split("&t=");
+        return `${id}?t=${tPart}`;
+      }
+
+      // If user pastes full YouTube URL, extract videoId (+t if present)
+      try {
+        if (raw.startsWith("http")) {
+          const url = new URL(raw);
+
+          // youtu.be/<id>
+          if (url.hostname.includes("youtu.be")) {
+            const id = url.pathname.replace("/", "");
+            const t = url.searchParams.get("t");
+            return t ? `${id}?t=${t}` : `${id}${url.search || ""}`;
+          }
+
+          // youtube.com/watch?v=<id>
+          const v = url.searchParams.get("v");
+          if (v) {
+            const t = url.searchParams.get("t");
+            return t ? `${v}?t=${t}` : v;
+          }
+        }
+      } catch (e) {
+        // ignore parsing error, fallback below
+      }
+
+      // Already a clean videoId or videoId?t=xx or videoId?start=xx
+      return raw;
+    },
+    getYoutubeVideoIdOnly(item) {
+      const key = this.lookupYoutubeVideoId(item);
+      if (!key) return "";
+      // Support both "id?..." and rare "id&..."
+      return key.split("?")[0].split("&")[0];
+    },
+    getYoutubeThumbUrl(item) {
+      const id = this.getYoutubeVideoIdOnly(item);
+      if (!id) return require("@/assets/images/no_image_available.jpeg");
+      return `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
+    },
+
   },
   mounted() {
     this.fetchFDinCarousel();
@@ -415,6 +492,12 @@ export default {
   },
 };
 </script>
-  
+
   <style scoped>
-</style>
+.avatar-thumb {
+  width: 80px;
+  height: 80px;
+  background: #f5f5f5;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+  </style>

@@ -348,7 +348,7 @@
               <v-btn
                   value="LOAD_PETA_GEOJSON"
                   color="green-darken-1"
-                  @click="loadGeojsonFromServer"
+                  @click="loadTampilanPeta"
                   style="text-transform: none;"
               >
                 <span class="d-flex align-center">
@@ -360,7 +360,7 @@
               <v-btn
                   value="EDIT_DATA_GEOJSON"
                   color="orange-darken-1"
-                  @click="loadGeojsonFromServer"
+                  @click="loadDataEdit"
                   style="text-transform: none;"
               >
                 <span class="d-flex align-center">
@@ -841,7 +841,7 @@ export default {
         this.featureFilterText = "";
       }
     },
-    refreshFeatureRowsFromGeojson() {
+    async refreshFeatureRowsFromGeojson() {
       this.featureRows = [];
       this.featureColumns = [];
 
@@ -944,7 +944,6 @@ export default {
       }
     },
 
-
     showDialogUpload(){
       if (this.itemModified.kode1 !==undefined &&
           this.itemModified.description !==undefined &&
@@ -975,12 +974,15 @@ export default {
       }
     },
 
-    async cekTampilanPeta(){
-      if (!this.itemModified || !this.itemModified.id) {
-        this.snackBarMessage = "Simpan dulu dataset sebelum cek tampilan peta";
-        this.snackbar = true;
-        return;
+    async ensureGeojsonLoaded() {
+      // Kalau dataset sudah ditandai punya GeoJSON di server tetapi konten belum dimuat,
+      // baru panggil backend untuk load GeoJSON berat.
+      if (this.hasStoredGeojson && !this.hasGeojsonLoaded) {
+        await this.loadGeojsonFromServer();
       }
+    },
+
+    async loadTampilanPeta(){
       try {
         await this.ensureGeojsonLoaded();
         this.$refs.refFDayaDukungPetaMap.tampilkanPeta(this.itemModified);
@@ -989,13 +991,19 @@ export default {
         this.snackBarMessage = "Gagal menampilkan peta";
         this.snackbar = true;
       }
-    },
 
-    async ensureGeojsonLoaded() {
-      // Kalau dataset sudah ditandai punya GeoJSON di server tetapi konten belum dimuat,
-      // baru panggil backend untuk load GeoJSON berat.
-      if (this.hasStoredGeojson && !this.hasGeojsonLoaded) {
-        await this.loadGeojsonFromServer();
+    },
+    async loadDataEdit(){
+      try {
+        this.dialogLoading = true;
+        await this.ensureGeojsonLoaded();
+        await this.refreshFeatureRowsFromGeojson();
+        this.dialogLoading = false;
+
+      } catch (e) {
+        console.error(e);
+        this.snackBarMessage = "Gagal memuat data untuk diedit";
+        this.snackbar = true;
       }
     },
 
@@ -1080,7 +1088,6 @@ export default {
 
       // Setelah berhasil load dari server, refresh tabel metadata atribut
       this.refreshPropertyMetaFromItem(this.itemModified);
-      this.refreshFeatureRowsFromGeojson();
     },
     refreshPropertyMetaFromItem(item) {
       const rows = [];

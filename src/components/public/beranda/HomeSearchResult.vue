@@ -1,68 +1,71 @@
 <template>
-  <v-container>
-    <v-row justify="end" no-gutters class="mt-2">
-      <v-col cols="4" md="2" sm="2">
-        <v-select
-            v-model="pageSize"
-            :items="pageSizes"
-            label="Items per page"
-            @change="updatePagination"
-            variant="outlined"
-            density="compact"
-        ></v-select>
-      </v-col>
-    </v-row>
+  <v-card elevation="0">
+    <v-container>
+      <v-row justify="end" no-gutters class="mt-2">
+        <v-col cols="4" md="2" sm="2">
+          <v-select
+              v-model="pageSize"
+              :items="pageSizes"
+              label="Items per page"
+              @change="updatePagination"
+              variant="outlined"
+              density="compact"
+          ></v-select>
+        </v-col>
+      </v-row>
 
-    <v-list class="mt-4" v-if="paginatedItems.length===0">
-      <v-list-item>
-        <v-list-item-title class="text-center text-orange">No data found</v-list-item-title>
-      </v-list-item>
-    </v-list>
-    <v-list class="mt-4" v-else>
-      <v-list-item
-          v-for="(item, index) in paginatedItems"
-          :key="index"
-          class="my-2 list-item"
-      >
-        <v-list-item-title>{{ item.title }}</v-list-item-title>
-        <div class="text-green-darken-1 text-caption mt-n1">{{ lookupFDivision(item.fdivisionBean) }}</div>
-        <v-list-item-subtitle class="text-grey-darken-2">{{ item.description }}</v-list-item-subtitle>
-        <v-list-item-action class="align-center mt-4">
-<!--          <v-btn color="primary" @click="previewData(item)" outlined x-small rounded>-->
-          <v-btn class="me-2" color="primary" variant="outlined" size="x-small" rounded>
-            Preview
-            <v-icon small class="ml-1">mdi-magnify</v-icon>
-          </v-btn>
-          <div v-if="item.categ === 'Indikator' " class="text-orange-darken-1 text-caption mt-n4">{{ item.categ }}</div>
-          <div v-else class="text-blue-darken-1 text-caption mt-n4">{{ item.categ }}</div>
-        </v-list-item-action>
-      </v-list-item>
-    </v-list>
+      <v-list class="mt-4" v-if="paginatedItems.length===0" elevation="0">
+        <v-list-item elevation="0">
+          <v-list-item-title elevation="0" class="text-center color-text-second">No data found</v-list-item-title>
+        </v-list-item>
+      </v-list>
+      <v-list class="mt-4 bg-grey-lighten-5" v-else>
+        <v-list-item
+            v-for="(item, index) in paginatedItems"
+            :key="index"
+            class="my-2 list-item"
+        >
+          <v-list-item-title>{{ item.title }}</v-list-item-title>
+          <div class="text-green-darken-1 text-caption mt-n1">{{ lookupFDivision(item.fdivisionBean) }}</div>
+          <v-list-item-subtitle class="text-grey-darken-2">{{ item.description }}</v-list-item-subtitle>
+          <v-list-item-action class="align-center mt-4">
+            <!--          <v-btn color="primary" @click="previewData(item)" outlined x-small rounded>-->
+            <v-btn class="me-2" color="primary" variant="outlined" size="x-small" rounded>
+              Preview
+              <v-icon small class="ml-1">mdi-magnify</v-icon>
+            </v-btn>
+            <div v-if="item.categ === 'Indikator' " class="text-orange-darken-1 text-caption mt-n4">{{ item.categ }}</div>
+            <div v-else class="text-blue-darken-1 text-caption mt-n4">{{ item.categ }}</div>
+          </v-list-item-action>
+        </v-list-item>
+      </v-list>
 
-    <v-row justify="end" no-gutters class="mt-2">
-      <v-col cols="8" md="6" sm="6" class="d-flex">
-        <v-spacer></v-spacer>
-        <v-pagination
-            v-model="currentPage"
-            :length="totalPages"
-            total-visible="8"
-            rounded="circle"
-            @input="updatePagination"
-            active-color="orange-darken-4"
-            size="x-small"
-            variant="flat"
-        ></v-pagination>
-      </v-col>
-    </v-row>
-<!--    <DatasetContentDataDialog-->
-<!--        ref="refFormDialog"-->
-<!--    ></DatasetContentDataDialog>-->
+      <v-row justify="end" no-gutters class="mt-2">
+        <v-col cols="8" md="6" sm="6" class="d-flex">
+          <v-spacer></v-spacer>
+          <v-pagination
+              v-model="currentPage"
+              :length="totalPages"
+              total-visible="8"
+              rounded="circle"
+              @input="updatePagination"
+              active-color="orange-darken-4"
+              size="x-small"
+              variant="flat"
+          ></v-pagination>
+        </v-col>
+      </v-row>
+      <!--    <DatasetContentDataDialog-->
+      <!--        ref="refFormDialog"-->
+      <!--    ></DatasetContentDataDialog>-->
 
-<!--    <IndikatorResult-->
-<!--      ref="refIndikatorResult"-->
-<!--      :itemsFDivision="itemsFDivision"-->
-<!--    ></IndikatorResult>-->
-  </v-container>
+      <!--    <IndikatorResult-->
+      <!--      ref="refIndikatorResult"-->
+      <!--      :itemsFDivision="itemsFDivision"-->
+      <!--    ></IndikatorResult>-->
+      <v-divider thickness="2" color="grey" class="mt-4"></v-divider>
+    </v-container>
+  </v-card>
 </template>
 
 <script>

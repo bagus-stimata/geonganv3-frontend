@@ -159,6 +159,11 @@ const routes = [
         component: () => import("../views/public/DatasetView.vue"),
     },
     {
+        path: "/public-peta-tematik",
+        name: "PetaTematikView",
+        component: () => import("../views/public/PetaTematikView.vue"),
+    },
+    {
         path: '/public-e-library-detil/:id',
         name: 'PublicLibraryDetail',
         component: () =>

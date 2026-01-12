@@ -5,25 +5,25 @@
           :src="backgroundImage"
           alt="Banner Image"
           class="banner-image image-with-overlay py-16"
-          :height="$vuetify.display.smAndDown? '100vh' : '900'"
+          :height="$vuetify.display.smAndDown? '900' : '900'"
           gradient="to left, rgba(0,0,0,.9), rgba(0,0,0,0.1)"
           cover
       >
         <div class="text-center" style="width: 100%">
-          <v-row class="mt-16">
+          <v-row class="mt-md-16 mt-10">
             <v-spacer></v-spacer>
-            <v-col class="mt-16" cols="12" md="7" sm="6">
+            <v-col class="mt-md-16 mt-10 px-6" cols="12" md="7" sm="6">
               <div class="text-md-h2 text-h3 font-weight-black text-white text-center ">Pahami Data Peta Lebih Cepat Lewat <span class="text-orange-accent-2">Geoportal</span></div>
             </v-col>
             <v-spacer></v-spacer>
           </v-row>
           <v-row class="mt-1 align-center justify-center" >
-            <v-col cols="12" md="6" sm="6">
+            <v-col cols="12" class="px-6" md="6" sm="6">
               <div class="text-subtitle-1 font-weight-bold text-white text-center">Dapatkan insight instan untuk keputusan yang lebih tepat</div>
             </v-col>
           </v-row>
           <v-row class="align-center justify-center">
-            <v-col class="px-3 mx-3" cols="12" md="5" sm="12" >
+            <v-col class="px-6 px-md-2" cols="12" md="5" sm="12" >
               <v-text-field
                   v-model="search"
                   style="box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2); text-transform: none;"
@@ -80,7 +80,7 @@
                     <v-col cols="5">
                       <v-img
                           width="100%"
-                          :height="isMobile ? (isSelected ? '160' : '130') : (isSelected ? '224' : '186')"
+                          :height="isMobile ? (isSelected ? '146' : '130') : (isSelected ? '224' : '186')"
                           cover
                           :src="require('@/assets/images/basemap.jpeg')"
                           class="rounded-xl"
@@ -235,18 +235,18 @@ export default {
   transform: translateZ(0);
 }
 
-@media (max-width: 600px){
+@media (max-width: 960px){
   .sg-item-wrap{
     width: 94vw;
     padding: 2px;
   }
 
   .sg-card{
-    height: 150px;
+    height: 140px;
   }
 
   .sg-card--active{
-    height: 180px;
+    height: 160px;
   }
 }
 

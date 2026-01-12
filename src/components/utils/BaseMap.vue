@@ -78,19 +78,16 @@ Icon.Default.mergeOptions({
 });
 
 export default {
-  name: "PetaInteraktif",
+  name: "BaseMap",
   components: {
     PickMapsetDialog,
     GooglePlacesDialog: GooglePlacesAutoCompleteDialog,
     LMap,
     LTileLayer,
     LControlLayers,
-    LMarker,
     LControlZoom,
     // LIcon,
-    LPopup,
     // LTooltip,
-    LGeoJson,
     // LControlPolylineMeasure,
 
   },

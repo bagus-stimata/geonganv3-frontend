@@ -109,8 +109,12 @@
     />
     <HomePetaInteraktif></HomePetaInteraktif>
     <HomeNews :fnewsFiltered="fnewsFiltered"></HomeNews>
-    <YoutubeVideo
-    ></YoutubeVideo>
+
+    <v-card class="" elevation="0" :class="isSmAndDown? 'mt-n2': 'mt-2' ">
+      <YoutubeVideo
+      ></YoutubeVideo>
+    </v-card>
+
   </div>
 </template>
 
@@ -178,6 +182,10 @@ export default {
     };
   },
   computed: {
+    isSmAndDown() {
+      // Vuetify 3: use $vuetify.display; fallback false to avoid runtime crash
+      return !!(this.$vuetify && this.$vuetify.display && this.$vuetify.display.smAndDown)
+    },
     isMobile() {
       const d = this.$vuetify && this.$vuetify.display
       return d ? d.smAndDown : false

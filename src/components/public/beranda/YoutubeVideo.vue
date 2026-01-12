@@ -108,8 +108,11 @@ const buildYoutubeEmbedSrc = (videoId) => {
 const youtubeVideos = ref([]);
 
 const fetchFDinCarousel = async () => {
+  console.log("Fetch FDinCarousel");
   try {
     const response = await FDinCarouselService.getAllFDinCarouselByTypePublic(2);
+    console.log(response.data);
+
     const active = (response?.data || []).filter(x => x.statusActive === true);
     youtubeVideos.value = active
       .map(item => ({

@@ -144,7 +144,7 @@
                           <span class="bg-orange rounded-lg py-1 px-3 text-caption font-weight-bold text-white">{{index + 1}}</span>
                           <div class="ml-2 text-subtitle-2 font-weight-bold text-indigo">{{itemSelected.description}}</div>
                           <v-spacer></v-spacer>
-                          <v-btn icon density="comfortable" variant="text" color="red"><v-icon>mdi-delete</v-icon></v-btn>
+                          <v-btn @click="deleteItem(itemSelected)" icon density="comfortable" variant="text" color="red"><v-icon>mdi-delete</v-icon></v-btn>
                         </v-card>
                       </v-col>
                     </v-row>
@@ -203,6 +203,11 @@ export default {
     },
   },
   methods: {
+    deleteItem(item) {
+      this.itemsMapsetSelected = this.itemsMapsetSelected.filter(
+          it => it.id !== item.id
+      );
+    },
     applyPeta(){
       this.$emit('applyPeta', this.itemsMapsetSelected)
       this.closeForm()

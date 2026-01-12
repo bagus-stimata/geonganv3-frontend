@@ -16,21 +16,8 @@
               <v-icon>mdi-arrow-left</v-icon>
             </v-btn>
             <v-toolbar-title class="text-subtitle-2">{{title}}
-              <span class="ml-2 mr-2 font-weight-medium text-grey"> | </span>
-              <span v-if="formMode === 'EDIT_FORM'">EDIT </span>
-              <span class="font-weight-light ml-1 mr-1">ITEM</span>
-              <span v-if="formMode === 'NEW_FORM'"> BARU</span>
-              <span class="ml-2 mr-2 font-weight-medium text-grey" v-show="isItemModified">|</span>
-              <v-chip
-                  class="ma-2"
-                  color="warning"
-                  variant="outlined"
-                  size="x-small"
-                  v-show="isItemModified"
-              >
-                <v-icon left> mdi-pencil </v-icon>
-                modified
-              </v-chip>
+              <span v-if="formMode === 'EDIT_FORM'" class="text-caption ml-1"><v-icon color="orange" size="small">mdi-pencil</v-icon></span>
+              <span v-if="formMode === 'NEW_FORM'" class="text-caption ml-1"><v-icon color="success" size="small">mdi-plus-circle</v-icon></span>
             </v-toolbar-title>
             <v-spacer></v-spacer>
             <v-toolbar-items>
@@ -40,6 +27,7 @@
                   @click="applyChanges"
                   :disabled="!valid || isItemModified === false"
                   class="hidden-md-and-up"
+                  style="text-transform: none;"
               >
                 Apply
               </v-btn>
@@ -368,48 +356,70 @@
           </v-card-text>
 
           <v-card-text  v-if="hasGeojsonForPreview">
-            <div class="text-subtitle-2 mb-1">Data Per Feature</div>
-            <div class="text-caption mb-2">
-              Tabel ini menampilkan nilai properti tiap feature dari GeoJSON yang sudah dimuat dan bisa diedit.
+            <div class="text-caption">
+              Tabel ini menampilkan nilai properti tiap feature dari GeoJSON yang sudah dimuat dan <span class="font-weight-bold">bisa diedit</span>.
             </div>
-            <v-text-field
-                v-model="featureFilterInput"
-                label="Filter data per feature minimal 2 karakter...(Enter mulai filter)"
-                variant="outlined"
-                density="compact"
-                class="mt-2"
-                hide-details
-                prepend-inner-icon="mdi-magnify"
-                clearable
-                @keyup.enter="applyFeatureFilter"
-            ></v-text-field>
-
+            <div class="mb-n4">
+              <v-checkbox label="Kolom yang Ditampilkan pada Peta Saja" density="compact"></v-checkbox>
+            </div>
+            <div>
+              <v-text-field
+                  v-model="featureFilterInput"
+                  label="Filter data minimal 2 karakter...(Enter mulai filter)"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  prepend-inner-icon="mdi-magnify"
+                  clearable
+                  @keyup.enter="applyFeatureFilter"
+              ></v-text-field>
+            </div>
           </v-card-text>
 
           <!-- Tabel data per feature (editable seperti QGIS attribute table) -->
-          <v-card-text v-if="featureRows && featureRows.length">
+          <v-card-text v-if="featureRows && featureRows.length" class="mt-n4 mb-4">
             <div class="feature-table-scroll">
-              <v-table density="compact">
+              <v-table density="compact" class="feature-attr-table">
                 <thead>
-                  <tr>
-                    <th style="width: 40px;">#</th>
-                    <th v-for="col in featureColumns" :key="col">{{ col }}</th>
-                  </tr>
+                <tr>
+                  <th class="col-idx" style="width: 40px; min-width: 40px;">#</th>
+                  <th
+                      v-for="col in featureColumns"
+                      :key="col"
+                      class="resizable-th"
+                      :style="getFeatureColStyle(col)"
+                  >
+                    <div class="th-wrap">
+                      <span class="th-text">{{ col }}</span>
+                      <span
+                          class="col-resizer"
+                          @mousedown.prevent="startResizeFeatureCol($event, col)"
+                      ></span>
+                    </div>
+                  </th>
+                </tr>
                 </thead>
+
                 <tbody>
-                  <tr v-for="(row, idx) in filteredFeatureRows" :key="idx">
-                    <td>{{ idx + 1 }}</td>
-                    <td v-for="col in featureColumns" :key="col">
-                      <v-text-field
+                <tr v-for="(row, idx) in filteredFeatureRows" :key="idx">
+                  <td class="col-idx">{{ idx + 1 }}</td>
+
+                  <td
+                      v-for="col in featureColumns"
+                      :key="col"
+                      :style="getFeatureColStyle(col)"
+                  >
+                    <v-text-field
                         v-model="row[col]"
                         variant="underlined"
                         density="compact"
                         hide-details
-                      ></v-text-field>
-                    </td>
-                  </tr>
+                    ></v-text-field>
+                  </td>
+                </tr>
                 </tbody>
               </v-table>
+
             </div>
           </v-card-text>
 
@@ -424,7 +434,6 @@
             >
               {{ formDialogOptions.errorMessage }}
             </v-chip>
-            <v-spacer></v-spacer>
             <v-btn
                 color="red-darken-1"
                 variant="outlined"
@@ -631,6 +640,8 @@ export default {
       featureFilterInput: "",
       featureFilterText: "",
 
+      featureColWidths: {},
+      featureResizeCtx: null,
     };
   },
   computed: {
@@ -697,9 +708,68 @@ export default {
   },
 
   watch: {
+    featureColumns(newVal) {
+      if (Array.isArray(newVal) && newVal.length) {
+        this.ensureFeatureColWidthDefaults();
+      }
+    },
   },
 
   methods: {
+    getFeatureColStyle(col) {
+      const w = this.featureColWidths && this.featureColWidths[col];
+      if (!w) return {};
+      return { width: `${w}px`, minWidth: `${w}px` };
+    },
+
+    ensureFeatureColWidthDefaults() {
+      const cols = Array.isArray(this.featureColumns) ? this.featureColumns : [];
+      if (!this.featureColWidths) this.featureColWidths = {};
+      cols.forEach((c) => {
+        if (c && !this.featureColWidths[c]) {
+          this.featureColWidths[c] = 180; // default width
+        }
+      });
+    },
+
+    startResizeFeatureCol(evt, col) {
+      if (!col) return;
+
+      const th = evt?.target?.closest("th");
+      const startWidth = th ? th.offsetWidth : (this.featureColWidths[col] || 180);
+
+      this.featureResizeCtx = {
+        col,
+        startX: evt.clientX,
+        startWidth,
+      };
+
+      document.body.style.cursor = "col-resize";
+      document.addEventListener("mousemove", this.onResizeFeatureColMove);
+      document.addEventListener("mouseup", this.onResizeFeatureColUp);
+    },
+
+    onResizeFeatureColMove(evt) {
+      if (!this.featureResizeCtx) return;
+      evt.preventDefault();
+
+      const { col, startX, startWidth } = this.featureResizeCtx;
+      const delta = evt.clientX - startX;
+      const next = Math.max(80, Math.min(800, startWidth + delta));
+
+      if (!this.featureColWidths) this.featureColWidths = {};
+      this.featureColWidths[col] = next;
+    },
+
+    onResizeFeatureColUp() {
+      if (!this.featureResizeCtx) return;
+
+      this.featureResizeCtx = null;
+      document.body.style.cursor = "";
+      document.removeEventListener("mousemove", this.onResizeFeatureColMove);
+      document.removeEventListener("mouseup", this.onResizeFeatureColUp);
+    },
+
     applyFeatureFilter() {
       const trimmed = (this.featureFilterInput || "").trim();
       if (trimmed.length > 2) {
@@ -746,6 +816,7 @@ export default {
       }
 
       this.featureColumns = cols;
+      this.ensureFeatureColWidthDefaults();
 
       this.featureRows = geo.features.map((f) => {
         const props = (f && f.properties) ? f.properties : {};
@@ -1407,14 +1478,7 @@ export default {
         return "-";
       }
     },
-    lookupFArea(fareaBean) {
-      const str = this.itemsFArea.filter((x) => x.id === fareaBean);
-      if (str.length > 0) {
-        return str[0];
-      } else {
-        return "-";
-      }
-    },
+
     lookupImageUrl(item) {
       if (item.avatarImage === undefined || item.avatarImage === "") {
         return require('@/assets/images/no_image_available.jpeg')
@@ -1566,6 +1630,13 @@ export default {
     },
 
   },
+
+  beforeUnmount() {
+    document.body.style.cursor = "";
+    document.removeEventListener("mousemove", this.onResizeFeatureColMove);
+    document.removeEventListener("mouseup", this.onResizeFeatureColUp);
+  },
+
 };
 </script>
 
@@ -1586,5 +1657,74 @@ export default {
   overflow-y: auto;
   border: 1px solid #eee;
   border-radius: 4px;
+}
+
+.feature-attr-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.feature-attr-table th,
+.feature-attr-table td {
+  vertical-align: top;
+}
+
+.feature-attr-table .col-idx {
+  width: 40px;
+  min-width: 40px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.feature-attr-table .resizable-th {
+  position: relative;
+  padding-right: 10px; /* ruang handle */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.feature-attr-table .th-wrap {
+  display: flex;
+  align-items: center;
+}
+
+.feature-attr-table .th-text {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.feature-attr-table .col-resizer {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 26px;
+  margin-left: 2px;
+  cursor: col-resize;
+  user-select: none;
+  position: relative;
+}
+
+.feature-attr-table .col-resizer::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(0, 0, 0, 0.22);
+}
+
+/* biar drag nggak kebaca sebagai text selection */
+.feature-attr-table * {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* tapi input tetap bisa select text */
+.feature-attr-table .v-field__input,
+.feature-attr-table input {
+  -webkit-user-select: text;
+  user-select: text;
 }
 </style>

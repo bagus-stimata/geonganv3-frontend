@@ -5,14 +5,14 @@
           :src="backgroundImage"
           alt="Banner Image"
           class="banner-image image-with-overlay py-16"
-          height="100vh"
+          :height="$vuetify.display.smAndDown? '100vh' : '900'"
           gradient="to left, rgba(0,0,0,.9), rgba(0,0,0,0.1)"
           cover
       >
         <div class="text-center" style="width: 100%">
-          <v-row class="mt-10">
+          <v-row class="mt-16">
             <v-spacer></v-spacer>
-            <v-col class="mt-10" cols="12" md="6" sm="6">
+            <v-col class="mt-16" cols="12" md="6" sm="6">
               <div class="text-md-h2 text-h3 font-weight-black text-white text-center">Lebih mudah paham data lewat peta</div>
             </v-col>
             <v-spacer></v-spacer>
@@ -52,6 +52,11 @@
             </v-col>
           </v-row>
         </div>
+        <v-row class="mt-3 align-center justify-center" >
+          <v-col cols="12" md="6" sm="6" class="align-center justify-center d-flex flex-row">
+            <v-chip size="large" style="box-shadow: 0 3px 6px 0 rgba(255, 255, 255, 0.4)" color="orange-accent-2" variant="elevated" class="text-white font-weight-bold"><v-icon class="mr-2 text-white">mdi-creation</v-icon> Konten Terpopuler</v-chip>
+          </v-col>
+        </v-row>
         <v-sheet class="mx-auto bg-transparent" elevation="0" width="100%">
           <v-slide-group
               v-model="model"
@@ -194,7 +199,7 @@ export default {
 
 .sg-item-wrap{
   /* setiap item punya "slot" yang selalu center */
-  width: min(700px, 94vw);                /* >= width aktif */
+  width: min(720px, 94vw);                /* >= width aktif */
   display: flex;
   justify-content: center;
   align-items: center;
@@ -208,7 +213,7 @@ export default {
 }
 
 .sg-card--active{
-  width: min(700px, 88vw);
+  width: min(720px, 88vw);
   height: 240px;
   transform: translateZ(0);
 }

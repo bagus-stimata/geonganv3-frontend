@@ -1,6 +1,6 @@
 <template>
   <nav
-      v-if="showNav"
+      v-if="showNav && !this.currentUser"
       :style="isHome? 'position: fixed;top: 0;left: 0;right: 0;z-index: 9999' : ''"
       class="app-nav"
       :class="{ 'app-nav--transparent': isHome && !scrolled }">
@@ -135,7 +135,7 @@
   </nav>
   <v-navigation-drawer
       v-model="drawer"
-      v-if="showNav && isMobile"
+      v-if="showNav && isMobile && !this.currentUser"
       temporary
       location="left"
       :scrim="true"

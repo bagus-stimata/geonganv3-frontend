@@ -43,13 +43,11 @@
                 location="bottom">
       <span class="snackbar-center">{{ snackbar.text }}</span>
     </v-snackbar>
-    <PickMapsetDialog ref="refPickMapsetDialog"></PickMapsetDialog>
-
   </div>
 </template>
 
 <script>
-import { LControlLayers, LControlZoom, LGeoJson, LMap, LMarker, LPopup, LTileLayer } from "@vue-leaflet/vue-leaflet";
+import { LControlLayers, LControlZoom,LMap,LTileLayer } from "@vue-leaflet/vue-leaflet";
 import "leaflet/dist/leaflet.css";
 import L, {Icon} from 'leaflet';
 import 'leaflet-fullscreen';
@@ -63,7 +61,6 @@ import GooglePlacesAutoCompleteDialog from "@/components/util-ext/GooglePlacesAu
 import RBush from 'rbush'
 import * as turf from '@turf/turf'
 import FDayadukungService from "@/services/apiservices/f-dayadukung-service";
-import PickMapsetDialog from "@/components/public/peta-interaktif/PickMapsetDialog.vue";
 
 delete Icon.Default.prototype.Default;
 // Icon.Default.mergeOptions({
@@ -80,7 +77,6 @@ Icon.Default.mergeOptions({
 export default {
   name: "BaseMap",
   components: {
-    PickMapsetDialog,
     GooglePlacesDialog: GooglePlacesAutoCompleteDialog,
     LMap,
     LTileLayer,
@@ -341,12 +337,6 @@ export default {
     },
   },
   methods: {
-    routeToHome(){
-      this.$router.push("/home")
-    },
-    showDialogPickMapset(){
-      this.$refs.refPickMapsetDialog.showDialog()
-    },
     buildSearchTextForIndex(props = {}) {
       try {
         const parts = [];

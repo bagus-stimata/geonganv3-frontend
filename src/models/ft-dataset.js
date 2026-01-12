@@ -25,7 +25,8 @@ export default class FtDataset {
         modified = new Date(),
         modifiedBy = '',
         listFtDataHeader = [],
-        listFtDataDetil = []
+        listFtDataDetil = [],
+        showToMap,
     ) {
         // Basic info
         this.id = id;
@@ -63,6 +64,7 @@ export default class FtDataset {
         // List detail (khusus frontend, tetap dipertahankan)
         this.listFtDataHeader = listFtDataHeader;
         this.listFtDataDetil = listFtDataDetil;
+        this.showToMap = showToMap;
 
         // Audit fields
         this.created = created;

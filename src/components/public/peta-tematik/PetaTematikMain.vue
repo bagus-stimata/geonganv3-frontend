@@ -6,6 +6,7 @@
           <v-spacer></v-spacer>
           <v-col cols="12" md="6" sm="12">
             <v-text-field
+                v-model="search"
                 style="box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2);"
                 prepend-inner-icon="mdi-magnify"
                 density="compact"
@@ -111,6 +112,27 @@
             </v-col>
           </v-row>
         </v-card>
+        <v-row class="mt-3" justify="center" align="center">
+          <v-col class="justify-start" cols="4" md="2" sm="2">
+            <v-select
+                v-model="pageSize"
+                :items="pageSizes"
+                label="Items per page"
+                variant="outlined"
+                density="compact"
+            ></v-select>
+          </v-col>
+          <v-col cols="8" md="10" sm="8" class="d-flex flex-row justify-end">
+            <v-pagination
+                v-model="currentPage"
+                :length="totalPaginationPages"
+                total-visible="8"
+                active-color="orange-darken-4"
+                size="x-small"
+                variant="flat"
+            ></v-pagination>
+          </v-col>
+        </v-row>
       </v-card-text>
     </v-container>
   </v-card>
@@ -123,6 +145,13 @@ export default {
   components: {},
   data() {
     return {
+      currentPage: 1,
+      totalTablePages: 1,
+      totalPaginationPages: 1,
+      pageSize: 6,
+      pageSizes: [6, 10, 20],
+      totalItems: 0,
+      search: "",
       selectedCatId: 'all',
       mapsetItems: [
         {

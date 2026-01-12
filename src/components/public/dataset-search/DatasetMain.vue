@@ -6,6 +6,7 @@
           <v-spacer></v-spacer>
           <v-col cols="12" md="6" sm="12">
             <v-text-field
+                v-model="search"
                 style="box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2);"
                 prepend-inner-icon="mdi-magnify"
                 density="compact"
@@ -26,7 +27,7 @@
                         location="top"
                     >Pencarian lebih dalam ke isi geospasial</v-tooltip>
                   </v-btn>
-                  <v-btn :color="isActiveDeepSearch?'indigo' : 'green'" class=" font-weight-bold text-white" variant="flat" size="small">Search</v-btn>
+                  <v-btn @click="runExtendedFilter" :color="isActiveDeepSearch?'indigo' : 'green'" class=" font-weight-bold text-white" variant="flat" size="small">Search</v-btn>
                 </div>
               </template>
             </v-text-field>
@@ -59,15 +60,21 @@
         <div class="text-h6 mb-6 font-weight-black text-indigo">
           Katalog Dataset <span class="color-text-primary">Peta</span>
         </div>
-        <v-card class="mt-2 pa-4" elevation="0" style="box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2) !important;">
+        <v-card  class="mt-2 pa-4" elevation="0" style="box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2) !important;">
+          <v-row v-if="ftDatasetsFiltered.length === 0">
+            <v-col>
+              <div class="text-center text-grey my-6">Dataset not found</div>
+            </v-col>
+          </v-row>
           <v-row
+              v-else
               no-gutters
               class="mt-2 wrap"
               justify="center"
           >
             <v-col
-                v-for="set in mapsetItems"
-                :key="set.id"
+                v-for="dataset in ftDatasetsFiltered"
+                :key="dataset.id"
                 sm="6"
                 md="3"
                 cols="12"
@@ -85,15 +92,18 @@
                       width="100%"
                       height="200"
                       cover
-                      :src="require('@/assets/images/basemap.jpeg')"
+                      :src="lookupImageUrl(dataset)"
                       class="rounded-lg"
                   />
                   <v-card-text>
                     <div class="text-subtitle-1 font-weight-bold text-indigo">
-                      {{ set.title }}
+                      {{ dataset.description }}
                     </div>
                     <div class="text-subtitle-2 font-weight-light text-grey">
-                      {{ set.desc }}
+                      {{ dataset.notes }}
+                    </div>
+                    <div class="text-subtitle-2 mt-2 font-weight-bold text-orange">
+                      Tahun {{ dataset.tahun }}
                     </div>
                   </v-card-text>
 
@@ -111,6 +121,27 @@
             </v-col>
           </v-row>
         </v-card>
+        <v-row class="mt-3" justify="center" align="center">
+          <v-col class="justify-start" cols="4" md="2" sm="2">
+            <v-select
+                v-model="pageSize"
+                :items="pageSizes"
+                label="Items per page"
+                variant="outlined"
+                density="compact"
+            ></v-select>
+          </v-col>
+          <v-col cols="8" md="10" sm="8" class="d-flex flex-row justify-end">
+            <v-pagination
+                v-model="currentPage"
+                :length="totalPaginationPages"
+                total-visible="8"
+                active-color="orange-darken-4"
+                size="x-small"
+                variant="flat"
+            ></v-pagination>
+          </v-col>
+        </v-row>
       </v-card-text>
     </v-container>
   </v-card>
@@ -118,11 +149,23 @@
 
 <script>
 
+import FtDataset from "@/models/ft-dataset";
+import FtDatasetService from "@/services/apiservices/ft-dataset-service";
+import FDayaDukungFilter from "@/models/payload/f-dayadukung-filter";
+import FileService from "@/services/apiservices/file-service";
+
 export default {
   name: "DatasetMain",
   components: {},
   data() {
     return {
+      currentPage: 1,
+      totalTablePages: 1,
+      totalPaginationPages: 1,
+      pageSize: 8,
+      pageSizes: [8, 15, 20],
+      totalItems: 0,
+      search: "",
       selectedCatId: 'all',
       mapsetItems: [
         {
@@ -183,29 +226,101 @@ export default {
         },
       ],
       categories: [
-        { id: 'all', name: 'All', color: 'primary', count: 128 },
-        { id: 'admin', name: 'Administrasi', color: 'indigo', count: 18 },
-        { id: 'rdtr', name: 'RDTR / RTRW', color: 'deep-purple', count: 12 },
-        { id: 'infra', name: 'Infrastruktur', color: 'teal', count: 26 },
-        { id: 'transport', name: 'Transportasi', color: 'blue', count: 15 },
-        { id: 'util', name: 'Utilitas', color: 'cyan', count: 9 },
-        { id: 'landuse', name: 'Tata Guna Lahan', color: 'green', count: 22 },
-        { id: 'env', name: 'Lingkungan', color: 'light-green', count: 14 },
-        { id: 'hydro', name: 'Hidrologi', color: 'blue-grey', count: 11 },
-        { id: 'demografi', name: 'Sosial & Demografi', color: 'pink', count: 7 },
-        { id: 'invest', name: 'Potensi Investasi', color: 'orange', count: 10 },
+        { id: 'all', name: 'All', color: 'primary', count: 37 },
+        // { id: 'admin', name: 'Administrasi', color: 'indigo', count: 18 },
+        // { id: 'rdtr', name: 'RDTR / RTRW', color: 'deep-purple', count: 12 },
+        // { id: 'infra', name: 'Infrastruktur', color: 'teal', count: 26 },
+        // { id: 'transport', name: 'Transportasi', color: 'blue', count: 15 },
+        // { id: 'util', name: 'Utilitas', color: 'cyan', count: 9 },
+        // { id: 'landuse', name: 'Tata Guna Lahan', color: 'green', count: 22 },
+        // { id: 'env', name: 'Lingkungan', color: 'light-green', count: 14 },
+        // { id: 'hydro', name: 'Hidrologi', color: 'blue-grey', count: 11 },
+        // { id: 'demografi', name: 'Sosial & Demografi', color: 'pink', count: 7 },
+        // { id: 'invest', name: 'Potensi Investasi', color: 'orange', count: 10 },
       ],
+      ftDatasets: [new FtDataset()],
       isActiveDeepSearch: false,
 
     };
   },
+  watch: {
+    currentPage(newPage) {
+      if (newPage) {
+        this.fetchFtDataset();
+      }
+    },
+    pageSize() {
+      const refreshData = this.currentPage === 1;
+      this.currentPage = 1;
+      if (refreshData) {
+        this.fetchFtDataset();
+      }
+    },
+  },
+  computed: {
+    currentUser() {
+      return this.$store.state.auth.user;
+    },
+    ftDatasetsFiltered() {
+      return this.ftDatasets;
+    },
+  },
   methods: {
+    runExtendedFilter() {
+      const extendedFilter = new FDayaDukungFilter();
+      extendedFilter.fdivisionIds = [];
+      extendedFilter.pageNo = this.currentPage;
+      extendedFilter.pageSize = this.pageSize;
+      extendedFilter.sortBy = "id";
+      extendedFilter.order = "DESC";
+      extendedFilter.search = this.search;
+      extendedFilter.city = "";
+      let deepSearch = this.isActiveDeepSearch
+      if(this.isActiveDeepSearch){
+        deepSearch = true
+      }
+      // FtDatasetService.getAllFtDatasetPublic(
+      //     deepSearch
+      // ).then(
+      //     (response) => {
+      //       this.ftDatasets = response.data;
+      //     },
+      //     (error) => {
+      //       console.log(error);
+      //     }
+      // );
+      FtDatasetService.getPostAllFtDatasetContainingExtPublic(
+          extendedFilter,
+          deepSearch
+      ).then(
+          (response) => {
+            const { items, totalPages, totalItems } = response.data;
+            this.ftDatasets = items;
+            this.totalPaginationPages = totalPages;
+            this.totalItems = totalItems;
+          },
+          (error) => {
+            console.log(error);
+          }
+      );
+    },
+    fetchFtDataset() {
+      this.runExtendedFilter();
+    },
+    lookupImageUrl(item){
+      if (item.avatarImage===undefined || item.avatarImage===""){
+        return require('@/assets/images/basemap.jpeg')
+      }else {
+        return FileService.image_url_medium(item.avatarImage)
+      }
+    },
     activateDeepSearchGeojson(){
       this.isActiveDeepSearch = !this.isActiveDeepSearch
     },
   },
   mounted() {
 
+    this.fetchFtDataset()
   },
 };
 </script>

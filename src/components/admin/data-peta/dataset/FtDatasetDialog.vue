@@ -37,11 +37,11 @@
               <v-btn
                   dark
                   variant="text"
-                  @click="save"
+                  @click="applyChanges"
                   :disabled="!valid || isItemModified === false"
                   class="hidden-md-and-up"
               >
-                Simpan
+                Apply
               </v-btn>
             </v-toolbar-items>
           </v-toolbar>
@@ -416,12 +416,21 @@
             </v-btn>
             <v-btn
                 color="blue-darken-1"
+                variant="outlined"
+                @click="applyChanges"
+                :disabled="!valid || isItemModified === false"
+                class="hidden-sm-and-down mr-2"
+            >
+              Apply
+            </v-btn>
+            <v-btn
+                color="blue-darken-1"
                 variant="flat"
-                @click="save"
+                @click="saveAndClose"
                 :disabled="!valid || isItemModified === false"
                 class="hidden-sm-and-down"
             >
-              Simpan
+              Save & Close
             </v-btn>
           </v-card-actions>
         </v-form>
@@ -771,6 +780,11 @@ export default {
     },
 
     async cekTampilanPeta(){
+      if (!this.itemModified || !this.itemModified.id) {
+        this.snackBarMessage = "Simpan dulu dataset sebelum cek tampilan peta";
+        this.snackbar = true;
+        return;
+      }
       try {
         await this.ensureGeojsonLoaded();
         this.$refs.refFDayaDukungPetaMap.tampilkanPeta(this.itemModified);
@@ -994,19 +1008,11 @@ export default {
             this.itemModified.geojson = text;
             this.itemModified.fileNameLow = this.geojsonFileName;
             this.itemModified.withGeojson = true;
-            this.itemModified.hasGeojson = true;
+            // Belum tersimpan di server; hasGeojson akan diset oleh backend
+            this.itemModified.hasGeojson = false;
 
             this.refreshPropertyMetaFromItem(this.itemModified);
             this.refreshFeatureRowsFromGeojson();
-
-            // Setelah geojson tersedia, render peta untuk cek tampilan
-            this.$nextTick(() => {
-              try {
-                this.cekTampilanPeta();
-              } catch (mapErr) {
-                console.error("Gagal menampilkan peta:", mapErr);
-              }
-            });
           }
         } catch (err) {
           console.error(err);
@@ -1129,28 +1135,19 @@ export default {
       // Pastikan payload.propertiesMeta dikirim sebagai string JSON
       payload.propertiesMeta = JSON.stringify(meta);
     },
-    save() {
+    applyChanges() {
       if (this.isItemModified === false) {
-        //Close aja
-        this.dialogShow = false;
-        this.$emit("eventFromFormDialog1", this.itemModified);
         return;
       }
       if (this.$refs.form.validate()) {
         const payload = this.buildPayload();
-
         if (this.formMode === FormMode.EDIT_FORM) {
-          // let includeGeojson = false;
-          // if (payload.withGeojson) {
-          //   includeGeojson = true
-          // }
           const includeGeojson = !!payload.withGeojson;
-          // console.log(JSON.stringify(this.localPropertyGroups));
-
           FtDatasetService.updateFtDataset(payload, includeGeojson).then(
               () => {
-                console.log("=== masuk update dataset ===");
-
+                console.log("=== masuk update dataset (applyChanges) ===");
+                // Deep clone so computed isItemModified resets
+                this.itemDefault = JSON.parse(JSON.stringify(this.itemModified));
                 this.$emit("eventFromFormDialogEdit", this.itemModified);
               },
               (error) => {
@@ -1159,12 +1156,53 @@ export default {
               }
           );
         } else {
-          console.log("=== masuk create dataset ===");
-
+          console.log("=== masuk create dataset (applyChanges) ===");
           FtDatasetService.createFtDataset(payload).then(
               (response) => {
+                this.itemModified = response.data;
+                this.itemDefault = JSON.parse(JSON.stringify(this.itemModified));
                 this.$emit("eventFromFormDialogNew", response.data);
-                console.log("oke masuk");
+                this.$emit("update:formMode", FormMode.EDIT_FORM);
+              },
+              (error) => {
+                this.formDialogOptions.errorMessage =
+                    error.response?.data?.message || "Gagal create FtDataset";
+              }
+          );
+        }
+      }
+    },
+
+    saveAndClose() {
+      if (this.isItemModified === false) {
+        this.dialogShow = false;
+        this.$emit("eventFromFormDialog1", this.itemModified);
+        return;
+      }
+      if (this.$refs.form.validate()) {
+        const payload = this.buildPayload();
+        if (this.formMode === FormMode.EDIT_FORM) {
+          const includeGeojson = !!payload.withGeojson;
+          FtDatasetService.updateFtDataset(payload, includeGeojson).then(
+              () => {
+                this.itemDefault = JSON.parse(JSON.stringify(this.itemModified));
+                this.$emit("eventFromFormDialogEdit", this.itemModified);
+                this.dialogShow = false;
+                this.$emit("eventFromFormDialog1", this.itemModified);
+              },
+              (error) => {
+                this.formDialogOptions.errorMessage =
+                    error.response?.data?.message || "Gagal update FtDataset";
+              }
+          );
+        } else {
+          FtDatasetService.createFtDataset(payload).then(
+              (response) => {
+                this.itemModified = response.data;
+                this.itemDefault = JSON.parse(JSON.stringify(this.itemModified));
+                this.$emit("eventFromFormDialogNew", response.data);
+                this.dialogShow = false;
+                this.$emit("eventFromFormDialog1", this.itemModified);
               },
               (error) => {
                 this.formDialogOptions.errorMessage =

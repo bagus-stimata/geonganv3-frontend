@@ -83,7 +83,7 @@ const routes = [
     },
 
     {
-        path: '/setting-peta-sosialisasi',
+        path: '/admin-peta-tematik',
         name: 'AdminDataPetaTabularViewDummy',
         component: () => import('@/views/admin/data-peta/DataPetaTabularView.vue')
     },

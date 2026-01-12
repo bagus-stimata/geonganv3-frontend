@@ -193,14 +193,14 @@ export default {
           active: false,
           visible: [ERole.ROLE_ADMIN].some((x) => this.currentUser.roles.includes(x)),
           items: [
-            {
-              title: "Jenis",
-              route: "/admin-dayadukung-type",
-              icon: "",
-              visible: [ERole.ROLE_ADMIN].some((x) =>
-                  this.currentUser.roles.includes(x)
-              ) && this.currentUser.organizationLevel !== EOrganizationLevel.DIV,
-            },
+            // {
+            //   title: "Jenis",
+            //   route: "/admin-dayadukung-type",
+            //   icon: "",
+            //   visible: [ERole.ROLE_ADMIN].some((x) =>
+            //       this.currentUser.roles.includes(x)
+            //   ) && this.currentUser.organizationLevel !== EOrganizationLevel.DIV,
+            // },
 
             {
               title: "Data GeoJSON",
@@ -228,8 +228,8 @@ export default {
             },
 
             {
-              title: "Peta Sosialisasi",
-              route: "/setting-peta-sosialisasi",
+              title: "Peta Tematik",
+              route: "/admin-peta-tematik",
               icon: "",
               visible: [ERole.ROLE_ADMIN].some((x) =>
                   this.currentUser.roles.includes(x)

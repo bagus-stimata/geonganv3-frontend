@@ -75,7 +75,7 @@
                 :to="{ path: '/public-dataset' }"
                 v-if="!currentUser"
             >
-              <span>Dataset Peta</span>
+              <span>Dataset</span>
             </v-btn>
           </div>
         </v-toolbar-items>
@@ -337,7 +337,7 @@ export default {
 }
 .teks-effect-toright {
   font-weight: bolder;
-  letter-spacing: 2px;
+  letter-spacing: 1px;
   text-transform: uppercase;
   text-align: center;
 
@@ -365,7 +365,7 @@ export default {
   -webkit-text-fill-color: transparent;
   animation: textclip 2s linear infinite;
   display: inline-block;
-  font-size: 28px;
+  font-size: 22px;
 }
 
 @keyframes textclip {

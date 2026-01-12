@@ -12,7 +12,7 @@
           </v-col>
         </v-row>
         <v-row class="align-center my-3 justify-center">
-          <v-btn @click="toKatalogDataset" variant="plain" size="small" class="text-deep-orange font-weight-bold">
+          <v-btn @click="toPetaTematik" variant="plain" size="small" class="text-deep-orange font-weight-bold">
             Lihat Lebih Banyak <v-icon class="ml-2">mdi-arrow-right</v-icon>
           </v-btn>
         </v-row>
@@ -107,8 +107,8 @@ export default {
   computed: {
   },
   methods: {
-    toKatalogDataset(){
-      this.$router.push("/public-dataset")
+    toPetaTematik(){
+      this.$router.push("/public-peta-tematik")
     }
   },
 };

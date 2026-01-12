@@ -272,15 +272,6 @@
               <v-row v-else>
                 <v-col cols="12" sm="4" md="6" class="d-flex align-center">
                   <v-btn
-                      v-if="!hasGeojsonLoaded"
-                      color="blue-darken-1"
-                      variant="outlined"
-                      class="mr-2 rounded-lg"
-                      @click="loadGeojsonFromServer"
-                  >
-                    Load GeoJSON
-                  </v-btn>
-                  <v-btn
                       color="primary"
                       variant="flat"
                       class="mr-2 rounded-lg"
@@ -301,40 +292,7 @@
             </v-container>
           </v-card-text>
 
-          <v-card-text v-if="hasGeojsonForPreview">
-            <v-btn color="primary" @click="cekTampilanPeta" class="mb-2 rounded-lg" variant="flat">Cek Tampilan pada Peta</v-btn>
-            <FDayaDukungPetaMap
-                ref="refFDayaDukungPetaMap">
-            </FDayaDukungPetaMap>
-          </v-card-text>
-
-          <!-- Tabel metadata atribut GeoJSON: nama field, tipe, dan alias tampilan -->
-          <v-card-text v-if="propertyMetaRows && propertyMetaRows.length">
-            <div class="align-center mb-2">
-              <v-btn
-                  v-if="propertyMetaRows && propertyMetaRows.length"
-                  small
-                  variant="elevated"
-                  color="primary"
-                  class="rounded-lg font-weight-bold"
-                  @click="openPropertyGroupDialog"
-                  style="text-transform: none;"
-              >
-                Atur Kolom Grouping
-              </v-btn>
-            </div>
-            <div v-if="itemModified.propertyGroups" class="mt-1 mb-4">
-              <v-chip
-                  v-for="col in parsePropertyGroupsFromItem(itemModified)"
-                  :key="col"
-                  class="ma-1"
-                  color="primary"
-                  variant="outlined"
-                  size="small"
-              >
-                {{ col }}
-              </v-chip>
-            </div>
+          <v-card-text v-if="false">
             <div class="text-subtitle-2">Metadata Atribut GeoJSON</div>
             <v-table density="compact">
               <thead>
@@ -362,36 +320,99 @@
               </tr>
               </tbody>
             </v-table>
+
           </v-card-text>
 
-          <!-- Tabel data per feature (editable seperti QGIS attribute table) -->
-          <v-card-text v-if="featureRows && featureRows.length">
+          <!-- Tabel metadata atribut GeoJSON: nama field, tipe, dan alias tampilan -->
+          <v-card-text v-if="propertyMetaRows && propertyMetaRows.length">
+            <div class="d-flex align-center mb-2">
+              <v-btn
+                  v-if="propertyMetaRows && propertyMetaRows.length"
+                  small
+                  variant="elevated"
+                  color="primary"
+                  class="rounded-lg font-weight-bold"
+                  @click="openPropertyGroupDialog"
+                  style="text-transform: none;"
+              >
+                Kolom Yang ditampilkan pada Peta
+              </v-btn>
+            </div>
+            <div v-if="propertyGroupChips && propertyGroupChips.length" class="mt-4 mb-4">
+              <v-chip
+                  v-for="col in propertyGroupChips"
+                  :key="col"
+                  class="ma-1"
+                  color="primary"
+                  variant="outlined"
+                  size="small"
+              >
+                {{ col }}
+              </v-chip>
+            </div>
+          </v-card-text>
+
+          <v-btn
+              color="green-darken-1"
+              variant="elevated"
+              class="ml-4 rounded-lg"
+              @click="loadGeojsonFromServer"
+              style="text-transform: none;"
+          >
+            <span v-if="!hasGeojsonLoaded" class="d-flex align-center">Load Peta Geojson <v-icon class="ml-1">mdi-map</v-icon></span>
+            <span v-if="hasGeojsonLoaded" class="text-light-blue-lighten-4">Refresh Peta</span>
+          </v-btn>
+
+          <v-card-text v-if="hasGeojsonForPreview">
+            <FDayaDukungPetaMap
+                ref="refFDayaDukungPetaMap">
+            </FDayaDukungPetaMap>
+          </v-card-text>
+
+          <v-card-text  v-if="hasGeojsonForPreview">
             <div class="text-subtitle-2 mb-1">Data Per Feature</div>
             <div class="text-caption mb-2">
               Tabel ini menampilkan nilai properti tiap feature dari GeoJSON yang sudah dimuat dan bisa diedit.
             </div>
+            <v-text-field
+                v-model="featureFilterInput"
+                label="Filter data per feature minimal 2 karakter...(Enter mulai filter)"
+                variant="outlined"
+                density="compact"
+                class="mt-2"
+                hide-details
+                prepend-inner-icon="mdi-magnify"
+                clearable
+                @keyup.enter="applyFeatureFilter"
+            ></v-text-field>
 
-            <v-table density="compact">
-              <thead>
-              <tr>
-                <th style="width: 40px;">#</th>
-                <th v-for="col in featureColumns" :key="col">{{ col }}</th>
-              </tr>
-              </thead>
-              <tbody>
-              <tr v-for="(row, idx) in featureRows" :key="idx">
-                <td>{{ idx + 1 }}</td>
-                <td v-for="col in featureColumns" :key="col">
-                  <v-text-field
-                      v-model="row[col]"
-                      variant="underlined"
-                      density="compact"
-                      hide-details
-                  ></v-text-field>
-                </td>
-              </tr>
-              </tbody>
-            </v-table>
+          </v-card-text>
+
+          <!-- Tabel data per feature (editable seperti QGIS attribute table) -->
+          <v-card-text v-if="featureRows && featureRows.length">
+            <div class="feature-table-scroll">
+              <v-table density="compact">
+                <thead>
+                  <tr>
+                    <th style="width: 40px;">#</th>
+                    <th v-for="col in featureColumns" :key="col">{{ col }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(row, idx) in filteredFeatureRows" :key="idx">
+                    <td>{{ idx + 1 }}</td>
+                    <td v-for="col in featureColumns" :key="col">
+                      <v-text-field
+                        v-model="row[col]"
+                        variant="underlined"
+                        density="compact"
+                        hide-details
+                      ></v-text-field>
+                    </td>
+                  </tr>
+                </tbody>
+              </v-table>
+            </div>
           </v-card-text>
 
           <v-card-actions>
@@ -410,6 +431,7 @@
                 color="red-darken-1"
                 variant="outlined"
                 @click="closeForm"
+                :disabled="isItemModified === false"
                 class="hidden-sm-and-down"
             >
               Batal
@@ -477,36 +499,47 @@
       </v-snackbar>
     </v-dialog>
 
-    <!-- Dialog pilih kolom grouping (propertyGroups) -->
+    <!-- Dialog pilih kolom tampil di peta (propertyGroups) -->
     <v-dialog v-model="dialogPropertyGroupShow" max-width="500">
       <v-card>
         <v-card-title class="text-subtitle-2">
-          Pilih Kolom Grouping
+          Kolom Yang ditampilkan pada Peta
         </v-card-title>
 
         <v-card-text>
           <div class="text-caption mb-2">
-            Pilih kolom yang akan dijadikan acuan grouping / kategori utama (mis. Nama Desa, Kecamatan, dsb).
+            Centang kolom yang ingin ditampilkan pada peta. Default: semua kolom aktif—silakan nonaktifkan yang tidak perlu.
           </div>
 
           <v-container class="pa-0" fluid>
-            <div class="property-group-scroll">
-              <v-row>
+            <v-card elevation="0" class="property-group-scroll">
+              <v-row
+                  v-for="(row, index) in propertyMetaRows"
+                  :key="row.name"
+                  no-gutters
+              >
+                <v-divider></v-divider>
+                <v-col cols="1" class="align-baseline">
+                  <div>
+                    {{ index + 1 }}
+                  </div>
+                </v-col>
                 <v-col
-                    v-for="row in propertyMetaRows"
-                    :key="row.name"
-                    cols="12"
+                    cols="9"
+                    class="align-baseline"
                 >
+                  <div>{{ row.name }}</div>
+                </v-col>
+                <v-col cols="2">
                   <v-checkbox
                       v-model="localPropertyGroups"
-                      :label="row.name"
                       :value="row.name"
                       density="compact"
                       hide-details
                   />
                 </v-col>
               </v-row>
-            </div>
+            </v-card>
           </v-container>
         </v-card-text>
 
@@ -597,6 +630,8 @@ export default {
       localPropertyGroups: [],
       featureColumns: [],
       featureRows: [],
+      featureFilterInput: "",
+      featureFilterText: "",
 
     };
   },
@@ -608,18 +643,10 @@ export default {
     },
 
     hasGeojsonForPreview() {
-      const hasGeojsonContent =
-          this.itemModified &&
-          typeof this.itemModified.geojson === "string" &&
-          this.itemModified.geojson.trim() !== "" &&
-          this.itemModified.geojson.trim() !== "{}";
-
-      const hasLocalSelectedFile =
-          typeof this.geojsonFileName === "string" &&
-          this.geojsonFileName.trim() !== "";
-
-      // Preview cuma kalau ada GeoJSON beneran di memory (dari server atau file lokal)
-      return hasGeojsonContent || hasLocalSelectedFile;
+      // Hanya tampilkan tombol & komponen peta kalau:
+      // - dataset sudah punya GeoJSON tersimpan di backend (hasStoredGeojson)
+      // - dan konten GeoJSON sudah benar-benar dimuat ke memory (hasGeojsonLoaded)
+      return this.hasStoredGeojson && this.hasGeojsonLoaded;
     },
     hasGeojsonLoaded() {
       return (
@@ -640,12 +667,49 @@ export default {
       // kalau user pilih file baru, balik ke mode pilih file
       return hasFlag && !hasLocalSelectedFile;
     },
+    propertyGroupChips() {
+      // Ambil propertyGroups tersimpan; jika kosong, fallback ke semua propertyMetaRows
+      const groups = this.parsePropertyGroupsFromItem(this.itemModified);
+      if (groups && groups.length) {
+        return groups;
+      }
+      if (this.propertyMetaRows && this.propertyMetaRows.length) {
+        return this.propertyMetaRows.map((r) => r.name);
+      }
+      return [];
+    },
+    filteredFeatureRows() {
+      if (!this.featureRows || !this.featureRows.length) {
+        return [];
+      }
+      const q = (this.featureFilterText || "").toString().trim().toLowerCase();
+      // Jika filter kosong atau panjang <= 2 karakter, jangan lakukan filter
+      if (!q || q.length <= 2) {
+        return this.featureRows;
+      }
+      const cols = this.featureColumns || [];
+      return this.featureRows.filter((row) =>
+        cols.some((col) => {
+          const value = row[col];
+          if (value === null || value === undefined) return false;
+          return String(value).toLowerCase().includes(q);
+        })
+      );
+    },
   },
 
   watch: {
   },
 
   methods: {
+    applyFeatureFilter() {
+      const trimmed = (this.featureFilterInput || "").trim();
+      if (trimmed.length > 2) {
+        this.featureFilterText = trimmed;
+      } else {
+        this.featureFilterText = "";
+      }
+    },
     refreshFeatureRowsFromGeojson() {
       this.featureRows = [];
       this.featureColumns = [];
@@ -963,6 +1027,10 @@ export default {
 
     openPropertyGroupDialog() {
       this.localPropertyGroups = this.parsePropertyGroupsFromItem(this.itemModified);
+      // Default: semua kolom tampil pada peta
+      if ((!this.localPropertyGroups || this.localPropertyGroups.length === 0) && this.propertyMetaRows && this.propertyMetaRows.length) {
+        this.localPropertyGroups = this.propertyMetaRows.map((r) => r.name);
+      }
       this.dialogPropertyGroupShow = true;
     },
 
@@ -1010,9 +1078,7 @@ export default {
             this.itemModified.withGeojson = true;
             // Belum tersimpan di server; hasGeojson akan diset oleh backend
             this.itemModified.hasGeojson = false;
-
-            this.refreshPropertyMetaFromItem(this.itemModified);
-            this.refreshFeatureRowsFromGeojson();
+            // Tidak refreshPropertyMetaFromItem atau refreshFeatureRowsFromGeojson di sini
           }
         } catch (err) {
           console.error(err);
@@ -1135,82 +1201,92 @@ export default {
       // Pastikan payload.propertiesMeta dikirim sebagai string JSON
       payload.propertiesMeta = JSON.stringify(meta);
     },
-    applyChanges() {
+    doSaveChanges(closeAfterDialog) {
       if (this.isItemModified === false) {
+        if (closeAfterDialog) {
+          this.dialogShow = false;
+          this.$emit("eventFromFormDialog1", this.itemModified);
+        }
         return;
       }
-      if (this.$refs.form.validate()) {
-        const payload = this.buildPayload();
-        if (this.formMode === FormMode.EDIT_FORM) {
-          const includeGeojson = !!payload.withGeojson;
-          FtDatasetService.updateFtDataset(payload, includeGeojson).then(
-              () => {
-                console.log("=== masuk update dataset (applyChanges) ===");
-                // Deep clone so computed isItemModified resets
-                this.itemDefault = JSON.parse(JSON.stringify(this.itemModified));
-                this.$emit("eventFromFormDialogEdit", this.itemModified);
-              },
-              (error) => {
-                this.formDialogOptions.errorMessage =
-                    error.response?.data?.message || "Gagal update FtDataset";
-              }
-          );
-        } else {
-          console.log("=== masuk create dataset (applyChanges) ===");
-          FtDatasetService.createFtDataset(payload).then(
-              (response) => {
-                this.itemModified = response.data;
-                this.itemDefault = JSON.parse(JSON.stringify(this.itemModified));
-                this.$emit("eventFromFormDialogNew", response.data);
-                this.$emit("update:formMode", FormMode.EDIT_FORM);
-              },
-              (error) => {
-                this.formDialogOptions.errorMessage =
-                    error.response?.data?.message || "Gagal create FtDataset";
-              }
-          );
-        }
+      if (!this.$refs.form.validate()) {
+        return;
+      }
+      const payload = this.buildPayload();
+      if (this.formMode === FormMode.EDIT_FORM) {
+        const includeGeojson = !!payload.withGeojson;
+        FtDatasetService.updateFtDataset(payload, includeGeojson).then(
+          () => {
+            console.log("=== masuk update dataset (applyChanges) ===");
+            if (payload.withGeojson) {
+              this.itemModified.hasGeojson = true;
+              this.itemModified.withGeojson = false;
+              this.itemModified.geojson = "{}";
+              this.geojsonFile = null;
+              this.geojsonFileName = "";
+            }
+            this.itemDefault = JSON.parse(JSON.stringify(this.itemModified));
+            // Conditional emit: only emit close event if closeAfterDialog, else emit Apply event
+            if (closeAfterDialog) {
+              this.$emit("eventFromFormDialogEdit", this.itemModified);
+            } else {
+              // Apply only: inform parent without implying dialog should close
+              this.$emit("eventFromFormDialogEditApply", this.itemModified);
+            }
+            if (closeAfterDialog) {
+              this.dialogShow = false;
+              this.$emit("eventFromFormDialog1", this.itemModified);
+            }
+          },
+          (error) => {
+            this.formDialogOptions.errorMessage =
+              error.response?.data?.message || "Gagal update FtDataset";
+          }
+        );
+      } else {
+        console.log("=== masuk create dataset (applyChanges) ===");
+        FtDatasetService.createFtDataset(payload).then(
+          (response) => {
+            this.itemModified = response.data;
+            if (
+              typeof this.itemModified.hasGeojson === "undefined" ||
+              this.itemModified.hasGeojson === null
+            ) {
+              this.itemModified.hasGeojson =
+                (this.itemModified.featureCount || 0) > 0 || !!payload.withGeojson;
+            }
+            this.itemModified.withGeojson = false;
+            this.itemModified.geojson = "{}";
+            this.geojsonFile = null;
+            this.geojsonFileName = "";
+            this.itemDefault = JSON.parse(JSON.stringify(this.itemModified));
+            // Conditional emit: only emit close event if closeAfterDialog, else emit Apply event
+            if (closeAfterDialog) {
+              this.$emit("eventFromFormDialogNew", response.data);
+            } else {
+              // Apply only: inform parent without implying dialog should close
+              this.$emit("eventFromFormDialogNewApply", response.data);
+            }
+            this.$emit("update:formMode", FormMode.EDIT_FORM);
+            if (closeAfterDialog) {
+              this.dialogShow = false;
+              this.$emit("eventFromFormDialog1", this.itemModified);
+            }
+          },
+          (error) => {
+            this.formDialogOptions.errorMessage =
+              error.response?.data?.message || "Gagal create FtDataset";
+          }
+        );
       }
     },
 
+    applyChanges() {
+      this.doSaveChanges(false);
+    },
+
     saveAndClose() {
-      if (this.isItemModified === false) {
-        this.dialogShow = false;
-        this.$emit("eventFromFormDialog1", this.itemModified);
-        return;
-      }
-      if (this.$refs.form.validate()) {
-        const payload = this.buildPayload();
-        if (this.formMode === FormMode.EDIT_FORM) {
-          const includeGeojson = !!payload.withGeojson;
-          FtDatasetService.updateFtDataset(payload, includeGeojson).then(
-              () => {
-                this.itemDefault = JSON.parse(JSON.stringify(this.itemModified));
-                this.$emit("eventFromFormDialogEdit", this.itemModified);
-                this.dialogShow = false;
-                this.$emit("eventFromFormDialog1", this.itemModified);
-              },
-              (error) => {
-                this.formDialogOptions.errorMessage =
-                    error.response?.data?.message || "Gagal update FtDataset";
-              }
-          );
-        } else {
-          FtDatasetService.createFtDataset(payload).then(
-              (response) => {
-                this.itemModified = response.data;
-                this.itemDefault = JSON.parse(JSON.stringify(this.itemModified));
-                this.$emit("eventFromFormDialogNew", response.data);
-                this.dialogShow = false;
-                this.$emit("eventFromFormDialog1", this.itemModified);
-              },
-              (error) => {
-                this.formDialogOptions.errorMessage =
-                    error.response?.data?.message || "Gagal create FtDataset";
-              }
-          );
-        }
-      }
+      this.doSaveChanges(true);
     },
 
     saveCreateOnly() {
@@ -1506,5 +1582,11 @@ export default {
 .property-group-scroll {
   max-height: 340px;
   overflow-y: auto;
+}
+.feature-table-scroll {
+  max-height: 360px;
+  overflow-y: auto;
+  border: 1px solid #eee;
+  border-radius: 4px;
 }
 </style>

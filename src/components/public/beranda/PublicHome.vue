@@ -12,26 +12,27 @@
         <div class="text-center" style="width: 100%">
           <v-row class="mt-16">
             <v-spacer></v-spacer>
-            <v-col class="mt-16" cols="12" md="6" sm="6">
-              <div class="text-md-h2 text-h3 font-weight-black text-white text-center">Lebih mudah paham data lewat peta</div>
+            <v-col class="mt-16" cols="12" md="7" sm="6">
+              <div class="text-md-h2 text-h3 font-weight-black text-white text-center ">Pahami Data Peta Lebih Cepat Lewat <span class="text-orange-accent-2">Geoportal</span></div>
             </v-col>
             <v-spacer></v-spacer>
           </v-row>
           <v-row class="mt-1 align-center justify-center" >
             <v-col cols="12" md="6" sm="6">
-              <div class="text-subtitle-1 font-weight-bold text-white text-center">Dapatkan insight dengan cepat, untuk keputusan yang tepat</div>
+              <div class="text-subtitle-1 font-weight-bold text-white text-center">Dapatkan insight instan untuk keputusan yang lebih tepat</div>
             </v-col>
           </v-row>
           <v-row class="align-center justify-center">
             <v-col class="px-3 mx-3" cols="12" md="5" sm="12" >
               <v-text-field
+                  v-model="search"
                   style="box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2); text-transform: none;"
                   prepend-inner-icon="mdi-magnify"
                   density="compact"
                   class="rounded-xl bg-white pt-1 pb-3 px-3"
                   variant="plain"
                   hide-details
-                  placeholder="Cari dengan kata kunci"
+                  placeholder="Cari berdasarkan kata kunci"
               >
                 <template #append-inner>
                   <div class="d-flex flex-row align-center">
@@ -45,7 +46,7 @@
                           location="top"
                       >Pencarian lebih dalam ke isi geospasial</v-tooltip>
                     </v-btn>
-                    <v-btn :color="isActiveDeepSearch?'indigo' : 'green'" class="rounded-be-xl rounded-te-xl font-weight-bold text-white" variant="flat" size="small" style="text-transform: none;">Search</v-btn>
+                    <v-btn @click="searchDataset" :color="isActiveDeepSearch?'indigo' : 'green'" class="rounded-be-xl rounded-te-xl font-weight-bold text-white" variant="flat" size="small" style="text-transform: none;">Search</v-btn>
                   </div>
                 </template>
               </v-text-field>
@@ -54,7 +55,7 @@
         </div>
         <v-row class="mt-3 align-center justify-center" >
           <v-col cols="12" md="6" sm="6" class="align-center justify-center d-flex flex-row">
-            <v-chip size="large" style="box-shadow: 0 3px 6px 0 rgba(255, 255, 255, 0.4)" color="orange-accent-2" variant="elevated" class="text-white font-weight-bold"><v-icon class="mr-2 text-white">mdi-creation</v-icon> Konten Terpopuler</v-chip>
+            <v-chip size="large" style="box-shadow: 0 3px 6px 0 rgba(255, 255, 255, 0.4)" color="blue-accent-4"  variant="elevated" class="text-white font-weight-bold"><v-icon class="mr-2 text-white">mdi-creation</v-icon> Konten Terpopuler</v-chip>
           </v-col>
         </v-row>
         <v-sheet class="mx-auto bg-transparent" elevation="0" width="100%">
@@ -101,6 +102,11 @@
         </v-sheet>
       </v-img>
     </v-card>
+    <HomeSearchResult
+        v-if="search && isSearchActive"
+        ref="refHomeSearchResult"
+        id="target-scroll-section"
+    />
     <HomePetaInteraktif></HomePetaInteraktif>
     <HomeNews :fnewsFiltered="fnewsFiltered"></HomeNews>
     <YoutubeVideo
@@ -110,14 +116,16 @@
 
 <script>
 import YoutubeVideo from "@/components/public/beranda/YoutubeVideo.vue";
-import HomePetaInteraktif from "@/components/public/beranda/HomePetaInteraktif.vue";
+import HomePetaInteraktif from "@/components/public/beranda/HomePetaTematik.vue";
 import HomeNews from "@/components/public/beranda/HomeNews.vue";
+import HomeSearchResult from "@/components/public/beranda/HomeSearchResult.vue";
 
 export default {
   name: "PublicHome",
-  components: {HomeNews, HomePetaInteraktif, YoutubeVideo},
+  components: {HomeSearchResult, HomeNews, HomePetaInteraktif, YoutubeVideo},
   data() {
     return {
+      isSearchActive: false,
       fnewsFiltered:[],
       mapsetItems: [
         {
@@ -176,6 +184,15 @@ export default {
     },
   },
   methods: {
+    searchDataset(){
+      this.isSearchActive = true
+
+      this.$nextTick(() => {
+        const comp = this.$refs.refHomeSearchResult
+        const el = comp?.$el || comp
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
+    },
     activateDeepSearchGeojson(){
       this.isActiveDeepSearch = !this.isActiveDeepSearch
     },

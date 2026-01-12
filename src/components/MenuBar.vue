@@ -86,6 +86,23 @@
                 size="small"
                 :style="isHome && !scrolled?'color:white !important': ''"
                 density="comfortable"
+                :variant="isActive('/public-peta-tematik')?'elevated':'plain'"
+                :class="isActive('/public-peta-tematik')?'color-bg-primary pa-3 text-white font-weight-bold' : 'pa-3 text-black font-weight-bold hover-btn'"
+                elevation="0"
+                :to="{ path: '/public-peta-tematik' }"
+                v-if="!currentUser"
+            >
+              <span>Peta Tematik</span>
+            </v-btn>
+          </div>
+        </v-toolbar-items>
+        <v-toolbar-items class="hidden-sm-and-down d-flex flex-column align-center justify-center">
+          <div class="hidden-sm-and-down">
+            <v-btn
+                class="hidden-sm-and-down"
+                size="small"
+                :style="isHome && !scrolled?'color:white !important': ''"
+                density="comfortable"
                 :variant="isActive('/public-map')?'elevated':'plain'"
                 :class="isActive('/public-map')?'color-bg-primary pa-3 text-white font-weight-bold' : 'pa-3 text-black font-weight-bold hover-btn'"
                 elevation="0"

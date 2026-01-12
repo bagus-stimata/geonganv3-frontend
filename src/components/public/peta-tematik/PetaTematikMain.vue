@@ -57,7 +57,7 @@
       </v-card-text>
       <v-card-text>
         <div class="text-h6 mb-6 font-weight-black text-indigo">
-          Katalog Dataset <span class="color-text-primary">Peta</span>
+          Katalog <span class="color-text-primary">Peta Tematik</span>
         </div>
         <v-card class="mt-2 pa-4" elevation="0" style="box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2) !important;">
           <v-row
@@ -69,7 +69,7 @@
                 v-for="set in mapsetItems"
                 :key="set.id"
                 sm="6"
-                md="3"
+                md="4"
                 cols="12"
                 xl="2"
                 class="d-flex justify-center mb-2 pa-2"
@@ -85,7 +85,7 @@
                       width="100%"
                       height="200"
                       cover
-                      :src="require('@/assets/images/basemap.jpeg')"
+                      :src="require('@/assets/images/peta-tematik.png')"
                       class="rounded-lg"
                   />
                   <v-card-text>
@@ -119,7 +119,7 @@
 <script>
 
 export default {
-  name: "DatasetMain",
+  name: "PetaTematikMain",
   components: {},
   data() {
     return {
@@ -127,72 +127,53 @@ export default {
       mapsetItems: [
         {
           id: 1,
-          title: 'Dataset Titik UMKM',
-          desc: 'Persebaran UMKM & lokasi usaha (point layer).',
-          img: require('@/assets/images/basemap.jpeg'),
+          title: 'Peta Tematik Kependudukan',
+          desc: 'Sebaran & kepadatan penduduk per wilayah (choropleth/polygon).',
+          img: require('@/assets/images/peta-tematik.png'),
           color: 'indigo',
         },
         {
           id: 2,
-          title: 'RDTR Zona Peruntukan',
-          desc: 'Zonasi pemanfaatan ruang (polygon) untuk RDTR.',
-          img: require('@/assets/images/basemap.jpeg'),
+          title: 'Peta Tematik Ekonomi',
+          desc: 'Indikator ekonomi wilayah: UMKM, pasar, dan pusat aktivitas (point/polygon).',
+          img: require('@/assets/images/peta-tematik.png'),
           color: 'deep-purple',
         },
         {
           id: 3,
-          title: 'Jaringan Jalan',
-          desc: 'Klasifikasi jalan nasional/prov/kab (line layer).',
-          img: require('@/assets/images/basemap.jpeg'),
+          title: 'Peta Tematik Infrastruktur',
+          desc: 'Jaringan jalan, jembatan, utilitas dasar & aksesibilitas (line/point).',
+          img: require('@/assets/images/peta-tematik.png'),
           color: 'teal',
         },
         {
           id: 4,
-          title: 'Batas Administrasi',
-          desc: 'Kabupaten/Kecamatan/Desa (polygon).',
-          img: require('@/assets/images/basemap.jpeg'),
+          title: 'Peta Tematik Tata Ruang',
+          desc: 'Zonasi pemanfaatan ruang & kesesuaian lahan (polygon).',
+          img: require('@/assets/images/peta-tematik.png'),
           color: 'blue',
         },
         {
           id: 5,
-          title: 'Hidrologi',
-          desc: 'Sungai, saluran, danau (line/polygon).',
-          img: require('@/assets/images/basemap.jpeg'),
+          title: 'Peta Tematik Lingkungan',
+          desc: 'Tutupan lahan, vegetasi, area rawan, dan kualitas lingkungan (polygon).',
+          img: require('@/assets/images/peta-tematik.png'),
           color: 'cyan',
         },
         {
           id: 6,
-          title: 'Fasilitas Publik',
-          desc: 'Sekolah, puskesmas, kantor, dll (point).',
-          img: require('@/assets/images/basemap.jpeg'),
+          title: 'Peta Tematik Pelayanan Publik',
+          desc: 'Sebaran fasilitas layanan: kesehatan, pendidikan, pemerintahan (point).',
+          img: require('@/assets/images/peta-tematik.png'),
           color: 'pink',
-        },
-        {
-          id: 7,
-          title: 'Kawasan Rawan Bencana',
-          desc: 'KRB banjir/longsor (polygon) untuk mitigasi.',
-          img: require('@/assets/images/basemap.jpeg'),
-          color: 'orange',
-        },
-        {
-          id: 8,
-          title: 'Potensi Investasi',
-          desc: 'Lahan potensial + catatan peluang (point/polygon).',
-          img: require('@/assets/images/basemap.jpeg'),
-          color: 'green',
         },
       ],
       categories: [
         { id: 'all', name: 'All', color: 'primary', count: 128 },
         { id: 'admin', name: 'Administrasi', color: 'indigo', count: 18 },
-        { id: 'rdtr', name: 'RDTR / RTRW', color: 'deep-purple', count: 12 },
-        { id: 'infra', name: 'Infrastruktur', color: 'teal', count: 26 },
-        { id: 'transport', name: 'Transportasi', color: 'blue', count: 15 },
-        { id: 'util', name: 'Utilitas', color: 'cyan', count: 9 },
-        { id: 'landuse', name: 'Tata Guna Lahan', color: 'green', count: 22 },
-        { id: 'env', name: 'Lingkungan', color: 'light-green', count: 14 },
+        { id: 'infra', name: 'Infrastruktur & Utilitas', color: 'teal', count: 50 },
         { id: 'hydro', name: 'Hidrologi', color: 'blue-grey', count: 11 },
-        { id: 'demografi', name: 'Sosial & Demografi', color: 'pink', count: 7 },
+        { id: 'sosenv', name: 'Sosial & Lingkungan', color: 'light-green', count: 21 },
         { id: 'invest', name: 'Potensi Investasi', color: 'orange', count: 10 },
       ],
       isActiveDeepSearch: false,

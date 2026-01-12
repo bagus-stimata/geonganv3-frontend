@@ -1,189 +1,191 @@
 <template>
-  <v-card elevation="0">
+  <v-card elevation="0" class="bg-grey-lighten-5">
     <v-container>
-      <v-row justify="end" no-gutters class="mt-2">
-        <v-col cols="4" md="2" sm="2">
+      <div class="text-h5 mt-8 mb-3 font-weight-black color-text-second text-center">
+        Hasil Pencarian
+      </div>
+      <div>
+        <v-row v-if="ftDatasetsFiltered.length === 0">
+          <v-col>
+            <div class="text-center text-grey my-6">Dataset not found</div>
+          </v-col>
+        </v-row>
+        <v-row
+            v-else
+            no-gutters
+            class="mt-2 wrap"
+            justify="center"
+        >
+          <v-col
+              v-for="dataset in ftDatasetsFiltered"
+              :key="dataset.id"
+              sm="6"
+              md="6"
+              cols="12"
+              xl="2"
+              class="d-flex justify-center mb-2 pa-2"
+          >
+            <v-hover v-slot="{ isHovering, props }">
+              <v-card
+                  v-bind="props"
+                  width="100%"
+                  :style="isHovering ? 'box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3) !important;' : 'box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2) !important;'"
+                  class="rounded-lg"
+              >
+                <v-row>
+                  <v-col cols="4">
+                    <v-img
+                        width="100%"
+                        height="140"
+                        cover
+                        :src="lookupImageUrl(dataset)"
+                        class="rounded-lg"
+                    />
+                  </v-col>
+                  <v-col cols="8" class="py-5 pe-4 d-flex flex-column justify-space-between">
+                    <div>
+                      <div class="text-subtitle-1 font-weight-bold text-indigo">
+                        {{ dataset.description }}
+                      </div>
+                      <div class="text-subtitle-2 font-weight-light text-grey">
+                        {{ dataset.notes }}
+                      </div>
+                      <div class="text-subtitle-2 mt-2 font-weight-bold text-orange">
+                        Tahun {{ dataset.tahun }}
+                      </div>
+                    </div>
+                    <div class="d-flex flex-row">
+                      <v-spacer />
+                      <v-btn size="small" class="font-weight-bold" variant="text" color="indigo">
+                        <span class="mr-2">Lihat Detail</span><v-icon>mdi-arrow-right</v-icon>
+                      </v-btn>
+                    </div>
+                  </v-col>
+                </v-row>
+              </v-card>
+            </v-hover>
+          </v-col>
+        </v-row>
+      </div>
+      <v-row class="mt-3" justify="center" align="center">
+        <v-col class="justify-start" cols="4" md="2" sm="2">
           <v-select
               v-model="pageSize"
               :items="pageSizes"
               label="Items per page"
-              @change="updatePagination"
               variant="outlined"
               density="compact"
           ></v-select>
         </v-col>
-      </v-row>
-
-      <v-list class="mt-4" v-if="paginatedItems.length===0" elevation="0">
-        <v-list-item elevation="0">
-          <v-list-item-title elevation="0" class="text-center color-text-second">No data found</v-list-item-title>
-        </v-list-item>
-      </v-list>
-      <v-list class="mt-4 bg-grey-lighten-5" v-else>
-        <v-list-item
-            v-for="(item, index) in paginatedItems"
-            :key="index"
-            class="my-2 list-item"
-        >
-          <v-list-item-title>{{ item.title }}</v-list-item-title>
-          <div class="text-green-darken-1 text-caption mt-n1">{{ lookupFDivision(item.fdivisionBean) }}</div>
-          <v-list-item-subtitle class="text-grey-darken-2">{{ item.description }}</v-list-item-subtitle>
-          <v-list-item-action class="align-center mt-4">
-            <!--          <v-btn color="primary" @click="previewData(item)" outlined x-small rounded>-->
-            <v-btn class="me-2" color="primary" variant="outlined" size="x-small" rounded>
-              Preview
-              <v-icon small class="ml-1">mdi-magnify</v-icon>
-            </v-btn>
-            <div v-if="item.categ === 'Indikator' " class="text-orange-darken-1 text-caption mt-n4">{{ item.categ }}</div>
-            <div v-else class="text-blue-darken-1 text-caption mt-n4">{{ item.categ }}</div>
-          </v-list-item-action>
-        </v-list-item>
-      </v-list>
-
-      <v-row justify="end" no-gutters class="mt-2">
-        <v-col cols="8" md="6" sm="6" class="d-flex">
-          <v-spacer></v-spacer>
+        <v-col cols="8" md="10" sm="8" class="d-flex flex-row justify-end">
           <v-pagination
               v-model="currentPage"
-              :length="totalPages"
+              :length="totalPaginationPages"
               total-visible="8"
-              rounded="circle"
-              @input="updatePagination"
               active-color="orange-darken-4"
               size="x-small"
               variant="flat"
           ></v-pagination>
         </v-col>
       </v-row>
-      <!--    <DatasetContentDataDialog-->
-      <!--        ref="refFormDialog"-->
-      <!--    ></DatasetContentDataDialog>-->
-
-      <!--    <IndikatorResult-->
-      <!--      ref="refIndikatorResult"-->
-      <!--      :itemsFDivision="itemsFDivision"-->
-      <!--    ></IndikatorResult>-->
-      <v-divider thickness="2" color="grey" class="mt-4"></v-divider>
     </v-container>
   </v-card>
 </template>
-
 <script>
-import SearchPublicService from "@/services/apiservices/search-public-service";
-// import DatasetContentDataDialog from "@/components/public/dataset-content/dataset-content-dialog/DatasetContentDataDialog.vue";
-// import IndikatorResult from "@/components/public/indikator/IndikatorResult.vue";
+
+import FtDataset from "@/models/ft-dataset";
+import FDayaDukungFilter from "@/models/payload/f-dayadukung-filter";
+import FtDatasetService from "@/services/apiservices/ft-dataset-service";
+import FileService from "@/services/apiservices/file-service";
 
 export default {
-  components: {
-    // IndikatorResult,
-    // DatasetContentDataDialog
-  },
+  name: "HomeSearch",
+  components: {},
   data() {
     return {
-      search: '',
-
       currentPage: 1,
       totalTablePages: 1,
       totalPaginationPages: 1,
-      pageSize: 10,
-      pageSizes: [10, 25, 50, 150, 500],
-      items:[],
-      itemsFDivision: [],
-
+      pageSize: 4,
+      pageSizes: [4, 10],
+      totalItems: 0,
+      search: "",
+      ftDatasets: [new FtDataset()],
     };
   },
+  watch: {
+    currentPage(newPage) {
+      if (newPage) {
+        this.fetchFtDataset();
+      }
+    },
+    pageSize() {
+      const refreshData = this.currentPage === 1;
+      this.currentPage = 1;
+      if (refreshData) {
+        this.fetchFtDataset();
+      }
+    },
+  },
   computed: {
-    filteredItems() {
-      return this.items.filter(item => item.title.toLowerCase().includes(this.search.toLowerCase()));
+    ftDatasetsFiltered() {
+      return this.ftDatasets;
     },
-    paginatedItems() {
-      const start = (this.currentPage - 1) * this.pageSize;
-      const end = start + this.pageSize;
-      return this.filteredItems.slice(start, end);
-    },
-    totalPages() {
-      return Math.ceil(this.filteredItems.length / this.pageSize);
-    }
   },
   methods: {
-    updatePagination() {
-      if (this.currentPage > this.totalPages) {
-        this.currentPage = this.totalPages;
+    runExtendedFilter(search) {
+      this.ftDatasets = []
+      this.search = search
+      const extendedFilter = new FDayaDukungFilter();
+      extendedFilter.fdivisionIds = [];
+      extendedFilter.pageNo = this.currentPage;
+      extendedFilter.pageSize = this.pageSize;
+      extendedFilter.sortBy = "id";
+      extendedFilter.order = "DESC";
+      extendedFilter.search = this.search;
+      extendedFilter.city = "";
+      let deepSearch = this.isActiveDeepSearch
+      if(this.isActiveDeepSearch){
+        deepSearch = true
       }
-    },
-    previewData(item) {
-
-      if(item.categ === 'Dataset'){
-        this.$refs.refFormDialog.showDialog(item.id)
-      }else {
-        this.$refs.refIndikatorResult.showDialog(item)
-      }
-    },
-
-    fetchData(search) {
-      if (search !== undefined) {
-        this.search = search
-      }
-      SearchPublicService.getSearchResult(
-          "id",
-          "DESC",
-          this.search
+      // FtDatasetService.getAllFtDatasetPublic(
+      //     deepSearch
+      // ).then(
+      //     (response) => {
+      //       this.ftDatasets = response.data;
+      //     },
+      //     (error) => {
+      //       console.log(error);
+      //     }
+      // );
+      FtDatasetService.getPostAllFtDatasetContainingExtPublic(
+          extendedFilter,
+          deepSearch
       ).then(
           (response) => {
-            const { items, itemsFDivision } = response.data;
-            this.items = items;
-            this.itemsFDivision = itemsFDivision;
-            // console.log(JSON.stringify(this.items))
+            const { items, totalPages, totalItems } = response.data;
+            this.ftDatasets = items;
+            this.totalPaginationPages = totalPages;
+            this.totalItems = totalItems;
           },
           (error) => {
-            console.log(error.response);
+            console.log(error);
           }
       );
     },
-    fetchParent() {
+    fetchFtDataset() {
+      this.runExtendedFilter();
     },
-    lookupFDivision(fdivisionBean) {
-      if (this.itemsFDivision.length === 0) {
-        return "-";
-      }
-      const str = this.itemsFDivision.filter((x) => x.id === fdivisionBean);
-      if (str.length > 0) {
-        return str[0].description;
-      } else {
-        return "-";
+    lookupImageUrl(item){
+      if (item.avatarImage===undefined || item.avatarImage===""){
+        return require('@/assets/images/basemap.jpeg')
+      }else {
+        return FileService.image_url_medium(item.avatarImage)
       }
     },
-
   },
-  mounted() {
-
-  }
-
-
 };
 </script>
-
 <style scoped>
-.v-container {
-  background-color: #ffffff;
-  padding: 20px;
-  border-radius: 8px;
-}
-.v-text-field {
-  margin-bottom: 20px;
-}
-.v-btn {
-  margin-bottom: 20px;
-}
-.v-list-item {
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s, box-shadow 0.3s;
-}
-.v-list-item:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-}
 
 </style>

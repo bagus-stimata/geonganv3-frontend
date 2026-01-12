@@ -59,13 +59,46 @@ class FtDatasetService {
         );
     }
 
+    getAllFtDatasetContainingPublic(
+        page,
+        pageSize,
+        sortBy,
+        order,
+        search,
+        includeGeojson = false
+    ) {
+        const qSearch = encodeURIComponent(search ?? "");
+        const qSortBy = encodeURIComponent(sortBy ?? "");
+        const qOrder = encodeURIComponent(order ?? "");
+
+        return axios.get(
+            API_URL +
+            `public/getAllFtDatasetContaining` +
+            `?page=${page}` +
+            `&pageSize=${pageSize}` +
+            `&sortBy=${qSortBy}` +
+            `&order=${qOrder}` +
+            `&search=${qSearch}` +
+            `&includeGeojson=${includeGeojson}`,
+            { headers: authHeader() }
+        );
+    }
+
     /**
+     *
      * Versi POST dengan filter lebih kompleks (FIndikatorFilter).
      * `includeGeojson` tetap lewat query param.
      */
     getPostAllFtDatasetContainingExt(item, includeGeojson = false) {
         return axios.post(
             API_URL + `getPostAllFtDatasetContainingExt?includeGeojson=${includeGeojson}`,
+            item,
+            { headers: authHeader() }
+        );
+    }
+    getPostAllFtDatasetContainingExtPublic(item, includeGeojson = false) {
+        return axios.post(
+            API_URL + `public/getPostAllFtDatasetContainingExt?includeGeojson=${includeGeojson}`,
             item,
             { headers: authHeader() }
         );

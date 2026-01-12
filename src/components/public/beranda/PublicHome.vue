@@ -31,6 +31,8 @@
                   density="compact"
                   class="rounded-xl bg-white pt-1 pb-3 px-3"
                   variant="plain"
+                  @focus="isSearchActive = false"
+                  @input="isSearchActive = false"
                   hide-details
                   placeholder="Cari berdasarkan kata kunci"
               >
@@ -67,8 +69,8 @@
               :show-arrows="false"
           >
             <v-slide-group-item
-                v-for="set in mapsetItems"
-                :key="set.id"
+                v-for="dataset in ftDatasetsFiltered"
+                :key="dataset.id"
                 v-slot="{ isSelected, toggle }"
             >
               <div class="sg-item-wrap" @click="toggle">
@@ -82,16 +84,27 @@
                           width="100%"
                           :height="isMobile ? (isSelected ? '146' : '130') : (isSelected ? '224' : '186')"
                           cover
-                          :src="require('@/assets/images/basemap.jpeg')"
+                          :src="lookupImageUrl(dataset)"
                           class="rounded-xl"
                       />
                     </v-col>
-                    <v-col cols="7" class="py-4">
-                      <div class="text-md-h6 text-subtitle-1 font-weight-bold text-indigo">
-                        {{set.title}}
+                    <v-col cols="7" class="py-4 d-flex flex-column justify-space-between">
+                      <div>
+                        <div class="text-subtitle-1 font-weight-bold text-indigo">
+                          {{ dataset.description }}
+                        </div>
+                        <div class="text-subtitle-2 font-weight-light text-grey">
+                          {{ dataset.notes }}
+                        </div>
+                        <div class="text-subtitle-2 mt-2 font-weight-bold text-orange">
+                          Tahun {{ dataset.tahun }}
+                        </div>
                       </div>
-                      <div class="text-md-subtitle-1 text-subtitle-2 font-weight-light text-grey">
-                        {{ set.desc }}
+                      <div class="d-flex flex-row">
+                        <v-spacer />
+                        <v-btn size="small" class="font-weight-bold" variant="text" color="indigo">
+                          <span class="mr-2">Lihat Detail</span><v-icon>mdi-arrow-right</v-icon>
+                        </v-btn>
                       </div>
                     </v-col>
                   </v-row>
@@ -123,6 +136,9 @@ import YoutubeVideo from "@/components/public/beranda/YoutubeVideo.vue";
 import HomePetaInteraktif from "@/components/public/beranda/HomePetaTematik.vue";
 import HomeNews from "@/components/public/beranda/HomeNews.vue";
 import HomeSearchResult from "@/components/public/beranda/HomeSearchResult.vue";
+import FtDatasetService from "@/services/apiservices/ft-dataset-service";
+import FtDataset from "@/models/ft-dataset";
+import FileService from "@/services/apiservices/file-service";
 
 export default {
   name: "PublicHome",
@@ -179,9 +195,13 @@ export default {
       itemsFDivision: [],
       backgroundImage: require("@/assets/images/homeimage.jpg"),
       isActiveDeepSearch: false,
+      ftDatasets: [new FtDataset()],
     };
   },
   computed: {
+    ftDatasetsFiltered() {
+      return this.ftDatasets.filter(items => (items.showToMap === true));
+    },
     isSmAndDown() {
       // Vuetify 3: use $vuetify.display; fallback false to avoid runtime crash
       return !!(this.$vuetify && this.$vuetify.display && this.$vuetify.display.smAndDown)
@@ -192,13 +212,38 @@ export default {
     },
   },
   methods: {
-    searchDataset(){
+    lookupImageUrl(item){
+      if (item.avatarImage===undefined || item.avatarImage===""){
+        return require('@/assets/images/basemap.jpeg')
+      }else {
+        return FileService.image_url_medium(item.avatarImage)
+      }
+    },
+    fetchFtDataset() {
+      let deepSearch = this.isActiveDeepSearch
+      if(this.isActiveDeepSearch){
+        deepSearch = true
+      }
+      FtDatasetService.getAllFtDatasetPublic(deepSearch).then(
+          (response) => {
+            this.ftDatasets = response.data;
+          },
+          (error) => {
+            console.log(error);
+          }
+      );
+    },
+    searchDataset () {
       this.isSearchActive = true
-
       this.$nextTick(() => {
         const comp = this.$refs.refHomeSearchResult
+        if (comp && typeof comp.runExtendedFilter === 'function') {
+          comp.runExtendedFilter(this.search)
+        }
         const el = comp?.$el || comp
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
       })
     },
     activateDeepSearchGeojson(){
@@ -206,6 +251,7 @@ export default {
     },
   },
   mounted() {
+    this.fetchFtDataset()
     this.model = 1;
     this.cycleTimer = window.setInterval(() => {
       const total = 4;

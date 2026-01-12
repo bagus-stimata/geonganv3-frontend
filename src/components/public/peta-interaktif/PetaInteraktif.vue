@@ -56,9 +56,26 @@
           </v-card-title>
           <v-expand-transition v-show="showMapsetController === true">
             <v-card-text class="bg-white mt-3 py-4 rounded-lg">
-              <div class="text-subtitle-1 mb-1 font-weight-bold">Mapset</div>
+              <div class="text-subtitle-1 mb-1 font-weight-bold d-flex flex-row align-center">
+                <div>Mapset</div>
+                <span v-if="itemsMapsetSelected.length > 0 && isApply" class="ml-2 bg-orange rounded-lg py-1 px-3 text-caption font-weight-bold text-white">{{itemsMapsetSelected.length}}</span>
+                <v-spacer></v-spacer>
+                <v-btn @click="deleteAllList" v-if="itemsMapsetSelected.length > 0 && isApply" icon density="comfortable" variant="text" color="red"><v-icon>mdi-delete</v-icon></v-btn>
+              </div>
               <v-divider></v-divider>
-              <v-card elevation="0" class="d-flex flex-row justify-center align-center bg-grey-lighten-5 mt-2" height="45vh">
+              <v-card v-if="itemsMapsetSelected.length > 0 && isApply" elevation="0" class="mt-2" height="45vh">
+                <v-row no-gutters class="ga-2">
+                  <v-col cols="12" v-for="(itemSelected) in itemsMapsetSelected" :key="itemSelected.id">
+                    <v-card elevation="0" class="d-flex rounded-lg flex-row align-center pa-1 border-opacity-25 border-thin">
+                      <v-icon size="small" class="mx-1" color="grey">mdi-dots-vertical</v-icon>
+                      <div class="ml-2 text-caption font-weight-bold text-black">{{itemSelected.description}}</div>
+                      <v-spacer></v-spacer>
+                      <v-btn icon density="comfortable" variant="text" color="black"><v-icon>mdi-eye</v-icon></v-btn>
+                    </v-card>
+                  </v-col>
+                </v-row>
+              </v-card>
+              <v-card v-else elevation="0" class="d-flex flex-row justify-center align-center bg-grey-lighten-5 mt-2" height="45vh">
                 <v-card-text class="text-center">
                   <v-btn readonly color="grey" class="mb-6" icon variant="flat" size="small"><v-icon class="text-white">mdi-map</v-icon></v-btn>
                   <div class="font-weight-black text-subtitle-2 text-center">Belum ada mapset yang dipilih</div>
@@ -245,7 +262,7 @@
                 location="bottom">
       <span class="snackbar-center">{{ snackbar.text }}</span>
     </v-snackbar>
-    <PickMapsetDialog ref="refPickMapsetDialog"></PickMapsetDialog>
+    <PickMapsetDialog @applyPeta="applyPeta" ref="refPickMapsetDialog"></PickMapsetDialog>
 
   </div>
 </template>
@@ -266,6 +283,7 @@ import RBush from 'rbush'
 import * as turf from '@turf/turf'
 import FDayadukungService from "@/services/apiservices/f-dayadukung-service";
 import PickMapsetDialog from "@/components/public/peta-interaktif/PickMapsetDialog.vue";
+import {de} from "vuetify/locale";
 
 delete Icon.Default.prototype.Default;
 // Icon.Default.mergeOptions({
@@ -315,6 +333,8 @@ export default {
   },
   data()  {
     return {
+      isApply: false,
+      itemsMapsetSelected:[],
       showMapsetController:true,
       snackbar: {
         show: false,
@@ -450,6 +470,9 @@ export default {
     };
   },
   computed: {
+    de() {
+      return de
+    },
     computedTileProviders(){
       const base = Array.isArray(this.tileProviders) ? this.tileProviders.slice() : [];
       if (this.currentUser && this.googleApiKey) {
@@ -547,11 +570,19 @@ export default {
     },
   },
   methods: {
+    deleteAllList(){
+      this.itemsMapsetSelected = []
+    },
+    applyPeta(itemsMapsetSelected, ){
+      this.itemsMapsetSelected = itemsMapsetSelected
+      this.isApply = true
+    },
     routeToHome(){
       this.$router.push("/home")
     },
     showDialogPickMapset(){
-      this.$refs.refPickMapsetDialog.showDialog()
+      this.$refs.refPickMapsetDialog.showDialog(this.itemsMapsetSelected)
+      this.isApply = false
     },
     buildSearchTextForIndex(props = {}) {
       try {

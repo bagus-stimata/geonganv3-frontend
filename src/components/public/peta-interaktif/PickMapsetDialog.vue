@@ -26,6 +26,7 @@
             <v-col cols="12" sm="12" md="5" class="order-2 order-md-1 d-flex flex-column" style="height: 93% !important;">
               <div class="flex-grow-0">
                 <v-text-field
+                    v-model="search"
                     prepend-inner-icon="mdi-magnify"
                     density="compact"
                     label="Cari mapset"
@@ -45,24 +46,31 @@
                             location="top"
                         >Pencarian lebih dalam ke isi geospasial</v-tooltip>
                       </v-btn>
-                      <v-btn :color="isActiveDeepSearch?'indigo' : 'green'" class="font-weight-bold text-white" variant="flat" size="small">Search</v-btn>
+                      <v-btn @click="runExtendedFilter" :color="isActiveDeepSearch?'indigo' : 'green'" class="font-weight-bold text-white" variant="flat" size="small">Search</v-btn>
                     </div>
                   </template>
                 </v-text-field>
               </div>
               <v-card elevation="0" class="mt-4 px-1 flex-grow-1 overflow-y-auto">
-                <v-row no-gutters class="ga-2">
-                  <v-col cols="12" v-for="set in mapsetItems" :key="set.id">
+                <v-row v-if="ftDatasetsFiltered.length === 0">
+                  <v-col>
+                    <div class="text-center text-grey my-3 text-subtitle-2">Dataset not found</div>
+                  </v-col>
+                </v-row>
+                <v-row v-else no-gutters class="ga-2">
+                  <v-col cols="12" v-for="dataset in ftDatasetsFiltered" :key="dataset.id">
                     <v-card
-                        :class="itemsMapsetSelected.includes(set.id) ? 'border-activated' : ''"
+                        :class="isDatasetSelected(dataset.id) ? 'border-activated' : ''"
                         elevation="0"
                         class="pa-2 border-thin border-opacity-25"
                         width="100%"
                         height="86"
+                        @click="toggleDatasetSelection(dataset)"
+                        style="cursor: pointer;"
                     >
                       <v-row>
                         <v-col cols="3">
-                          <v-img width="100%" height="68" class="rounded" cover :src="set.img" />
+                          <v-img width="100%" height="68" class="rounded" cover :src="lookupImageUrl(dataset)" />
                         </v-col>
 
                         <v-col cols="9" class="d-flex flex-row align-center justify-center">
@@ -70,22 +78,22 @@
                             <v-col cols="10">
                               <div>
                                 <div class="text-caption font-weight-bold text-indigo">
-                                  {{ set.title }}
+                                  {{ dataset.description }}
                                 </div>
                                 <div
                                     style="font-size: 11px !important"
                                     class="text-caption font-weight-light text-grey-darken-4"
                                 >
-                                  {{ set.desc }}
+                                  {{ dataset.notes }} - {{dataset.tahun}}
                                 </div>
                               </div>
                             </v-col>
 
                             <v-col cols="2" class="justify-center align-center">
                               <v-checkbox-btn
-                                  :color="itemsMapsetSelected.includes(set.id) ? 'orange': ''"
-                                  v-model="itemsMapsetSelected"
-                                  :value="set.id"
+                                  :color="isDatasetSelected(dataset.id) ? 'orange' : ''"
+                                  :model-value="isDatasetSelected(dataset.id)"
+                                  @update:model-value="(val) => toggleDatasetSelection(dataset, val)"
                               />
                             </v-col>
                           </v-row>
@@ -109,23 +117,38 @@
                     <div class="font-weight-black text-subtitle-1 mt-4 text-center">Pilih Mapset untuk preview</div>
                   </v-card-text>
                 </v-card>
-                <v-card v-else elevation="0">
-                  <v-row class="mb-2">
-                    <v-col cols="12" class="d-flex flex-row align-center">
-                      <div class="font-weight-bold text-subtitle-2">Preview</div>
-                      <v-spacer></v-spacer>
-                      <v-btn variant="flat" color="indigo" class="font-weight-bold text-subtitle-2" density="comfortable">Tampilkan pada peta</v-btn>
-                    </v-col>
-                  </v-row>
-                  <BaseMapInteraktif map-min-height="30vh" map-max-height="30vh"></BaseMapInteraktif>
-                  <v-row class="mt-1">
-                    <v-col cols="12" class="d-flex flex-row align-center">
-                      <div class="font-weight-bold text-subtitle-2">Mapset Terpilih</div>
-                      <v-spacer></v-spacer>
-                      <v-btn variant="flat" color="red" class="font-weight-bold text-subtitle-2" density="comfortable"><v-icon class="mr-1">mdi-delete</v-icon>Hapus semua</v-btn>
-                    </v-col>
-                  </v-row>
-                  <v-divider class="mt-3 mb-3" thickness="2" color="grey"></v-divider>
+                <v-card v-else elevation="0" class="d-flex justify-start flex-column h-100">
+                  <div>
+                    <v-row class="mb-2">
+                      <v-col cols="12" class="d-flex flex-row align-center">
+                        <div class="font-weight-bold text-subtitle-2">Preview</div>
+                        <v-spacer></v-spacer>
+                        <v-btn @click="applyPeta" variant="flat" color="indigo" class="font-weight-bold text-subtitle-2" density="comfortable">Tampilkan pada peta</v-btn>
+                      </v-col>
+                    </v-row>
+                    <BaseMapInteraktif map-min-height="30vh" map-max-height="30vh"></BaseMapInteraktif>
+                    <v-row class="mt-1">
+                      <v-col cols="12" class="d-flex flex-row align-center">
+                        <div class="font-weight-bold text-subtitle-2">Mapset Terpilih</div>
+                        <v-spacer></v-spacer>
+                        <v-btn @click="deleteAllList" variant="flat" color="red" class="font-weight-bold text-subtitle-2" density="comfortable"><v-icon class="mr-1">mdi-delete</v-icon>Hapus semua</v-btn>
+                      </v-col>
+                    </v-row>
+                    <v-divider class="mt-3 mb-3" thickness="2" color="grey"></v-divider>
+                  </div>
+                  <div class="overflow-y-auto" :style="$vuetify.display.smAndDown? 'height: 290px !important':''">
+                    <v-row no-gutters class="ga-2">
+                      <v-col cols="12" v-for="(itemSelected, index) in itemsMapsetSelected" :key="itemSelected.id">
+                        <v-card elevation="0" class="d-flex rounded-lg flex-row align-center pa-1 border-opacity-25 border-thin">
+                          <v-icon size="small" class="mx-1" color="grey">mdi-dots-vertical</v-icon>
+                          <span class="bg-orange rounded-lg py-1 px-3 text-caption font-weight-bold text-white">{{index + 1}}</span>
+                          <div class="ml-2 text-subtitle-2 font-weight-bold text-indigo">{{itemSelected.description}}</div>
+                          <v-spacer></v-spacer>
+                          <v-btn icon density="comfortable" variant="text" color="red"><v-icon>mdi-delete</v-icon></v-btn>
+                        </v-card>
+                      </v-col>
+                    </v-row>
+                  </div>
                 </v-card>
               </v-card>
             </v-col>
@@ -139,12 +162,22 @@
   <script>
 
 import BaseMapInteraktif from "@/components/public/peta-interaktif/BaseMapInteraktif.vue";
+import FDayaDukungFilter from "@/models/payload/f-dayadukung-filter";
+import FtDatasetService from "@/services/apiservices/ft-dataset-service";
+import FtDataset from "@/models/ft-dataset";
+import FileService from "@/services/apiservices/file-service";
 
 export default {
   name: "PickMapsetDialog",
   components: {BaseMapInteraktif},
   data() {
     return {
+      currentPage: 1,
+      totalTablePages: 1,
+      totalPaginationPages: 1,
+      pageSize: 1000,
+      totalItems: 0,
+      search: "",
       isActiveDeepSearch:false,
       isCheckBoxActivated: false,
       itemsMapsetSelected: [],
@@ -160,80 +193,91 @@ export default {
         zIndex: 200,
         noconfirm: false,
       },
+      ftDatasets: [new FtDataset()],
       itemsFile: [],
-      mapsetItems: [
-        {
-          id: 1,
-          title: 'Dataset Titik UMKM',
-          desc: 'Persebaran UMKM & lokasi usaha (point layer).',
-          img: require('@/assets/images/basemap.jpeg'),
-          color: 'indigo',
-        },
-        {
-          id: 2,
-          title: 'RDTR Zona Peruntukan',
-          desc: 'Zonasi pemanfaatan ruang (polygon) untuk RDTR.',
-          img: require('@/assets/images/basemap.jpeg'),
-          color: 'deep-purple',
-        },
-        {
-          id: 3,
-          title: 'Jaringan Jalan',
-          desc: 'Klasifikasi jalan nasional/prov/kab (line layer).',
-          img: require('@/assets/images/basemap.jpeg'),
-          color: 'teal',
-        },
-        {
-          id: 4,
-          title: 'Batas Administrasi',
-          desc: 'Kabupaten/Kecamatan/Desa (polygon).',
-          img: require('@/assets/images/basemap.jpeg'),
-          color: 'blue',
-        },
-        {
-          id: 5,
-          title: 'Hidrologi',
-          desc: 'Sungai, saluran, danau (line/polygon).',
-          img: require('@/assets/images/basemap.jpeg'),
-          color: 'cyan',
-        },
-        {
-          id: 6,
-          title: 'Fasilitas Publik',
-          desc: 'Sekolah, puskesmas, kantor, dll (point).',
-          img: require('@/assets/images/basemap.jpeg'),
-          color: 'pink',
-        },
-        {
-          id: 7,
-          title: 'Kawasan Rawan Bencana',
-          desc: 'KRB banjir/longsor (polygon) untuk mitigasi.',
-          img: require('@/assets/images/basemap.jpeg'),
-          color: 'orange',
-        },
-        {
-          id: 8,
-          title: 'Potensi Investasi',
-          desc: 'Lahan potensial + catatan peluang (point/polygon).',
-          img: require('@/assets/images/basemap.jpeg'),
-          color: 'green',
-        },
-      ],
     };
   },
   computed: {
+    ftDatasetsFiltered() {
+      return this.ftDatasets;
+    },
   },
   methods: {
+    applyPeta(){
+      this.$emit('applyPeta', this.itemsMapsetSelected)
+      this.closeForm()
+    },
+    deleteAllList(){
+      this.itemsMapsetSelected = []
+    },
+    runExtendedFilter() {
+      const extendedFilter = new FDayaDukungFilter();
+      extendedFilter.fdivisionIds = [];
+      extendedFilter.pageNo = this.currentPage;
+      extendedFilter.pageSize = this.pageSize;
+      extendedFilter.sortBy = "id";
+      extendedFilter.order = "DESC";
+      extendedFilter.search = this.search;
+      extendedFilter.city = "";
+      let deepSearch = this.isActiveDeepSearch
+      if(this.isActiveDeepSearch){
+        deepSearch = true
+      }
+      FtDatasetService.getPostAllFtDatasetContainingExtPublic(
+          extendedFilter,
+          deepSearch
+      ).then(
+          (response) => {
+            const { items, totalPages, totalItems } = response.data;
+            this.ftDatasets = items;
+            this.totalPaginationPages = totalPages;
+            this.totalItems = totalItems;
+          },
+          (error) => {
+            console.log(error);
+          }
+      );
+    },
+    lookupImageUrl(item){
+      if (item.avatarImage===undefined || item.avatarImage===""){
+        return require('@/assets/images/basemap.jpeg')
+      }else {
+        return FileService.image_url_medium(item.avatarImage)
+      }
+    },
     activateDeepSearchGeojson(){
       this.isActiveDeepSearch = !this.isActiveDeepSearch
     },
-    showDialog() {
+    showDialog(itemsMapsetSelected) {
       this.dialogShow = true
+      this.itemsMapsetSelected = itemsMapsetSelected
     },
     closeForm() {
       this.dialogShow = false;
     },
+    isDatasetSelected(id) {
+      return this.itemsMapsetSelected.some((it) => it && it.id === id);
+    },
+    toggleDatasetSelection(dataset, forceValue) {
+      if (!dataset) return;
+
+      const exists = this.isDatasetSelected(dataset.id);
+      const shouldSelect = (typeof forceValue === 'boolean') ? forceValue : !exists;
+
+      if (shouldSelect && !exists) {
+        // push full object (shallow copy to avoid accidental reactive side-effects)
+        this.itemsMapsetSelected.push({ ...dataset });
+        return;
+      }
+
+      if (!shouldSelect && exists) {
+        this.itemsMapsetSelected = this.itemsMapsetSelected.filter((it) => it && it.id !== dataset.id);
+      }
+    },
   },
+  mounted() {
+    this.runExtendedFilter()
+  }
 };
 </script>
 <style scoped>

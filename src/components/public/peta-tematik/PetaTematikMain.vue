@@ -26,7 +26,7 @@
                         location="top"
                     >Pencarian lebih dalam ke isi geospasial</v-tooltip>
                   </v-btn>
-                  <v-btn :color="isActiveDeepSearch?'indigo' : 'green'" class="rounded-be-xl rounded-te-xl font-weight-bold text-white" variant="flat" size="small">Search</v-btn>
+                  <v-btn :color="isActiveDeepSearch?'indigo' : 'green'" class="font-weight-bold text-white" variant="flat" size="small">Search</v-btn>
                 </div>
               </template>
             </v-text-field>

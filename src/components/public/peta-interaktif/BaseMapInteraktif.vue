@@ -14,159 +14,8 @@
     >
       <l-tile-layer v-if="false" :url="url" :attribution="attribution" :options="{ crossOrigin: true }" />
       <!-- Zoom +/- control moved to bottom-right -->
-      <l-control position="topleft">
-        <v-card elevation="0" width="280" class="bg-transparent ma-md-2 ma-1">
-          <v-card-title class="bg-white py-4 rounded-lg">
-            <div class="d-flex flex-row">
-              <div class="d-flex flex-row align-center justify-center">
-                <v-img
-                    lazy
-                    height="45"
-                    width="45"
-                    :src="require('@/assets/logo.png')"
-                ></v-img>
-                <div>
-                  <div class="text-subtitle-1 my-0 py-0 font-weight-black">GEO PORTAL</div>
-                  <div class="text-subtitle-2 mt-n1 my-0 py-0 font-weight-light text-grey-darken-2">Kab.Nganjuk</div>
-                </div>
-              </div>
-              <v-spacer></v-spacer>
-              <v-btn @click="showMapsetController = !showMapsetController" variant="text" icon>
-                <v-icon
-                    class="chev-rotate"
-                    :class="{ 'chev-rotate--open': showMapsetController }"
-                >
-                  mdi-chevron-left-box-outline
-                </v-icon>
-              </v-btn>
-            </div>
-            <v-expand-transition v-show="showMapsetController === true">
-              <v-text-field
-                  v-model="searchText"
-                  @keyup.enter="searchAndHighlight(searchText)"
-                  @blur="searchAndHighlight(searchText)"
-                  append-inner-icon="mdi-magnify"
-                  density="compact"
-                  label="Cari"
-                  hide-details
-                  class="rounded-lg text-caption border-opacity-25 mt-2 mx-2"
-                  variant="outlined"
-              ></v-text-field>
-            </v-expand-transition>
-          </v-card-title>
-          <v-expand-transition v-show="showMapsetController === true">
-            <v-card-text class="bg-white mt-3 py-4 rounded-lg">
-              <div class="text-subtitle-1 mb-1 font-weight-bold">Mapset</div>
-              <v-divider></v-divider>
-              <v-card elevation="0" class="d-flex flex-row justify-center align-center bg-grey-lighten-5 mt-2" height="45vh">
-                <v-card-text class="text-center">
-                  <v-btn readonly color="grey" class="mb-6" icon variant="flat" size="small"><v-icon class="text-white">mdi-map</v-icon></v-btn>
-                  <div class="font-weight-black text-subtitle-2 text-center">Belum ada mapset yang dipilih</div>
-                  <div class="text-caption font-weight-light text-grey-darken-2 text-center">Silahkan pilih terlebih dahulu mapset untuk melihat data secara detail</div>
-                  <v-btn @click="showDialogPickMapset" color="indigo" class="text-white text-subtitle-2 rounded-lg mt-6 font-weight-bold" density="comfortable" variant="elevated">Pilih Mapset</v-btn>
-                </v-card-text>
-              </v-card>
-            </v-card-text>
-          </v-expand-transition>
-          <v-expand-transition v-show="showMapsetController === true">
-            <v-card-text class="bg-white mt-3 py-4 rounded-lg">
-              <div class="text-subtitle-1 mb-2 font-weight-bold">Alat Peta</div>
-              <v-row no-gutters>
-                <v-col cols="4" class="px-1">
-                  <v-hover v-slot="{ isHovering, props }">
-                    <v-btn
-                        v-bind="props"
-                        block
-                        :variant="isHovering ? 'flat' : 'outlined'"
-                        :class="{ 'color-bg-primary': isHovering }"
-                    >
-                      <v-tooltip
-                          activator="parent"
-                          location="bottom"
-                      >Add Marker</v-tooltip>
-                      <v-icon size="large" :class="{ 'text-white': isHovering }">mdi-map-marker</v-icon>
-                    </v-btn>
-                  </v-hover>
-                </v-col>
-                <v-col cols="4" class="px-1">
-                  <v-hover v-slot="{ isHovering, props }">
-                    <v-btn
-                        v-bind="props"
-                        block
-                        :variant="isHovering ? 'flat' : 'outlined'"
-                        :class="{ 'color-bg-primary': isHovering }"
-                    >
-                      <v-tooltip
-                          activator="parent"
-                          location="bottom"
-                      >Draw Line</v-tooltip>
-                      <v-icon size="large" :class="{ 'text-white': isHovering }">mdi-vector-polyline</v-icon>
-                    </v-btn>
-                  </v-hover>
-                </v-col>
-                <v-col cols="4" class="px-1">
-                  <v-hover v-slot="{ isHovering, props }">
-                    <v-btn
-                        v-bind="props"
-                        block
-                        :variant="isHovering ? 'flat' : 'outlined'"
-                        :class="{ 'color-bg-primary': isHovering }"
-                    >
-                      <v-tooltip
-                          activator="parent"
-                          location="bottom"
-                      >Draw Shape</v-tooltip>
-                      <v-icon size="large" :class="{ 'text-white': isHovering }">mdi-vector-polygon</v-icon>
-                    </v-btn>
-                  </v-hover>
-                </v-col>
-              </v-row>
-              <v-btn density="comfortable" block variant="elevated" class="mx-1 mt-2 text-subtitle-2 font-weight-bold" color="blue-darken-1">Upload Peta</v-btn>
-            </v-card-text>
-          </v-expand-transition>
-        </v-card>
-      </l-control>
-      <l-control position="topright">
-        <v-btn
-            @click="routeToHome"
-            variant="elevated"
-            class="rounded-lg text-white mx-md-2 mt-md-2 ma-1 color-bg-second"
-            size="small"
-        >
-          <v-icon color="white">mdi-home</v-icon><span class="ml-1 hidden-sm-and-down">Beranda</span>
-        </v-btn>
-<!--        <v-btn variant="elevated" size="default" class="rounded text-white mx-md-2 mt-md-2 ma-1 color-bg-second" ><v-icon color="white">mdi-home</v-icon><span class="ml-1 hidden-sm-and-down">Beranda</span></v-btn>-->
-      </l-control>
       <l-control-layers position="topright"></l-control-layers>
-
-      <l-control position="bottomright" class="control-offset-br">
-        <v-btn
-            color="primary"
-            icon
-            elevation="4"
-            class="rounded-lg"
-            title="Tengahkan Pointer Peta"
-            size="small"
-            @click="setCenterPosition"
-        >
-          <v-icon>mdi-crosshairs-gps</v-icon>
-        </v-btn>
-      </l-control>
-      <l-control position="bottomright" class="control-offset-br">
-        <v-btn
-            color="pink-lighten-2"
-            icon
-            elevation="4"
-            class="rounded-lg"
-            title="Screen Shot Peta"
-            size="small"
-            @click="ssPhotoDownload"
-        >
-          <v-icon>mdi-camera</v-icon>
-        </v-btn>
-      </l-control>
-
-      <l-control-zoom  position="bottomright" />
+      <l-control-zoom  position="topright" />
 
       <l-tile-layer
           v-for="tileProvider in computedTileProviders"
@@ -180,57 +29,6 @@
           :options="{ crossOrigin: true }"
           layer-type="base"
       />
-
-      <l-marker
-          ref="marker"
-          v-if="singleMarker"
-          :lat-lng="singleMarker.coords"
-          :icon="customIcon"
-          @click="singleMarkerClick"
-      >
-        <l-popup v-model:visible="markerPopupVisible">
-          <div v-if="!isMobileDevice" >
-            <div style="max-height:350px; min-width:280px; max-width:300px; overflow-y:auto"
-                 v-html="jsonToHtmlTable(markerProps || {})">
-            </div>
-          </div>
-          <div v-else style="max-height:350px;overflow-y:auto"
-               v-html="jsonToHtmlTable_Mobile(markerProps || {})">
-          </div>
-          <div>
-            <v-chip size="small" variant="tonal" prepend-icon="mdi-crosshairs-gps" v-if="singleMarker?.coords">
-              {{ singleMarker.coords[0] }}, {{ singleMarker.coords[1] }}
-            </v-chip>
-<!--            <span>-->
-<!--              {{ singleMarker?.coords?.[0] }}, {{ singleMarker?.coords?.[1] }}-->
-<!--            </span>-->
-            <span><v-chip @click="openGMapsCurrentMarker"  class="ml-3" color="primary" size="small" density="compact"><v-icon color="success">mdi-google</v-icon></v-chip></span>
-          </div>
-        </l-popup>
-      </l-marker>
-
-      <l-marker :lat-lng="[item.latitude, item.longitude]" v-for="(item, idx) in listFtMonev" :key="idx">
-        <l-popup>
-          <div class="font-weight-bold">
-            {{item.description}}
-          </div>
-          <div>
-            {{ item.objAddress}}
-          </div>
-        </l-popup>
-      </l-marker>
-
-
-
-
-      <l-geo-json
-          v-for="(item, index) in itemSpaDayaDukungGeojson"
-          :key="index"
-          :geojson="item.data"
-          :options="options"
-          :options-style="styleFunction"
-      >
-      </l-geo-json>
     </l-map>
 
       <GooglePlacesDialog
@@ -251,7 +49,7 @@
 </template>
 
 <script>
-import { LControl, LControlLayers, LControlZoom, LGeoJson, LMap, LMarker, LPopup, LTileLayer } from "@vue-leaflet/vue-leaflet";
+import { LControlLayers, LControlZoom,  LMap, LTileLayer } from "@vue-leaflet/vue-leaflet";
 import "leaflet/dist/leaflet.css";
 import L, {Icon} from 'leaflet';
 import 'leaflet-fullscreen';
@@ -280,20 +78,16 @@ Icon.Default.mergeOptions({
 });
 
 export default {
-  name: "PetaInteraktif",
+  name: "BaseMapInteraktif",
   components: {
     PickMapsetDialog,
     GooglePlacesDialog: GooglePlacesAutoCompleteDialog,
     LMap,
     LTileLayer,
-    LControl,
     LControlLayers,
-    LMarker,
     LControlZoom,
     // LIcon,
-    LPopup,
     // LTooltip,
-    LGeoJson,
     // LControlPolylineMeasure,
 
   },
@@ -1543,7 +1337,7 @@ export default {
 .chev-rotate--open {
   transform: rotate(-90deg);         /* jadi down */
 }
-:deep(.leaflet-bottom.leaflet-right .leaflet-control-zoom) {
+:deep(.leaflet-top.leaflet-right .leaflet-control-zoom) {
   margin-right: 16px !important;
 }
 :deep(.leaflet-bottom.leaflet-right .leaflet-control-fullscreen) {

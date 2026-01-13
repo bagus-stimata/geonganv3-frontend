@@ -374,9 +374,9 @@
 
           <!-- Load Peta GeoJSON -->
           <v-card-text v-if="hasGeojsonForPreview && togglePetaDanEditMode==='LOAD_PETA_GEOJSON'">
-            <FDayaDukungPetaMap
+            <FtDatasetMap
                 ref="refFDayaDukungPetaMap">
-            </FDayaDukungPetaMap>
+            </FtDatasetMap>
           </v-card-text>
 
           <!-- Load & Edit Data -->
@@ -647,14 +647,14 @@ import FormMode from "@/models/form-mode";
 import FtDataset from "@/models/ft-dataset";
 import FileService from "@/services/apiservices/file-service";
 import UploadImageDialog from "@/components/utils/UploadImageDialog";
-import FDayaDukungPetaMap from "@/components/admin/data-peta/dataset/FtDatasetMap.vue";
+import FtDatasetMap from "@/components/admin/data-peta/dataset/FtDatasetMap.vue";
 import UploadImageOriDialog from "@/components/utils/UploadImageOriDialog.vue";
 import {EnumDataSpaTypeList} from "@/models/e-data-spa-type";
 
 export default {
   components: {
     UploadImageOriDialog,
-    FDayaDukungPetaMap,
+    FtDatasetMap,
     CloseConfirmDialog,
     UploadImageDialog,
   },

@@ -247,10 +247,10 @@ export default {
         return () => {};
       }
       return (feature, layer) => {
-        // layer.bindTooltip(
-        //     "<div>" + this.jsonToHtmlTable(feature.properties) + "</div>",
-        //     { permanent: false, sticky: true }
-        // );
+        layer.bindTooltip(
+            "<div>" + this.jsonToHtmlTable(feature.properties) + "</div>",
+            { permanent: false, sticky: true }
+        );
         // Popup pada klik, isinya juga sama
         layer.on('click', (e) => {
           const latlng = e.latlng;

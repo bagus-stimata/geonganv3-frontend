@@ -178,7 +178,7 @@ export default {
     },
     lookupImageUrl(item){
       if (item.avatarImage===undefined || item.avatarImage===""){
-        return require('@/assets/images/basemap.jpeg')
+        return require('@/assets/images/basemap.webp')
       }else {
         return FileService.image_url_medium(item.avatarImage)
       }

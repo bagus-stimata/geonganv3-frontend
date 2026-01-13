@@ -172,56 +172,56 @@ export default {
         //   id: 1,
         //   title: 'Dataset Titik UMKM',
         //   desc: 'Persebaran UMKM & lokasi usaha (point layer).',
-        //   img: require('@/assets/images/basemap.jpeg'),
+        //   img: require('@/assets/images/basemap.webp'),
         //   color: 'indigo',
         // },
         // {
         //   id: 2,
         //   title: 'RDTR Zona Peruntukan',
         //   desc: 'Zonasi pemanfaatan ruang (polygon) untuk RDTR.',
-        //   img: require('@/assets/images/basemap.jpeg'),
+        //   img: require('@/assets/images/basemap.webp'),
         //   color: 'deep-purple',
         // },
         // {
         //   id: 3,
         //   title: 'Jaringan Jalan',
         //   desc: 'Klasifikasi jalan nasional/prov/kab (line layer).',
-        //   img: require('@/assets/images/basemap.jpeg'),
+        //   img: require('@/assets/images/basemap.webp'),
         //   color: 'teal',
         // },
         // {
         //   id: 4,
         //   title: 'Batas Administrasi',
         //   desc: 'Kabupaten/Kecamatan/Desa (polygon).',
-        //   img: require('@/assets/images/basemap.jpeg'),
+        //   img: require('@/assets/images/basemap.webp'),
         //   color: 'blue',
         // },
         // {
         //   id: 5,
         //   title: 'Hidrologi',
         //   desc: 'Sungai, saluran, danau (line/polygon).',
-        //   img: require('@/assets/images/basemap.jpeg'),
+        //   img: require('@/assets/images/basemap.webp'),
         //   color: 'cyan',
         // },
         // {
         //   id: 6,
         //   title: 'Fasilitas Publik',
         //   desc: 'Sekolah, puskesmas, kantor, dll (point).',
-        //   img: require('@/assets/images/basemap.jpeg'),
+        //   img: require('@/assets/images/basemap.webp'),
         //   color: 'pink',
         // },
         // {
         //   id: 7,
         //   title: 'Kawasan Rawan Bencana',
         //   desc: 'KRB banjir/longsor (polygon) untuk mitigasi.',
-        //   img: require('@/assets/images/basemap.jpeg'),
+        //   img: require('@/assets/images/basemap.webp'),
         //   color: 'orange',
         // },
         // {
         //   id: 8,
         //   title: 'Potensi Investasi',
         //   desc: 'Lahan potensial + catatan peluang (point/polygon).',
-        //   img: require('@/assets/images/basemap.jpeg'),
+        //   img: require('@/assets/images/basemap.webp'),
         //   color: 'green',
         // },
       ],
@@ -301,11 +301,13 @@ export default {
     },
     lookupImageUrl(item){
       if (item.avatarImage===undefined || item.avatarImage===""){
-        return require('@/assets/images/basemap.jpeg')
+        return require('@/assets/images/basemap.webp')
       }else {
         return FileService.image_url_medium(item.avatarImage)
       }
     },
+
+
     activateDeepSearchGeojson(){
       this.isActiveDeepSearch = !this.isActiveDeepSearch
     },

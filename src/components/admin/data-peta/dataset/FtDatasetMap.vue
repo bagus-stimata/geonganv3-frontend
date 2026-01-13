@@ -130,9 +130,9 @@ delete Icon.Default.prototype.Default;
 //   shadowUrl: require('leaflet/dist/images/marker-shadow.png')
 // });
 Icon.Default.mergeOptions({
-  iconRetinaUrl: require("@/assets/images/my-marker.png"),
-  iconUrl: require("@/assets/images/my-marker.png"),
-  shadowUrl: require("@/assets/images/my-marker.png"),
+  iconRetinaUrl: require("@/assets/images/my-marker.webp"),
+  iconUrl: require("@/assets/images/my-marker.webp"),
+  shadowUrl: require("@/assets/images/my-marker.webp"),
 });
 
 export default {

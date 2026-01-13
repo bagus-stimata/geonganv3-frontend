@@ -136,7 +136,7 @@ export default {
       model: null,
       search: "",
       itemsFDivision: [],
-      backgroundImage: require("@/assets/images/homeimage.jpg"),
+      backgroundImage: require("@/assets/images/background/homeimage.webp"),
 
     };
   },

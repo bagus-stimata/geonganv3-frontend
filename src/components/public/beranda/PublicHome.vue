@@ -6,7 +6,7 @@
           alt="Banner Image"
           class="banner-image image-with-overlay py-16"
           :height="$vuetify.display.smAndDown? '900' : '900'"
-          gradient="to left, rgba(0,0,0,.9), rgba(0,0,0,0.1)"
+          gradient="to left, rgba(0,0,0,.5), rgba(0,0,0,0.05)"
           cover
       >
         <div class="text-center" style="width: 100%">
@@ -153,28 +153,28 @@ export default {
           id: 1,
           title: 'Dataset Titik UMKM',
           desc: 'Persebaran UMKM & lokasi usaha (point layer).',
-          img: require('@/assets/images/basemap.jpeg'),
+          img: require('@/assets/images/basemap.webp'),
           color: 'indigo',
         },
         {
           id: 2,
           title: 'RDTR Zona Peruntukan',
           desc: 'Zonasi pemanfaatan ruang (polygon) untuk RDTR.',
-          img: require('@/assets/images/basemap.jpeg'),
+          img: require('@/assets/images/basemap.webp'),
           color: 'deep-purple',
         },
         {
           id: 3,
           title: 'Jaringan Jalan',
           desc: 'Klasifikasi jalan nasional/prov/kab (line layer).',
-          img: require('@/assets/images/basemap.jpeg'),
+          img: require('@/assets/images/basemap.webp'),
           color: 'teal',
         },
         {
           id: 4,
           title: 'Batas Administrasi',
           desc: 'Kabupaten/Kecamatan/Desa (polygon).',
-          img: require('@/assets/images/basemap.jpeg'),
+          img: require('@/assets/images/basemap.webp'),
           color: 'blue',
         },
       ],
@@ -194,7 +194,7 @@ export default {
 
       search: "",
       itemsFDivision: [],
-      backgroundImage: require("@/assets/images/homeimage.jpg"),
+      backgroundImage: require("@/assets/images/background/homeimage.webp"),
       isActiveDeepSearch: false,
       ftDatasets: [new FtDataset()],
     };
@@ -215,7 +215,7 @@ export default {
   methods: {
     lookupImageUrl(item){
       if (item.avatarImage===undefined || item.avatarImage===""){
-        return require('@/assets/images/basemap.jpeg')
+        return require('@/assets/images/basemap.webp')
       }else {
         return FileService.image_url_medium(item.avatarImage)
       }

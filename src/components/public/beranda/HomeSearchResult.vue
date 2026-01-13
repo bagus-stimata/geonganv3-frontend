@@ -36,7 +36,7 @@
                   <v-col cols="4">
                     <v-img
                         width="100%"
-                        height="140"
+                        height="124"
                         cover
                         :src="lookupImageUrl(dataset)"
                         class="rounded-lg"
@@ -50,7 +50,7 @@
                       <div class="text-subtitle-2 font-weight-light text-grey">
                         {{ dataset.notes }}
                       </div>
-                      <div class="text-subtitle-2 mt-2 font-weight-bold text-orange">
+                      <div class="text-caption mt-2 font-weight-bold text-orange">
                         Tahun {{ dataset.tahun }}
                       </div>
                     </div>
@@ -106,8 +106,8 @@ export default {
       currentPage: 1,
       totalTablePages: 1,
       totalPaginationPages: 1,
-      pageSize: 4,
-      pageSizes: [4, 10],
+      pageSize: 8,
+      pageSizes: [8, 16],
       totalItems: 0,
       search: "",
       ftDatasets: [new FtDataset()],

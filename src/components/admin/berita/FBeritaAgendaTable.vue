@@ -78,10 +78,10 @@
       <template v-slot:[`item.created`]="{ item }">
         <div >
           <div>
-            {{ dateTimeFormat(item.created ) }}
+            {{ dateTimeFormat(item.publishTime ) }}
           </div>
           <div>
-            by {{item.modifiedBy}}
+            by {{item.editorial}}
           </div>
         </div>
       </template>
@@ -106,9 +106,7 @@
             </div>
           </div>
           <div>
-            <v-chip v-if="item.showOnHome" variant="flat" size="x-small" color="purple" class="text-white">Ditampilkan di Beranda</v-chip>
-            <v-chip v-if="item.showOnDesaCantik" variant="flat" size="x-small" color="teal" class="text-white">Ditampilkan di Lilin Desa</v-chip>
-            <v-chip v-if="item.showOnPemudaDesa" variant="flat" size="x-small" color="orange" class="text-white">Ditampilkan di Pemuda Desa</v-chip>
+            {{item.categ}}
           </div>
         </div>
       </template>
@@ -299,10 +297,11 @@ export default {
       }
     },
     fetchParent(){
-      if (this.currentUser.organizationLevel === "CORP") {
+      if (this.currentUser.organizationLevel === "CORP" || this.currentUser.organizationLevel === "SYS") {
         FDivisionService.getAllFDivision().then(
             response => {
               this.itemsFDivision = response.data
+              console.log(response.data)
             },
             error => {
               console.log(error.response)
@@ -320,7 +319,7 @@ export default {
       }
     },
     fetchFNews() {
-      FNewsService.getAllFNewsContaining(this.currentPage, this.pageSize, "created", "DESC", this.search).then(
+      FNewsService.getAllFNewsContaining(this.currentPage, this.pageSize, "id", "DESC", this.search).then(
           response => {
             const { items, totalPages, totalItems} = response.data
             this.fKegiatans = items
@@ -432,7 +431,7 @@ export default {
       else return 'gray'
     },
     lookupFDivision (fdivisionBean) {
-      const str = this.itemsFDivision.filter(x => x.id==fdivisionBean)
+      const str = this.itemsFDivision.filter(x => x.id===fdivisionBean)
       if (str.length>0){
         return str[0].description
       }else {

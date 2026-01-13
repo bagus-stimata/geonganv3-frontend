@@ -140,6 +140,7 @@ import HomeSearchResult from "@/components/public/beranda/HomeSearchResult.vue";
 import FtDatasetService from "@/services/apiservices/ft-dataset-service";
 import FtDataset from "@/models/ft-dataset";
 import FileService from "@/services/apiservices/file-service";
+import FNewsService from "@/services/apiservices/f-news-service";
 
 export default {
   name: "PublicHome",
@@ -147,37 +148,6 @@ export default {
   data() {
     return {
       isSearchActive: false,
-      fnewsFiltered:[],
-      mapsetItems: [
-        {
-          id: 1,
-          title: 'Dataset Titik UMKM',
-          desc: 'Persebaran UMKM & lokasi usaha (point layer).',
-          img: require('@/assets/images/basemap.webp'),
-          color: 'indigo',
-        },
-        {
-          id: 2,
-          title: 'RDTR Zona Peruntukan',
-          desc: 'Zonasi pemanfaatan ruang (polygon) untuk RDTR.',
-          img: require('@/assets/images/basemap.webp'),
-          color: 'deep-purple',
-        },
-        {
-          id: 3,
-          title: 'Jaringan Jalan',
-          desc: 'Klasifikasi jalan nasional/prov/kab (line layer).',
-          img: require('@/assets/images/basemap.webp'),
-          color: 'teal',
-        },
-        {
-          id: 4,
-          title: 'Batas Administrasi',
-          desc: 'Kabupaten/Kecamatan/Desa (polygon).',
-          img: require('@/assets/images/basemap.webp'),
-          color: 'blue',
-        },
-      ],
       model: 0,            // index 0..14
       cycleTimer: null,
       cycleMs: 4500,
@@ -197,9 +167,28 @@ export default {
       backgroundImage: require("@/assets/images/background/homeimage.webp"),
       isActiveDeepSearch: false,
       ftDatasets: [new FtDataset()],
+      fnews: []
     };
   },
   computed: {
+    fnewsFiltered() {
+      let beritasModified = [];
+      for (let i = 0; i < this.fnews.length; i++) {
+        let itemBerita = this.fnews[i];
+        if (itemBerita.contentBody !== undefined) {
+          if (itemBerita.contentBody.length > 100) {
+            itemBerita.contentBody = itemBerita.contentBody.substr(0, 99);
+          }
+        }
+        if (itemBerita.title !== undefined) {
+          if (itemBerita.title.length > 60) {
+            itemBerita.title = itemBerita.title.substr(0, 59);
+          }
+        }
+        beritasModified.push(itemBerita);
+      }
+      return beritasModified;
+    },
     ftDatasetsFiltered() {
       return this.ftDatasets.filter(items => (items.showToMap === true));
     },
@@ -213,6 +202,16 @@ export default {
     },
   },
   methods: {
+    fetchFNews(){
+      FNewsService.getAllFNewsContainingPublic(this.currentPage, this.pageSize, "nomorUrut", "DESC", this.search).then(
+          (response)=> {
+            this.fnews = response.data.items.filter((item) => item.flagExposed === true)
+          },
+          (error) => {
+            console.log(error)
+          }
+      )
+    },
     lookupImageLazyUrl(item){
       if (item.avatarImage===undefined || item.avatarImage===""){
         return require('@/assets/images/basemap.webp')
@@ -253,6 +252,7 @@ export default {
   },
   mounted() {
     this.fetchFtDataset()
+    this.fetchFNews()
     this.model = 1;
     this.cycleTimer = window.setInterval(() => {
       const total = 4;

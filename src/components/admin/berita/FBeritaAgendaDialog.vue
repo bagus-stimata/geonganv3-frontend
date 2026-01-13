@@ -208,7 +208,7 @@ export default {
         this.selectedIndex = -1
       }
       this.itemsFDivision = itemsFDivision
-      // console.log(JSON.stringify(this.itemsFDivision))
+      console.log(JSON.stringify(this.itemsFDivision))
     },
     setDialogState(value){
       this.dialogShow =value
@@ -276,8 +276,6 @@ export default {
     },
     saveUpdateOnly(){
       // console.log(`sampek sini ${this.itemModified.coverImage}`)
-      console.log(JSON.stringify(this.itemModified))
-      console.log(this.itemModified.id)
       FNewsService.updateFNews(this.itemModified).then(
           () => {
           },

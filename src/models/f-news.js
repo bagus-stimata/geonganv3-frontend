@@ -6,6 +6,7 @@ export default class FNews {
     title,
     contentMeta,
     contentBody,
+    categ,
 
     coverImage,
 
@@ -13,15 +14,13 @@ export default class FNews {
 
     rating,
     viewer,
-    showOnHome=false,
-    showOnPemudaDesa=false,
-    showOnDesaCantik=false,
     flagExposed=true,
     flagChecked1=false,
     flagChecked2=false,
 
-    dateFrom,
-    dateTo,
+    publishTime,
+    editorial,
+    nomorUrut,
 
     created,
     modified,
@@ -34,6 +33,7 @@ export default class FNews {
     this.title = title;
     this.contentMeta = contentMeta;
     this.contentBody = contentBody;
+    this.categ = categ;
 
     this.coverImage = coverImage;
 
@@ -41,15 +41,13 @@ export default class FNews {
 
     this.rating = rating;
     this.viewer = viewer;
-    this.showOnHome = showOnHome;
-    this.showOnPemudaDesa = showOnPemudaDesa;
-    this.showOnDesaCantik = showOnDesaCantik;
     this.flagExposed = flagExposed;
     this.flagChecked1 = flagChecked1;
     this.flagChecked2 = flagChecked2;
 
-    this.dateFrom = dateFrom;
-    this.dateTo = dateTo;
+    this.publishTime = publishTime;
+    this.editorial = editorial;
+    this.nomorUrut = nomorUrut;
 
     this.created = created;
     this.modified = modified;

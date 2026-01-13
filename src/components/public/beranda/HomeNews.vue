@@ -92,6 +92,9 @@ export default {
         return FileService.image_url_low(item.coverImage);
       }
     },
+    fetchNews(){
+
+    }
   },
   mounted() {
   },

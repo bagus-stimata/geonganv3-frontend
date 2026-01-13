@@ -174,6 +174,11 @@ const routes = [
         name: 'PublicBerita',
         component: () => import('../views/public/berita/BeritaView.vue')
     },
+    {
+        path: '/public-berita-detail/:id',
+        name: 'PublicBeritaDetail',
+        component: () => import('../views/public/berita/BeritaDetailView.vue')
+    },
 
 
 ];

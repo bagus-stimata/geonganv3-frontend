@@ -46,6 +46,7 @@
                 :variant="selectedCatId === cat.id ? 'flat' : 'outlined'"
                 :color="selectedCatId === cat.id ? 'indigo' : undefined"
                 rounded="xl"
+                density="comfortable"
                 class="text-subtitle-2 px-4"
                 @click="selectedCatId = cat.id"
             >

@@ -55,36 +55,41 @@
             </v-expand-transition>
           </v-card-title>
           <v-expand-transition v-show="showMapsetController === true">
-            <v-card-text class="bg-white mt-3 py-4 rounded-lg">
-              <div class="text-subtitle-1 mb-1 font-weight-bold d-flex flex-row align-center">
-                <div>Mapset</div>
-                <span v-if="itemsMapsetSelected.length > 0 && isApply" class="ml-2 bg-orange rounded-lg py-1 px-3 text-caption font-weight-bold text-white">{{itemsMapsetSelected.length}}</span>
-                <v-spacer></v-spacer>
-                <v-btn @click="deleteAllList" v-if="itemsMapsetSelected.length > 0 && isApply" icon density="comfortable" variant="text" color="red"><v-icon>mdi-delete</v-icon></v-btn>
-              </div>
-              <v-divider></v-divider>
-              <v-card v-if="itemsMapsetSelected.length > 0 && isApply" elevation="0" class="mt-2" height="45vh">
-                <v-row no-gutters class="ga-2">
-                  <v-col cols="12" v-for="(itemSelected) in itemsMapsetSelected" :key="itemSelected.id">
-                    <v-card elevation="0" class="d-flex rounded-lg flex-row align-center pa-1 border-opacity-25 border-thin">
-                      <v-icon size="small" class="mx-1" color="grey">mdi-dots-vertical</v-icon>
-                      <div class="ml-2 text-caption font-weight-bold text-black">{{itemSelected.description}}</div>
-                      <v-spacer></v-spacer>
-                      <v-btn icon density="comfortable" variant="text" color="black"><v-icon>mdi-eye</v-icon></v-btn>
-                    </v-card>
-                  </v-col>
-                </v-row>
-              </v-card>
-              <v-card v-else elevation="0" class="d-flex flex-row justify-center align-center bg-grey-lighten-5 mt-2" height="45vh">
-                <v-card-text class="text-center">
-                  <v-btn readonly color="grey" class="mb-6" icon variant="flat" size="small"><v-icon class="text-white">mdi-map</v-icon></v-btn>
-                  <div class="font-weight-black text-subtitle-2 text-center">Belum ada mapset yang dipilih</div>
-                  <div class="text-caption font-weight-light text-grey-darken-2 text-center">Silahkan pilih terlebih dahulu mapset untuk melihat data secara detail</div>
-                  <v-btn @click="showDialogPickMapset" color="indigo" class="text-white text-subtitle-2 rounded-lg mt-6 font-weight-bold" density="comfortable" variant="elevated">Pilih Mapset</v-btn>
-                </v-card-text>
-              </v-card>
-            </v-card-text>
+            <v-card class="bg-white mt-3 py-4 rounded-lg" height="500px" style="overflow-y: auto;">
+              <v-card-text>
+                <div class="text-subtitle-1 mb-1 font-weight-bold d-flex flex-row align-center">
+                  <div>Mapset</div>
+                  <span v-if="itemsMapsetSelected.length > 0 && isApply" class="ml-2 bg-orange rounded-lg py-1 px-3 text-caption font-weight-bold text-white">{{itemsMapsetSelected.length}}</span>
+                  <v-spacer></v-spacer>
+                  <v-btn @click="deleteAllList" v-if="itemsMapsetSelected.length > 0 && isApply" icon density="comfortable" variant="text" color="red"><v-icon>mdi-delete</v-icon></v-btn>
+                </div>
+                <v-divider></v-divider>
+                <v-card v-if="itemsMapsetSelected.length > 0 && isApply" elevation="0" class="mt-2" >
+                  <v-row no-gutters class="ga-2">
+                    <v-col cols="12" v-for="(itemSelected) in itemsMapsetSelected" :key="itemSelected.id">
+                      <v-card elevation="0" class="d-flex rounded-lg flex-row align-center pa-1 border-opacity-25 border-thin">
+                        <v-icon size="small" class="mx-1" color="grey">mdi-dots-vertical</v-icon>
+                        <div class="ml-2 text-caption font-weight-bold text-black">{{itemSelected.description}}</div>
+                        <v-spacer></v-spacer>
+                        <v-btn icon density="comfortable" variant="text" color="black"><v-icon>mdi-eye</v-icon></v-btn>
+                      </v-card>
+                    </v-col>
+                  </v-row>
+                </v-card>
+
+                <v-card elevation="0" class="d-flex flex-row justify-center align-center bg-grey-lighten-5 mt-2">
+                  <v-card-text class="text-center">
+                    <v-btn v-if="itemsMapsetSelected.length === 0"   readonly color="grey" class="mb-6" icon variant="flat" size="small"><v-icon class="text-white">mdi-map</v-icon></v-btn>
+                    <div v-if="itemsMapsetSelected.length === 0"   class="font-weight-black text-subtitle-2 text-center">Belum ada mapset yang dipilih</div>
+                    <div v-if="itemsMapsetSelected.length === 0"   class="text-caption font-weight-light text-grey-darken-2 text-center">Silahkan pilih terlebih dahulu mapset untuk melihat data secara detail</div>
+                    <v-btn @click="showDialogPickMapset" color="indigo" class="text-white text-subtitle-2 rounded-lg mt-6 font-weight-bold" density="comfortable" variant="elevated">Pilih Mapset</v-btn>
+                  </v-card-text>
+                </v-card>
+
+              </v-card-text>
+            </v-card>
           </v-expand-transition>
+
           <v-expand-transition v-show="showMapsetController === true">
             <v-card-text class="bg-white mt-3 py-4 rounded-lg">
               <div class="text-subtitle-1 mb-2 font-weight-bold">Alat Peta</div>

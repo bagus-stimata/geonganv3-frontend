@@ -47,7 +47,7 @@
                   @blur="searchAndHighlight(searchText)"
                   append-inner-icon="mdi-magnify"
                   density="compact"
-                  label="Cari"
+                  label="Filter"
                   hide-details
                   class="rounded-lg text-caption border-opacity-25 mt-2 mx-2"
                   variant="outlined"
@@ -64,7 +64,7 @@
                   <v-btn @click="deleteAllList" v-if="itemsMapsetSelected.length > 0 && isApply" icon density="comfortable" variant="text" color="red"><v-icon>mdi-delete</v-icon></v-btn>
                 </div>
                 <v-divider></v-divider>
-                <v-card v-if="itemsMapsetSelected.length > 0 && isApply" elevation="0" class="mt-2" >
+                <v-card v-if="itemsMapsetSelected.length > 0" elevation="0" class="mt-2" >
                   <v-row no-gutters class="ga-2">
                     <v-col cols="12" v-for="(itemSelected) in itemsMapsetSelected" :key="itemSelected.id">
                       <v-card elevation="0" class="d-flex rounded-lg flex-row align-center pa-1 border-opacity-25 border-thin">
@@ -1429,165 +1429,165 @@ export default {
 </script>
 
 <style scoped>
-.snackbar-center {
-  width: 100%;
-  text-align: center;
-  justify-content: center;
-  display: block; /* atau flex, tergantung tampilan */
-}
+    .snackbar-center {
+      width: 100%;
+      text-align: center;
+      justify-content: center;
+      display: block; /* atau flex, tergantung tampilan */
+    }
 
 
-/* Mobile Sticky Bottom Bar / Bottom Sheet (Glow Up) */
-.mobile-sticky {
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 1000;
-  transform: translateY(calc(100% - 64px)); /* collapsed height */
-  transition: transform 220ms ease, box-shadow 220ms ease;
-  background: #ffffff; /* solid to avoid text ghosting */
-  /* remove blur from container to prevent text stacking artifacts */
-  box-shadow: 0 -6px 22px rgba(0,0,0,0.18);
-  border-top-left-radius: 16px;
-  border-top-right-radius: 16px;
-  pointer-events: auto;
-  padding-bottom: max(8px, env(safe-area-inset-bottom));
-  overflow: hidden; /* contain inner scroll */
-}
-.mobile-sticky.visible { transform: translateY(0); }
-.mobile-sticky.expanded { transform: translateY(0); }
+    /* Mobile Sticky Bottom Bar / Bottom Sheet (Glow Up) */
+    .mobile-sticky {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 1000;
+      transform: translateY(calc(100% - 64px)); /* collapsed height */
+      transition: transform 220ms ease, box-shadow 220ms ease;
+      background: #ffffff; /* solid to avoid text ghosting */
+      /* remove blur from container to prevent text stacking artifacts */
+      box-shadow: 0 -6px 22px rgba(0,0,0,0.18);
+      border-top-left-radius: 16px;
+      border-top-right-radius: 16px;
+      pointer-events: auto;
+      padding-bottom: max(8px, env(safe-area-inset-bottom));
+      overflow: hidden; /* contain inner scroll */
+    }
+    .mobile-sticky.visible { transform: translateY(0); }
+    .mobile-sticky.expanded { transform: translateY(0); }
 
-.mobile-sticky.expanded {
-  height: 80vh;               /* fixed height when expanded */
-  max-height: none;
-  display: flex;
-  flex-direction: column;     /* allow content to size relative to container */
-}
+    .mobile-sticky.expanded {
+      height: 80vh;               /* fixed height when expanded */
+      max-height: none;
+      display: flex;
+      flex-direction: column;     /* allow content to size relative to container */
+    }
 
-.mobile-sticky__header {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px 8px 12px;
-  min-height: 64px;
-  user-select: none;
-}
-.mobile-sticky__header.glossy {
-  background: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0) 100%);
-  border-top-left-radius: 16px;
-  border-top-right-radius: 16px;
-  backdrop-filter: saturate(1.1) blur(8px);
-  -webkit-backdrop-filter: saturate(1.1) blur(8px);
-}
-.mobile-sticky__handle {
-  width: 44px;
-  height: 5px;
-  border-radius: 3px;
-  background: rgba(0,0,0,0.22);
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  top: 8px;
-}
-.mobile-sticky__title {
-  flex: 1;
-  text-align: center;
-  font-weight: 700;
-  letter-spacing: .2px;
-}
-.mobile-sticky__title-text {
-  max-width: 80vw;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.mobile-sticky__close-btn {
-  position: absolute;
-  right: 6px;
-  top: 8px;
-}
-.mobile-sticky__content {
-  height: calc(100% - 64px - env(safe-area-inset-bottom)); /* relative to container height */
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch; /* smooth iOS scroll */
-  overscroll-behavior: contain;      /* prevent body scroll hijack */
-  touch-action: pan-y;               /* allow vertical scroll gestures */
-  padding: 8px 12px 16px 12px;
-  border-top: 1px solid rgba(0,0,0,0.06);
-  will-change: transform;
-  transform: translateZ(0);
-  backface-visibility: hidden;
-}
-.mobile-sticky__summary {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 8px;
-}
-.mobile-sticky__table table { width: 100%; }
-.mobile-sticky__footer-spacer { height: max(6px, env(safe-area-inset-bottom)); }
+    .mobile-sticky__header {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px 8px 12px;
+      min-height: 64px;
+      user-select: none;
+    }
+    .mobile-sticky__header.glossy {
+      background: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0) 100%);
+      border-top-left-radius: 16px;
+      border-top-right-radius: 16px;
+      backdrop-filter: saturate(1.1) blur(8px);
+      -webkit-backdrop-filter: saturate(1.1) blur(8px);
+    }
+    .mobile-sticky__handle {
+      width: 44px;
+      height: 5px;
+      border-radius: 3px;
+      background: rgba(0,0,0,0.22);
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      top: 8px;
+    }
+    .mobile-sticky__title {
+      flex: 1;
+      text-align: center;
+      font-weight: 700;
+      letter-spacing: .2px;
+    }
+    .mobile-sticky__title-text {
+      max-width: 80vw;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .mobile-sticky__close-btn {
+      position: absolute;
+      right: 6px;
+      top: 8px;
+    }
+    .mobile-sticky__content {
+      height: calc(100% - 64px - env(safe-area-inset-bottom)); /* relative to container height */
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch; /* smooth iOS scroll */
+      overscroll-behavior: contain;      /* prevent body scroll hijack */
+      touch-action: pan-y;               /* allow vertical scroll gestures */
+      padding: 8px 12px 16px 12px;
+      border-top: 1px solid rgba(0,0,0,0.06);
+      will-change: transform;
+      transform: translateZ(0);
+      backface-visibility: hidden;
+    }
+    .mobile-sticky__summary {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+    .mobile-sticky__table table { width: 100%; }
+    .mobile-sticky__footer-spacer { height: max(6px, env(safe-area-inset-bottom)); }
 
-:deep(.control-offset-br) {
-  margin-right: 16px;
-}
-:deep(.leaflet-top.leaflet-right .leaflet-control-layers) {
-  margin-right: 16px; /* kira-kira setara mr-6 */
-}
+    :deep(.control-offset-br) {
+      margin-right: 16px;
+    }
+    :deep(.leaflet-top.leaflet-right .leaflet-control-layers) {
+      margin-right: 16px; /* kira-kira setara mr-6 */
+    }
 
-/* Optional: di mobile, naikin lebih jauh biar gak ketutup bottom sheet */
+    /* Optional: di mobile, naikin lebih jauh biar gak ketutup bottom sheet */
 
-:deep(.kv-table) {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed; /* biar wrapping stabil */
-}
-:deep(.kv-table td) {
-  padding: 2px 4px;
-  vertical-align: top;
-  line-height: 1.1;
-}
-:deep(.kv-table td.key) {
-  color: #777777;
-  width: 50%;
-  white-space: wrap;
-  text-align: right; /* key rata kanan */
-  padding-right: 4px;
-}
-:deep(.kv-table td.sep) {
-  width: 14px;
-  text-align: center; /* ':' center */
-  white-space: wrap;
-}
-:deep(.kv-table td.val) {
-  width: 50%;
-  white-space: normal;        /* reset */
-  word-break: normal;         /* reset */
-  overflow-wrap: anywhere;    /* paksa wrap kalau panjang */
-  line-break: auto;
-  display: table-cell;        /* pastikan tetap behave sebagai cell */
-}
-:deep(.marker-highlighted) {
-  transform: scale(1.3);
-  filter: drop-shadow(0 0 6px #ff4081);
-  z-index: 1000 !important;
-}
-.chev-rotate {
-  transition: transform 180ms ease;
-  transform: rotate(0deg);           /* default: left */
-  transform-origin: 50% 50%;
-  will-change: transform;
-}
+    :deep(.kv-table) {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed; /* biar wrapping stabil */
+    }
+    :deep(.kv-table td) {
+      padding: 2px 4px;
+      vertical-align: top;
+      line-height: 1.1;
+    }
+    :deep(.kv-table td.key) {
+      color: #777777;
+      width: 50%;
+      white-space: wrap;
+      text-align: right; /* key rata kanan */
+      padding-right: 4px;
+    }
+    :deep(.kv-table td.sep) {
+      width: 14px;
+      text-align: center; /* ':' center */
+      white-space: wrap;
+    }
+    :deep(.kv-table td.val) {
+      width: 50%;
+      white-space: normal;        /* reset */
+      word-break: normal;         /* reset */
+      overflow-wrap: anywhere;    /* paksa wrap kalau panjang */
+      line-break: auto;
+      display: table-cell;        /* pastikan tetap behave sebagai cell */
+    }
+    :deep(.marker-highlighted) {
+      transform: scale(1.3);
+      filter: drop-shadow(0 0 6px #ff4081);
+      z-index: 1000 !important;
+    }
+    .chev-rotate {
+      transition: transform 180ms ease;
+      transform: rotate(0deg);           /* default: left */
+      transform-origin: 50% 50%;
+      will-change: transform;
+    }
 
-.chev-rotate--open {
-  transform: rotate(-90deg);         /* jadi down */
-}
-:deep(.leaflet-bottom.leaflet-right .leaflet-control-zoom) {
-  margin-right: 16px !important;
-}
-:deep(.leaflet-bottom.leaflet-right .leaflet-control-fullscreen) {
-  margin-right: 16px !important;
-}
+    .chev-rotate--open {
+      transform: rotate(-90deg);         /* jadi down */
+    }
+    :deep(.leaflet-bottom.leaflet-right .leaflet-control-zoom) {
+      margin-right: 16px !important;
+    }
+    :deep(.leaflet-bottom.leaflet-right .leaflet-control-fullscreen) {
+      margin-right: 16px !important;
+    }
 </style>
 

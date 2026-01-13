@@ -167,7 +167,7 @@
 <script>
 
 import FtDatasetService from "@/services/apiservices/ft-dataset-service";
-import FDayaDukungFilter from "@/models/payload/f-dayadukung-filter";
+import DataFilter from "@/models/payload/f-dayadukung-filter";
 import FileService from "@/services/apiservices/file-service";
 
 export default {
@@ -230,21 +230,18 @@ export default {
   },
   methods: {
     runExtendedFilter() {
-      const extendedFilter = new FDayaDukungFilter();
+      const extendedFilter = new DataFilter();
       extendedFilter.fdivisionIds = [];
       extendedFilter.pageNo = this.currentPage;
       extendedFilter.pageSize = this.pageSize;
       extendedFilter.sortBy = "id";
       extendedFilter.order = "DESC";
       extendedFilter.search = this.search;
-      extendedFilter.city = "";
       let deepSearch = this.isActiveDeepSearch
       if(this.isActiveDeepSearch){
         deepSearch = true
       }
-      console.log(deepSearch);
       this.loading = true;
-
       FtDatasetService.getPostAllFtDatasetContainingExtPublic(
           extendedFilter,
           deepSearch
@@ -281,7 +278,6 @@ export default {
         return FileService.image_url_verylow(item.avatarImage)
       }
     },
-
 
     activateDeepSearchGeojson(){
       this.isActiveDeepSearch = !this.isActiveDeepSearch

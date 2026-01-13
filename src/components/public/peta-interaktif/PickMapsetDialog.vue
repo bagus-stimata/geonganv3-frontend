@@ -29,7 +29,7 @@
                     v-model="search"
                     prepend-inner-icon="mdi-magnify"
                     density="compact"
-                    label="Cari mapset"
+                    label="Cari data pada mapset"
                     hide-details
                     class="rounded-lg text-caption mx-1"
                     variant="outlined"
@@ -166,7 +166,7 @@
   <script>
 
 import BaseMapInteraktif from "@/components/public/peta-interaktif/BaseMapInteraktif.vue";
-import FDayaDukungFilter from "@/models/payload/f-dayadukung-filter";
+import DataFilter from "@/models/payload/f-dayadukung-filter";
 import FtDatasetService from "@/services/apiservices/ft-dataset-service";
 import FtDataset from "@/models/ft-dataset";
 import FileService from "@/services/apiservices/file-service";
@@ -220,14 +220,13 @@ export default {
       this.itemsMapsetSelected = []
     },
     runExtendedFilter() {
-      const extendedFilter = new FDayaDukungFilter();
+      const extendedFilter = new DataFilter();
       extendedFilter.fdivisionIds = [];
       extendedFilter.pageNo = this.currentPage;
       extendedFilter.pageSize = this.pageSize;
       extendedFilter.sortBy = "id";
       extendedFilter.order = "DESC";
       extendedFilter.search = this.search;
-      extendedFilter.city = "";
       let deepSearch = this.isActiveDeepSearch
       if(this.isActiveDeepSearch){
         deepSearch = true

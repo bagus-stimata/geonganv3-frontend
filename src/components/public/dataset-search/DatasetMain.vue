@@ -94,6 +94,7 @@
                       height="200"
                       cover
                       :src="lookupImageUrl(dataset)"
+                      :lazy-src="lookupImageLazyUrl(dataset)"
                       class="rounded-lg"
                   />
                   <v-card-text>
@@ -303,7 +304,14 @@ export default {
       if (item.avatarImage===undefined || item.avatarImage===""){
         return require('@/assets/images/basemap.webp')
       }else {
-        return FileService.image_url_medium(item.avatarImage)
+        return FileService.image_url_low(item.avatarImage)
+      }
+    },
+    lookupImageLazyUrl(item){
+      if (item.avatarImage===undefined || item.avatarImage===""){
+        return require('@/assets/images/basemap.webp')
+      }else {
+        return FileService.image_url_verylow(item.avatarImage)
       }
     },
 

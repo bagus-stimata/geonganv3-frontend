@@ -85,7 +85,7 @@
                           width="100%"
                           :height="isMobile ? (isSelected ? '146' : '130') : (isSelected ? '224' : '186')"
                           cover
-                          :src="lookupImageUrl(dataset)"
+                          :src="lookupImageLazyUrl(dataset)"
                           class="rounded-xl"
                       />
                     </v-col>
@@ -213,11 +213,11 @@ export default {
     },
   },
   methods: {
-    lookupImageUrl(item){
+    lookupImageLazyUrl(item){
       if (item.avatarImage===undefined || item.avatarImage===""){
         return require('@/assets/images/basemap.webp')
       }else {
-        return FileService.image_url_medium(item.avatarImage)
+        return FileService.image_url_verylow(item.avatarImage)
       }
     },
     fetchFtDataset() {

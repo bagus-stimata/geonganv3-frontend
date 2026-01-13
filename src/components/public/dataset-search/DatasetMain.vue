@@ -121,7 +121,7 @@
 
                       <v-card-actions class="text-center bg-indigo-lighten-5">
                         <v-spacer />
-                        <v-btn size="small" class="font-weight-bold" variant="text" color="indigo">
+                        <v-btn @click="goToPetaInteraktif(dataset)" size="small" class="font-weight-bold" variant="text" color="indigo">
                           <v-icon>mdi-map</v-icon><span class="ml-2">Lihat Detail</span>
                         </v-btn>
                         <v-spacer />
@@ -229,6 +229,11 @@ export default {
     },
   },
   methods: {
+    goToPetaInteraktif(item) {
+      const listIds = [item.id];
+      this.$router.push("/public-peta-interaktif?itemIds=" + listIds.join(","));
+    },
+
     runExtendedFilter() {
       const extendedFilter = new DataFilter();
       extendedFilter.fdivisionIds = [];

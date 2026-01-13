@@ -366,8 +366,8 @@ export default {
       }),
 
       enableTooltip: true,
-      zoom: 13,
-      maxZoom: 21, // cap global; providers will overzoom above their native (OSM 19)
+      zoom: 11,
+      maxZoom: 18, // cap global; providers will overzoom above their native (OSM 19)
       currentMarker: {
         id: 0,
         coordinates: this.$store.state.potensi.centerMap.coordinates,
@@ -1409,7 +1409,34 @@ export default {
       return null;
     },
   },
-  mounted() {
+  async mounted() {
+
+    /**
+     * Jika mendapatkan parameter yang berisi Array Id Dataset maka
+     * ambil nilai array tersebut
+     */
+    // Ambil itemIds dari route query jika ada
+    const qIds = this.$route && this.$route.query ? this.$route.query.itemIds : null;
+
+    const mapsetIds = (qIds == null)
+      ? []
+      : (Array.isArray(qIds) ? qIds.join(',') : String(qIds))
+          .split(',')
+          .map(s => Number(s))
+          .filter(n => Number.isFinite(n));
+
+    if (mapsetIds.length > 0) {
+      FtDatasetService.getFtDatasetByIdsPublic(mapsetIds)
+        .then((response) => {
+          const data = Array.isArray(response.data) ? response.data : [];
+          this.itemsMapsetSelected = data;
+          this.applyPeta(this.itemsMapsetSelected);
+        })
+        .catch((error) => {
+          console.error('Gagal mengambil data dataset peta: ', error);
+        });
+    }
+
     if(this.$vuetify.display.smAndDown){
       this.showMapsetController = false
     }
@@ -1617,39 +1644,3 @@ export default {
       margin-right: 16px !important;
     }
 </style>
-
-
-    async toggleMapsetVisibility(itemSelected) {
-      const id = itemSelected && itemSelected.id;
-      if (id == null) return;
-
-      // default: kalau undefined/null, anggap sedang tampil
-      const currentlyVisible = (itemSelected.hasGeojson !== false);
-      const nextVisible = !currentlyVisible;
-      itemSelected.hasGeojson = nextVisible;
-
-      // OFF -> cukup toggle flag; layer akan hilang karena computed filter,
-      // dan index akan dibersihkan oleh layer.on('remove') (cleanupByLayerId).
-      if (!nextVisible) {
-        this.isApply = true;
-        return;
-      }
-
-      // ON -> fetch hanya kalau belum pernah di-cache
-      const alreadyCached = Array.isArray(this.itemsDatasetGeojson)
-        ? this.itemsDatasetGeojson.some(x => x && x.id === id)
-        : false;
-
-      if (!alreadyCached) {
-        try {
-          await this.valueChangedSpaMainGeoJson(itemSelected);
-        } catch (e) {
-          // rollback kalau gagal load
-          itemSelected.hasGeojson = false;
-          console.error('toggleMapsetVisibility load error', e);
-          this.snackbar = { show: true, color: 'error', text: 'Gagal memuat GeoJSON untuk ditampilkan', timeout: 2000 };
-        }
-      }
-
-      this.isApply = true;
-    },

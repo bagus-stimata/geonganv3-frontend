@@ -123,20 +123,13 @@ class FtDatasetService {
             { headers: authHeader() }
         );
     }
-
-    // -- endpoint with childs: belum kita ubah karena controller belum pakai includeGeojson --
-
-    getFtDatasetByIdWithChilds(id) {
-        return axios.get(API_URL + `getFtDatasetByIdWithChilds/${id}`, {
-            headers: authHeader(),
-        });
+    getFtDatasetByIdsPublic(ids, includeGeojson = false) {
+        return axios.get(
+            API_URL + `public/getFtDatasetByIds/${ids}?includeGeojson=${includeGeojson}`,
+            { headers: authHeader() }
+        );
     }
 
-    getFtDatasetByIdWithChildsPublic(id) {
-        return axios.get(API_URL + `public/getFtDatasetByIdWithChilds/${id}`, {
-            headers: authHeader(),
-        });
-    }
 
     /**
      * Utility: copy dataset per tahun.

@@ -283,14 +283,7 @@ export default {
     centerUpdated(center) {
       this.center = center;
     },
-    getRandomColor() {
-      const letters = "0123456789ABCDEF";
-      let color = "#";
-      for (let i = 0; i < 6; i++) {
-        color += letters[Math.floor(Math.random() * 16)];
-      }
-      return color;
-    },
+
     styleFunction(feature) {
       const geomType = feature?.geometry?.type || '';
       const props = feature?.properties || {};
@@ -444,7 +437,54 @@ export default {
         }
       }
     },
-    tampilkanPeta(item) {
+    async forceFreshMapLoad() {
+      console.time("[FtDatasetMap] freshLoad_duration");
+
+      // 1. Clear all layers
+      this.itemSpaDayaDukungGeojson = [];
+
+      // 2. Remove fullscreen + resize listeners (jaga-jaga kalau double mount)
+      document.removeEventListener("fullscreenchange", this.handleFullscreenChange);
+      if (this._onResize) {
+        window.removeEventListener("resize", this._onResize);
+        window.removeEventListener("orientationchange", this._onResize);
+      }
+
+      // 3. Re-register listeners fresh
+      document.addEventListener("fullscreenchange", this.handleFullscreenChange);
+      this._onResize = () => (this.winWidth = window.innerWidth);
+      window.addEventListener("resize", this._onResize, { passive: true });
+      window.addEventListener("orientationchange", this._onResize, { passive: true });
+
+      // 4. Tunggu mapObject benar-benar ready
+      await this.$nextTick();
+      const map = this.$refs.map?.mapObject;
+
+      if (!map) {
+        console.warn("[FtDatasetMap] mapObject belum ready, reattempt in nextTick");
+        await this.$nextTick();
+      }
+
+      // 5. Force fullscreen control re-init
+      try {
+        const map2 = this.$refs.map?.mapObject;
+        if (map2) {
+          L.control.fullscreen().addTo(map2);
+        }
+      } catch (err) {
+        console.error("[FtDatasetMap] gagal init fullscreen:", err);
+      }
+
+      console.timeEnd("[FtDatasetMap] freshLoad_duration");
+    },
+
+    async tampilkanPeta(item) {
+      await this.forceFreshMapLoad(); // <<— NEW, bikin fresh dulu
+
+      console.time("[FtDatasetMap] tampilkanPeta_duration");
+      this.itemModified = item;
+      this.itemSpaDayaDukungGeojson = [];
+
       this.itemModified = item;
 
       // Clear previous preview layers first
@@ -460,6 +500,7 @@ export default {
       if (hasInlineGeojson) {
         // render directly from inline content
         this.valueChangedSpaMainGeoJson({ ...item, selected: true });
+        console.timeEnd("[FtDatasetMap] tampilkanPeta_duration");
         return;
       }
 
@@ -468,7 +509,9 @@ export default {
       if (item && item.fileNameLow) {
         this.valueChangedSpaMainGeoJson({ ...item, selected: true });
       }
+      console.timeEnd("[FtDatasetMap] tampilkanPeta_duration");
     },
+
     resetTampilanPeta(){
       this.itemSpaDayaDukungGeojson = [];
     },
@@ -502,11 +545,18 @@ export default {
 
   mounted() {
     this.currentMarker = this.$store.state.potensi.centerMap
+
     document.addEventListener('fullscreenchange', this.handleFullscreenChange);
+    this._onResize = () => (this.winWidth = window.innerWidth);
+    window.addEventListener('resize', this._onResize, { passive: true });
+    window.addEventListener('orientationchange', this._onResize, { passive: true });
 
   },
   beforeUnmount() {
     document.removeEventListener('fullscreenchange', this.handleFullscreenChange);
+    window.removeEventListener('resize', this._onResize);
+    window.removeEventListener('orientationchange', this._onResize);
+
   }
 
 };

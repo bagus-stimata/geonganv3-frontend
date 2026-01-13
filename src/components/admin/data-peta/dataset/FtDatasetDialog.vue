@@ -375,7 +375,8 @@
           <!-- Load Peta GeoJSON -->
           <v-card-text v-if="hasGeojsonForPreview && togglePetaDanEditMode==='LOAD_PETA_GEOJSON'">
             <FtDatasetMap
-                ref="refFDayaDukungPetaMap">
+                ref="refFDayaDukungPetaMap"
+            >
             </FtDatasetMap>
           </v-card-text>
 
@@ -1093,12 +1094,12 @@ export default {
       try {
         await this.ensureGeojsonLoaded();
         this.$refs.refFDayaDukungPetaMap.tampilkanPeta(this.itemModified);
+        console.log("Done Load Tampilan Peta");
       } catch (e) {
         console.error(e);
         this.snackBarMessage = "Gagal menampilkan peta";
         this.snackbar = true;
       }
-
     },
     async loadDataEdit(){
       try {

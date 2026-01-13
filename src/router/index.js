@@ -144,8 +144,8 @@ const routes = [
         component: () => import('../views/public/PetaPersebaranView.vue')
     },
     {
-        path: '/public-map',
-        name: 'PublicMapView',
+        path: '/public-peta-interaktif',
+        name: 'PublicPetaInteraktif',
         component: () => import('../views/public/PetaInteraktifView.vue')
     },
     {

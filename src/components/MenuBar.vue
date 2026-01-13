@@ -103,10 +103,10 @@
                 size="small"
                 :style="isHome && !scrolled?'color:white !important': ''"
                 density="comfortable"
-                :variant="isActive('/public-map')?'elevated':'plain'"
-                :class="isActive('/public-map')?'color-bg-primary pa-3 text-white font-weight-bold' : 'pa-3 text-black font-weight-bold hover-btn'"
+                :variant="isActive('/public-peta-interaktif')?'elevated':'plain'"
+                :class="isActive('/public-peta-interaktif')?'color-bg-primary pa-3 text-white font-weight-bold' : 'pa-3 text-black font-weight-bold hover-btn'"
                 elevation="0"
-                :to="{ path: '/public-map' }"
+                :to="{ path: '/public-peta-interaktif' }"
                 v-if="!currentUser"
             >
               <span>Peta Interaktif</span>
@@ -191,7 +191,7 @@
         </template>
         <v-list-item-subtitle>Katalog Peta</v-list-item-subtitle>
       </v-list-item>
-      <v-list-item color="deep-orange" route to="/public-map">
+      <v-list-item color="deep-orange" route to="/public-peta-interaktif">
         <template #prepend>
           <v-icon>mdi-map-marker</v-icon>
         </template>
@@ -249,7 +249,7 @@ export default {
         "/login", "/register",
         "/registration-active",
         "/reset-success",
-          "/public-map",
+          "/public-peta-interaktif",
 
         "/reset-atur-ulang",
         "/reset-masukkan-otp",

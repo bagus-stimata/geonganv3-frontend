@@ -54,7 +54,6 @@ import 'leaflet-fullscreen';
 import 'leaflet-fullscreen/dist/leaflet.fullscreen.css';
 
 import FileService from "@/services/apiservices/file-service";
-import {db} from '@/db/db.js'
 import zonaMapper from '@/helpers/zona-color-mapper';
 import GooglePlacesAutoCompleteDialog from "@/components/util-ext/GooglePlacesAutoCompleteDialog.vue";
 
@@ -88,6 +87,10 @@ export default {
 
   },
   props: {
+    selectedMapsets:{
+      type: Array,
+      default: () => [],
+    },
     autoSelectRDTR: {
       type: Boolean,
       default: true,
@@ -102,6 +105,13 @@ export default {
     },
   },
   watch: {
+    selectedMapsets: {
+      handler(newVal) {
+        console.log("Item berubah:", newVal);
+      },
+      deep: true,  // kalau object
+      immediate: false
+    }
   },
   data()  {
     return {
@@ -770,52 +780,29 @@ export default {
       };
     },
     async syncDayaDukungGeojson({ id, fileNameLow, restApiFetch }) {
-      // 1. Cek di Dexie
-      this.snackbar.text = `mencoba mencari dari data local...`;
-      this.snackbar.color = "success";
+      console.log(id);
+      // Selalu ambil dari server, tidak lagi memakai cache lokal (Dexie/localStorage)
+      this.snackbar.text = `Mengambil data GeoJSON dari server... (Harap Sabar Menunggu)`;
+      this.snackbar.color = "warning";
       this.snackbar.show = true;
-      this.snackbar.timeout = 700;
+      this.snackbar.timeout = 3000;
+
       try {
-        const local = await db.daya_dukung_peta.get(id);
+        const geoJsonObject = await restApiFetch(fileNameLow);
 
-        if (local && local.fileNameLow === fileNameLow && local.dataGeoJson) {
-          this.snackbar.text = `Data GeoJSON ditemukan di lokal database!`;
-          this.snackbar.color = "primary";
-          this.snackbar.show = true;
-          this.snackbar.timeout = 3000;
+        this.snackbar.text = `Data GeoJSON berhasil diambil dari server.`;
+        this.snackbar.color = "primary";
+        this.snackbar.show = true;
+        this.snackbar.timeout = 2000;
 
-          // File name sama, pakai data lokal Dexie
-          return local.dataGeoJson;
-        } else {
-          this.snackbar.text = `Mengambil data GeoJSON dari server... (Harap Sabar Menunggu)`;
-          this.snackbar.color = "warning";
-          this.snackbar.show = true;
-
-          // Either nggak ada, atau file name beda → hapus, fetch ulang, simpan baru
-          if (local) {
-            await db.daya_dukung_peta.delete(id);
-          }
-
-          // Fetch dari REST API (misal pake FileService lo)
-          const geoJsonObject = await restApiFetch(fileNameLow);
-
-          // Simpan baru ke Dexie
-          await db.daya_dukung_peta.put({
-            id, // sama kayak backend
-            fileNameLow,
-            dataGeoJson: geoJsonObject
-          });
-
-          return geoJsonObject;
-        }
-
-      }catch (e) {
-        this.snackbar.text = `Tidak dapat menggunakan Dexie! Mengambil data GeoJSON dari server Secara Langsung...`;
+        return geoJsonObject;
+      } catch (e) {
+        console.error('syncDayaDukungGeojson error (server fetch)', e);
+        this.snackbar.text = `Gagal mengambil data GeoJSON dari server.`;
         this.snackbar.color = "error";
         this.snackbar.show = true;
-
-        return await restApiFetch(fileNameLow);
-
+        this.snackbar.timeout = 3000;
+        throw e;
       }
     },
 
@@ -1140,7 +1127,9 @@ export default {
     this.singleMarker = {
       coords: this.currentMarker.coordinates,
     }
+
     this.fetchDayaDukungPeta();
+
     document.addEventListener('fullscreenchange', this.handleFullscreenChange);
     this._onResize = () => (this.winWidth = window.innerWidth);
     window.addEventListener('resize', this._onResize, { passive: true });

@@ -4,13 +4,13 @@
       <v-card-title class="mb-6">
         <v-row>
           <v-spacer></v-spacer>
-          <v-col cols="12" md="6" sm="12">
+          <v-col cols="12"  sm="10" md="8">
             <v-text-field
                 v-model="search"
                 style="box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2);"
                 prepend-inner-icon="mdi-magnify"
                 density="compact"
-                class="rounded-lg text-caption pt-1 pb-3 px-3"
+                class="rounded-lg text-caption pt-1 pb-3 px-2"
                 variant="plain"
                 hide-details
                 placeholder="Cari ⏎"

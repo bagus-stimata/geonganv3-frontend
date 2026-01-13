@@ -125,7 +125,10 @@
                         <div class="font-weight-bold text-subtitle-2">Preview</div>
                       </v-col>
                     </v-row>
-                    <BaseMapInteraktif map-min-height="30vh" map-max-height="30vh"></BaseMapInteraktif>
+                    <BaseMapInteraktif
+                        :selectedMapsets="itemsMapsetSelected"
+                        map-min-height="30vh" map-max-height="30vh"
+                    ></BaseMapInteraktif>
                     <v-row class="mt-1">
                       <v-col cols="12" class="d-flex flex-row align-center">
                         <div class="font-weight-bold text-subtitle-2">Mapset Terpilih</div>

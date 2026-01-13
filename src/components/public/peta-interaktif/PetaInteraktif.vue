@@ -170,7 +170,6 @@
             <v-icon color="primary" size="large" >mdi-home</v-icon><span class="ml-1 hidden-sm-and-down font-weight-bold">Beranda</span>
           </div>
         </v-btn>
-<!--        <v-btn variant="elevated" size="default" class="rounded text-white mx-md-2 mt-md-2 ma-1 color-bg-second" ><v-icon color="white">mdi-home</v-icon><span class="ml-1 hidden-sm-and-down">Beranda</span></v-btn>-->
       </l-control>
       <l-control-layers position="topright"></l-control-layers>
 
@@ -640,6 +639,7 @@ export default {
     routeToHome(){
       this.$router.push("/home")
     },
+
     showDialogPickMapset(){
       this.$refs.refPickMapsetDialog.showDialog(this.itemsMapsetSelected)
       this.isApply = false

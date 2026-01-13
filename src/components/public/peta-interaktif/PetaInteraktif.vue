@@ -23,7 +23,7 @@
                     lazy
                     height="45"
                     width="45"
-                    :src="require('@/assets/logo.png')"
+                    :src="require('@/assets/logo.webp')"
                 ></v-img>
                 <div>
                   <div class="text-subtitle-1 my-0 py-0 font-weight-black">GEO PORTAL</div>

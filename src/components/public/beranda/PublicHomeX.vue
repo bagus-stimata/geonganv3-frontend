@@ -17,7 +17,7 @@
                   max-height="160"
                   max-width="110"
                   contain
-                  :src="require('@/assets/logo.png')"
+                  :src="require('@/assets/logo.webp')"
               />
               <v-spacer />
             </v-col>

@@ -10,7 +10,7 @@
       <v-toolbar-title class="text-uppercase color-text-second d-flex justify-end mr-6">
         <div class="d-flex align-center">
           <div class="ml-2 font-weight-bold">DISKOMINFO<span class="font-weight-thin">NGANJUK</span></div>
-          <v-img width="30" class="ml-2" :src="require('@/assets/logo.png')"></v-img>
+          <v-img width="30" class="ml-2" :src="require('@/assets/logo.webp')"></v-img>
         </div>
       </v-toolbar-title>
     </v-toolbar>

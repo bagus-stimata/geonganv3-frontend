@@ -33,6 +33,7 @@
                     hide-details
                     class="rounded-lg text-caption mx-1"
                     variant="outlined"
+                    @keyup.enter = "runExtendedFilter"
                 >
                   <template #append-inner>
                     <div class="d-flex flex-row align-center">
@@ -70,7 +71,7 @@
                     >
                       <v-row>
                         <v-col cols="3">
-                          <v-img width="100%" height="68" class="rounded" cover :src="lookupImageUrl(dataset)" />
+                          <v-img width="100%" height="68" class="rounded" cover :src="lookupImageLazyUrl(dataset)" />
                         </v-col>
 
                         <v-col cols="9" class="d-flex flex-row align-center justify-center">
@@ -243,11 +244,11 @@ export default {
           }
       );
     },
-    lookupImageUrl(item){
+    lookupImageLazyUrl(item){
       if (item.avatarImage===undefined || item.avatarImage===""){
         return require('@/assets/images/basemap.webp')
       }else {
-        return FileService.image_url_medium(item.avatarImage)
+        return FileService.image_url_verylow(item.avatarImage)
       }
     },
     activateDeepSearchGeojson(){

@@ -58,7 +58,7 @@
             <v-card class="bg-white mt-3 py-4 rounded-lg" height="500px" style="overflow-y: auto;">
               <v-card-text>
                 <div class="text-subtitle-1 mb-1 font-weight-bold d-flex flex-row align-center">
-                  <div>Mapset</div>
+                  <div>Mapset Selected</div>
                   <span v-if="itemsMapsetSelected.length > 0 && isApply" class="ml-2 bg-orange rounded-lg py-1 px-3 text-caption font-weight-bold text-white">{{itemsMapsetSelected.length}}</span>
                   <v-spacer></v-spacer>
                   <v-btn @click="deleteAllList" v-if="itemsMapsetSelected.length > 0 && isApply" icon density="comfortable" variant="text" color="red"><v-icon>mdi-delete</v-icon></v-btn>
@@ -71,7 +71,16 @@
                         <v-icon size="small" class="mx-1" color="grey">mdi-dots-vertical</v-icon>
                         <div class="ml-2 text-caption font-weight-bold text-black">{{itemSelected.description}}</div>
                         <v-spacer></v-spacer>
-                        <v-btn icon density="comfortable" variant="text" color="black"><v-icon>mdi-eye</v-icon></v-btn>
+                        <v-btn
+                            @click.stop="toggleMapsetVisibility(itemSelected)"
+                            icon
+                            density="comfortable"
+                            variant="text"
+                            :color="itemSelected.hasGeojson === false ? 'grey' : 'black'"
+                            :title="itemSelected.hasGeojson === false ? 'Tampilkan di peta' : 'Sembunyikan dari peta'"
+                        >
+                          <v-icon>{{ itemSelected.hasGeojson === false ? 'mdi-eye-off' : 'mdi-eye' }}</v-icon>
+                        </v-btn>
                       </v-card>
                     </v-col>
                   </v-row>
@@ -235,22 +244,8 @@
         </l-popup>
       </l-marker>
 
-      <l-marker :lat-lng="[item.latitude, item.longitude]" v-for="(item, idx) in listFtMonev" :key="idx">
-        <l-popup>
-          <div class="font-weight-bold">
-            {{item.description}}
-          </div>
-          <div>
-            {{ item.objAddress}}
-          </div>
-        </l-popup>
-      </l-marker>
-
-
-
-
       <l-geo-json
-          v-for="(item, index) in itemSpaDayaDukungGeojson"
+          v-for="(item, index) in visibleDatasetGeojsonItems"
           :key="index"
           :geojson="item.data"
           :options="options"
@@ -283,16 +278,13 @@ import L, {Icon} from 'leaflet';
 import 'leaflet-fullscreen';
 import 'leaflet-fullscreen/dist/leaflet.fullscreen.css';
 
-import FileService from "@/services/apiservices/file-service";
-import {db} from '@/db/db.js'
 import zonaMapper from '@/helpers/zona-color-mapper';
 import GooglePlacesAutoCompleteDialog from "@/components/util-ext/GooglePlacesAutoCompleteDialog.vue";
 
 import RBush from 'rbush'
 import * as turf from '@turf/turf'
-import FDayadukungService from "@/services/apiservices/f-dayadukung-service";
 import PickMapsetDialog from "@/components/public/peta-interaktif/PickMapsetDialog.vue";
-import {de} from "vuetify/locale";
+import FtDatasetService from "@/services/apiservices/ft-dataset-service";
 
 delete Icon.Default.prototype.Default;
 // Icon.Default.mergeOptions({
@@ -441,16 +433,9 @@ export default {
 
       mapFullScreen: false,
 
-      listFtMonev: [],
 
       geojson: null,
-      itemSpaDayaDukungGeojson: [],
-
-
-      itemsFDayaDukung: [],
-      itemsFDayaDukungType: Array,
-      itemsFSubArea: Array,
-      itemsFArea: Array,
+      itemsDatasetGeojson: [],
 
       colorMap: {},
 
@@ -479,9 +464,6 @@ export default {
     };
   },
   computed: {
-    de() {
-      return de
-    },
     computedTileProviders(){
       const base = Array.isArray(this.tileProviders) ? this.tileProviders.slice() : [];
       if (this.currentUser && this.googleApiKey) {
@@ -503,6 +485,16 @@ export default {
         return merged;
       }
       return base;
+    },
+    visibleDatasetGeojsonItems() {
+      const selected = Array.isArray(this.itemsMapsetSelected) ? this.itemsMapsetSelected : [];
+      const visibleIds = new Set(
+        selected
+          .filter(x => x && x.id != null && x.hasGeojson !== false)
+          .map(x => x.id)
+      );
+      const cache = Array.isArray(this.itemsDatasetGeojson) ? this.itemsDatasetGeojson : [];
+      return cache.filter(ds => ds && ds.id != null && visibleIds.has(ds.id));
     },
     googleApiKey(){
       return this.$store.state.secretKey.googleApiKey?? '';
@@ -579,13 +571,72 @@ export default {
     },
   },
   methods: {
+
+    async toggleMapsetVisibility(itemSelected) {
+      const id = itemSelected && itemSelected.id;
+      if (id == null) return;
+
+      // default: kalau undefined/null, anggap sedang tampil
+      const currentlyVisible = (itemSelected.hasGeojson !== false);
+      const nextVisible = !currentlyVisible;
+      itemSelected.hasGeojson = nextVisible;
+
+      // OFF -> JANGAN hapus cache.
+      // Layer hilang karena computed `visibleDatasetGeojsonItems` ngefilter.
+      // Index dibersihkan otomatis via layer.on('remove') yang sudah lo pasang.
+      if (!nextVisible) {
+        this.isApply = true;
+        return;
+      }
+
+      // ON -> fetch hanya kalau belum pernah di-cache
+      const alreadyCached = Array.isArray(this.itemsDatasetGeojson)
+          ? this.itemsDatasetGeojson.some(x => x && x.id === id)
+          : false;
+
+      if (!alreadyCached) {
+        try {
+          await this.valueChangedSpaMainGeoJson(itemSelected);
+        } catch (e) {
+          itemSelected.hasGeojson = false; // rollback
+          console.error('toggleMapsetVisibility load error', e);
+          this.snackbar = { show: true, color: 'error', text: 'Gagal memuat GeoJSON untuk ditampilkan', timeout: 2000 };
+        }
+      }
+
+      this.isApply = true;
+    },
+
     deleteAllList(){
       this.itemsMapsetSelected = []
     },
-    applyPeta(itemsMapsetSelected, ){
-      this.itemsMapsetSelected = itemsMapsetSelected
-      this.isApply = true
+
+    async applyPeta(itemsMapsetSelected) {
+      this.itemsMapsetSelected = Array.isArray(itemsMapsetSelected) ? itemsMapsetSelected : [];
+      this.isApply = true;
+
+      // Load only missing datasets that are marked visible (hasGeojson !== false)
+      const cacheIds = new Set(
+        Array.isArray(this.itemsDatasetGeojson)
+          ? this.itemsDatasetGeojson.map(x => x && x.id).filter(v => v != null)
+          : []
+      );
+
+      for (const item of this.itemsMapsetSelected) {
+        if (!item || item.id == null) continue;
+        if (item.hasGeojson === false) continue; // hidden on map -> no fetch
+        if (cacheIds.has(item.id)) continue;     // already cached -> no fetch
+
+        try {
+          await this.valueChangedSpaMainGeoJson(item);
+          cacheIds.add(item.id);
+        } catch (e) {
+          console.error('[PetaInteraktif][applyPeta] load error', e);
+          this.snackbar = { show: true, color: 'error', text: 'Gagal memuat GeoJSON', timeout: 2000 };
+        }
+      }
     },
+
     routeToHome(){
       this.$router.push("/home")
     },
@@ -1025,53 +1076,37 @@ export default {
         fillOpacity
       };
     },
-    async syncDayaDukungGeojson({ id, fileNameLow, restApiFetch }) {
-      // 1. Cek di Dexie
-      this.snackbar.text = `mencoba mencari dari data local...`;
-      this.snackbar.color = "success";
-      this.snackbar.show = true;
-      this.snackbar.timeout = 700;
+
+    async getFromServerDatasetGeojson({ idDataset, restApiFetch }) {
+      // NOTE: Local cache (Dexie/IndexedDB) intentionally removed.
+      // Always fetch fresh GeoJSON from server.
+      // console.log(idDataset);
       try {
-        const local = await db.daya_dukung_peta.get(id);
+        this.snackbar = {
+          show: true,
+          color: 'warning',
+          text: 'Mengambil data GeoJSON dari server... (Harap Sabar Menunggu)',
+          timeout: 2000,
+        };
 
-        if (local && local.fileNameLow === fileNameLow && local.dataGeoJson) {
-          this.snackbar.text = `Data GeoJSON ditemukan di lokal database!`;
-          this.snackbar.color = "primary";
-          this.snackbar.show = true;
-          this.snackbar.timeout = 3000;
+        const geoJsonObject = await restApiFetch(idDataset);
+        this.snackbar = {
+          show: true,
+          color: 'primary',
+          text: 'Data GeoJSON berhasil dimuat dari server',
+          timeout: 1500,
+        };
 
-          // File name sama, pakai data lokal Dexie
-          return local.dataGeoJson;
-        } else {
-          this.snackbar.text = `Mengambil data GeoJSON dari server... (Harap Sabar Menunggu)`;
-          this.snackbar.color = "warning";
-          this.snackbar.show = true;
-
-          // Either nggak ada, atau file name beda → hapus, fetch ulang, simpan baru
-          if (local) {
-            await db.daya_dukung_peta.delete(id);
-          }
-
-          // Fetch dari REST API (misal pake FileService lo)
-          const geoJsonObject = await restApiFetch(fileNameLow);
-
-          // Simpan baru ke Dexie
-          await db.daya_dukung_peta.put({
-            id, // sama kayak backend
-            fileNameLow,
-            dataGeoJson: geoJsonObject
-          });
-
-          return geoJsonObject;
-        }
-
-      }catch (e) {
-        this.snackbar.text = `Tidak dapat menggunakan Dexie! Mengambil data GeoJSON dari server Secara Langsung...`;
-        this.snackbar.color = "error";
-        this.snackbar.show = true;
-
-        return await restApiFetch(fileNameLow);
-
+        return geoJsonObject;
+      } catch (e) {
+        console.error('error', e);
+        this.snackbar = {
+          show: true,
+          color: 'error',
+          text: 'Gagal mengambil data GeoJSON dari server',
+          timeout: 2500,
+        };
+        throw e;
       }
     },
 
@@ -1113,13 +1148,12 @@ export default {
     },
 
     async valueChangedSpaMainGeoJson(value) {
-
-      if (!value.fileNameLow) return;
-      if (value.selected !== true) {
+      // if (value.selected !== true) {
+      if (value.hasGeojson !== true) {
         this.isBulkCleanup = true;
 
-        const index = this.itemSpaDayaDukungGeojson.findIndex((item) => item.id === value.id);
-        if (index !== -1) this.itemSpaDayaDukungGeojson.splice(index, 1);
+        const index = this.itemsDatasetGeojson.findIndex((item) => item.id === value.id);
+        if (index !== -1) this.itemsDatasetGeojson.splice(index, 1);
 
         // bersihkan semua indeks terkait dataset ini
         this.cleanupByDataset(value.id);
@@ -1136,30 +1170,37 @@ export default {
         return;
       }
 
-      // Smart cache pake syncDayaDukungGeojson (bisa dari Dexie, bisa fetch & cache)
-      const geojsonResponse = await this.syncDayaDukungGeojson({
-        id: value.id,
-        fileNameLow: value.fileNameLow,
-        restApiFetch: async (fileName) => {
-          let response;
-          if (value.fileType === 'geojson-gzip' || fileName.endsWith('.geojson.gz')) {
-            response = await fetch(FileService.fileGeojsonGzip(fileName));
-          } else {
-            response = await fetch(FileService.file_url(fileName));
+      const geojsonResponse = await this.getFromServerDatasetGeojson({
+        idDataset: value.id,
+        restApiFetch: async (idDataset) => {
+          // ✅ ambil via Axios (FtDatasetService)
+          const resp = await FtDatasetService.getFtDatasetByIdPublic(idDataset, true);
+          const payload = resp?.data ?? resp;
+
+          // payload bisa: { geojson: "..." } atau { geojson: {...} } atau langsung FeatureCollection
+          const g = (payload && payload.geojson != null) ? payload.geojson : payload;
+
+          // ✅ kalau geojson string → parse jadi object
+          if (typeof g === 'string') {
+            const s = g.trim();
+            if (!s) return { type: 'FeatureCollection', features: [] };
+            return JSON.parse(s);
           }
-          return await response.json();
+
+          // ✅ kalau sudah object → langsung return
+          return g;
         }
       });
 
-      // Proses hasil geojson (tambah ke itemSpaDayaDukungGeojson)
+      // Proses hasil geojson (tambah ke itemsDatasetGeojson)
       if (geojsonResponse && geojsonResponse.features) {
         // Prevent duplicate entry (optional: replace by id)
-        const existIndex = this.itemSpaDayaDukungGeojson.findIndex(item => item.id === value.id);
+        const existIndex = this.itemsDatasetGeojson.findIndex(item => item.id === value.id);
         if (existIndex !== -1) {
-          this.itemSpaDayaDukungGeojson.splice(existIndex, 1);
+          this.itemsDatasetGeojson.splice(existIndex, 1);
         }
 
-        // Keep FULL in Dexie, but only SHOW features within radius from marker
+        // Keep full GeoJSON di memori, tapi hanya TAMPILKAN fitur dalam radius dari marker
         const centerForRadius = (this.singleMarker?.coords && this.singleMarker.coords.length === 2)
           ? this.singleMarker.coords
           : this.currentMarker.coordinates;
@@ -1168,7 +1209,7 @@ export default {
           ? this._filterGeoJSONByRadius(geojsonResponse, centerForRadius, this.filterRadiusMeters)
           : geojsonResponse;
 
-        this.itemSpaDayaDukungGeojson.push({
+        this.itemsDatasetGeojson.push({
           id: value.id,
           data: {
             ...toShow,
@@ -1301,28 +1342,8 @@ export default {
 
       return `<table class="kv-table"><tbody>${rows}</tbody></table>`;
     },
-    fetchDayaDukungPeta(){
-      FDayadukungService.getAllFDayaDukungByTypePetaPublic().then(
-          response => {
-            this.itemsFDayaDukung = response.data.filter(item => item.fileNameLow && item.showToMap).map(item => {
-              let selected = false;
-              return {
-                ...item,
-                selected,
-                fileNameLow: item.fileNameLow || item.fileName,
-                fileType: item.fileType || 'geojson',
-              };
-            });
-            if (this.itemsFDayaDukung.length > 0) {
-              // 2.  Otomatis load GeoJson yang selected
-              this.itemsFDayaDukung
-                  .filter(item => item.selected)
-                  .forEach(item => this.valueChangedSpaMainGeoJson(item));
 
-            }
-          }
-      )
-    },
+
     getFastPropsAtFromFeatureIndex(lat, lng, { lineTolMeters = 5, pointTolMeters = 5 } = {}) {
       // 1) ambil kandidat dari RBush pakai bbox titik
       const cand = this.spatialIndex.search({
@@ -1396,7 +1417,13 @@ export default {
     this.singleMarker = {
       coords: this.currentMarker.coordinates,
     }
-    this.fetchDayaDukungPeta();
+
+    /**
+     * Tidak perlu dinyalakan karena dataset peta diambil saat user menagktikna dialog Datase
+     */
+    // this.fetchDatasetPeta();
+
+
     document.addEventListener('fullscreenchange', this.handleFullscreenChange);
     this._onResize = () => (this.winWidth = window.innerWidth);
     window.addEventListener('resize', this._onResize, { passive: true });
@@ -1591,3 +1618,38 @@ export default {
     }
 </style>
 
+
+    async toggleMapsetVisibility(itemSelected) {
+      const id = itemSelected && itemSelected.id;
+      if (id == null) return;
+
+      // default: kalau undefined/null, anggap sedang tampil
+      const currentlyVisible = (itemSelected.hasGeojson !== false);
+      const nextVisible = !currentlyVisible;
+      itemSelected.hasGeojson = nextVisible;
+
+      // OFF -> cukup toggle flag; layer akan hilang karena computed filter,
+      // dan index akan dibersihkan oleh layer.on('remove') (cleanupByLayerId).
+      if (!nextVisible) {
+        this.isApply = true;
+        return;
+      }
+
+      // ON -> fetch hanya kalau belum pernah di-cache
+      const alreadyCached = Array.isArray(this.itemsDatasetGeojson)
+        ? this.itemsDatasetGeojson.some(x => x && x.id === id)
+        : false;
+
+      if (!alreadyCached) {
+        try {
+          await this.valueChangedSpaMainGeoJson(itemSelected);
+        } catch (e) {
+          // rollback kalau gagal load
+          itemSelected.hasGeojson = false;
+          console.error('toggleMapsetVisibility load error', e);
+          this.snackbar = { show: true, color: 'error', text: 'Gagal memuat GeoJSON untuk ditampilkan', timeout: 2000 };
+        }
+      }
+
+      this.isApply = true;
+    },

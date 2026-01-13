@@ -105,13 +105,13 @@ export default {
     },
   },
   watch: {
-    selectedMapsets: {
-      handler(newVal) {
-        console.log("Item berubah:", newVal);
-      },
-      deep: true,  // kalau object
-      immediate: false
-    }
+    // selectedMapsets: {
+    //   handler(newVal) {
+    //     console.log("BaseMapInteraktif: Watch: Item berubah:", newVal);
+    //   },
+    //   deep: true,  // kalau object
+    //   immediate: false
+    // }
   },
   data()  {
     return {

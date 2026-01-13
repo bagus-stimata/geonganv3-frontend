@@ -13,7 +13,7 @@
             </span>
             <span class="text-subtitle-2 mb-4 grey--text darken--3">{{
               computedDateFormattedDatefns(itemModified.publishTime)
-            }} ditulis oleh {{itemModified.editorial}}</span>
+            }} <span v-if="itemModified.editorial">ditulis oleh {{itemModified.editorial}}</span></span>
           </div>
           <v-hover v-slot="{ hover }">
             <v-card

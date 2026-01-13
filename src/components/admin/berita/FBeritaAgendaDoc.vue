@@ -180,6 +180,7 @@
                 v-model="itemModified.editorial"
                 label="Editorial"
                 variant="outlined"
+                :rules="rulesNotEmtpy"
                 density="compact"
                 hide-details
             ></v-text-field>

@@ -12,8 +12,8 @@
               {{ itemModified.title }}
             </span>
             <span class="text-subtitle-2 mb-4 grey--text darken--3">{{
-              computedDateFormattedDatefns(itemModified.dateFrom)
-            }}</span>
+              computedDateFormattedDatefns(itemModified.publishTime)
+            }} ditulis oleh {{itemModified.editorial}}</span>
           </div>
           <v-hover v-slot="{ hover }">
             <v-card
@@ -29,6 +29,7 @@
                 :src="lookupImageUrl(itemModified)"
                 max-height="650"
                 max-width="900"
+                cover
               >
                 <v-card-title class="text-h6 white--text fill-height">
                   <v-row
@@ -60,6 +61,7 @@
             </v-card>
           </v-hover>
           <div class="mt-4 text-justify">
+            <div class="text-subtitle-2 font-weight-bold px-4">{{itemModified.contentMeta}}</div>
             <quill-editor
                 v-model:value="itemModified.contentBody"
                 :options="editorOptions"
@@ -69,60 +71,45 @@
           </div>
         </v-col>
         <v-col cols="12" md="4" sm="4" class="px-md-8 px-4 mt-12">
-          <v-card class="mt-1" elevation="0" v-if="fAgendasFiltered.length === 0">
-            <v-card-title class="mb-1 pb-1 font-weight-bold color-text-second text-center"> Agenda </v-card-title>
-            <v-card-text class="mt-6 text-caption text-center text-grey">No data Available</v-card-text>
-          </v-card>
-          <v-card class="pa-2 mt-4 " v-if="fAgendasFiltered.length > 0">
-            <v-card-title class="mb-1 pb-1 font-weight-bold color-text-second text-center"> Agenda </v-card-title>
-            <v-card
-              class="elevation-0"
-              v-for="(fAgenda, i) in fAgendasFiltered"
-              :key="i"
-            >
-              <v-card-title>
-                <v-card class="elevation-0 py-1 px-1">
-                  <v-row justify="center" align="center">
-                    <v-col cols="3" md="4" sm="2">
+          <div class="mb-2 pb-1 font-weight-bold color-text-second"> Agenda </div>
+          <v-divider thickness="2" color="grey"></v-divider>
+          <v-row v-if="fAgendasFiltered.length === 0">
+            <v-col>
+              <div class="mt-2 text-caption text-center text-grey">No data Available</div>
+            </v-col>
+          </v-row>
+          <v-row v-else class="mt-2">
+            <v-col cols="12" v-for="(item, i) in fAgendasFiltered" :key="i">
+              <v-hover v-slot="{ isHovering, props }">
+                <v-card
+                    v-bind="props"
+                    :style="isHovering? 'box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3) !important;': 'box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2) !important;'"
+                    width="100%"
+                    class="rounded-lg mb-4"
+                >
+                  <v-row>
+                    <v-col cols="4">
                       <v-img
-                        :lazy-src="lookupImageUrlLazy(fAgenda)"
-                        :src="lookupImageUrl(fAgenda)"
-                        class="object-fit-cover"
-                        max-width="80px"
-                        min-height="80px"
-                      >
-                      </v-img>
+                          width="100%"
+                          :height="$vuetify.display.smAndDown? '70':'70'"
+                          cover
+                          class="rounded-lg"
+                          :src="lookupImageUrl(item)"
+                      ></v-img>
                     </v-col>
-                    <v-col cols="9" md="8" sm="4">
-                      <div class="d-flex">
-                        <div class="mt-1 caption d-flex flex-row">
-                          <span class="orange--text darken-2">Agenda</span>
-                          <v-spacer></v-spacer>
-                          <span class="grey--text">{{
-                            computedDateFormattedDatefns(fAgenda.dateFrom)
-                          }}</span>
-                        </div>
-                        <div class="caption pt-0 black--text mt-2">
-                          {{
-                            fAgenda.title.length > 60
-                              ? fAgenda.title.substring(0, 70) + "..."
-                              : fAgenda.title
-                          }}
-                          <v-btn
-                            variant="text"
-                            class="caption font-weight-bold primary--text py-0 px-1"
-                            @click="routeToAgenda(fAgenda)"
-                            >Selengkapnya</v-btn
-                          >
-                        </div>
+                    <v-col
+                        cols="8"
+                        class="d-flex flex-column justify-center"
+                    >
+                      <div>
+                        <div class="text-11 font-weight-bold">{{ item.title }}...</div>
                       </div>
                     </v-col>
                   </v-row>
                 </v-card>
-              </v-card-title>
-              <v-divider class="mb-2 mt-1 mx-6"></v-divider>
-            </v-card>
-          </v-card>
+              </v-hover>
+            </v-col>
+          </v-row>
         </v-col>
       </v-row>
     </v-container>
@@ -277,5 +264,8 @@ export default {
 }
 .object-fit-cover {
   object-fit: cover;
+}
+.text-11{
+  font-size: 11px;
 }
 </style>

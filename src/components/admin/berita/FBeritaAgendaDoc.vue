@@ -60,22 +60,26 @@
       </v-col>
       <v-col cols="12" md="7" sm="7" class="mt-4">
         <v-row>
-          <v-text-field
+          <v-textarea
+              rows="2"
+              auto-grow
               v-model="itemModified.title"
               :rules="rulesNotEmtpy"
               label="Judul"
               variant="outlined"
               density="compact"
-          ></v-text-field>
+          ></v-textarea>
         </v-row>
         <v-row>
-          <v-text-field
+          <v-textarea
+              rows="2"
+              auto-grow
               v-model="itemModified.contentMeta"
               :rules="rulesNotEmtpy"
               label="Deskripsi Singkat"
               variant="outlined"
               density="compact"
-          ></v-text-field>
+          ></v-textarea>
         </v-row>
 
         <v-row>
@@ -107,53 +111,88 @@
                   color="primary"
               ></v-switch>
           </v-col>
-          <v-col md="5" sm="12" col="12">
-            <v-switch
-                v-model="itemModified.showOnHome"
-                :label="itemModified.showOnHome?'Tampilkan di Beranda':'Tidak Tampil Di Beranda'"
-                density="compact"
-                hide-details
-                color="primary"
-            ></v-switch>
-          </v-col>
-
         </v-row>
 
         <v-row class="mt-4">
-          <v-autocomplete
-              v-model="itemModified.fdivisionBean"
-              :items="itemsFDivision"
-              :rules="rulesNotEmtpy"
-              item-value="id"
-              item-title="description"
-              auto-select-first
-              density="compact"
-              chips
-              variant="outlined"
-              deletable-chips
-              color="blue-grey lighten-2"
-              label="Bidang/Dinas"
-              persistent-hint
-          ></v-autocomplete>
+          <v-col cols="12" md="6">
+            <v-autocomplete
+                v-model="itemModified.fdivisionBean"
+                :items="itemsFDivision"
+                :rules="rulesNotEmtpy"
+                item-value="id"
+                item-title="description"
+                auto-select-first
+                density="compact"
+                chips
+                variant="outlined"
+                deletable-chips
+                color="blue-grey lighten-2"
+                label="Bidang/Dinas"
+                persistent-hint
+            ></v-autocomplete>
+          </v-col>
+          <v-col cols="12" md="6">
+            <v-autocomplete
+                v-model="itemModified.categ"
+                :items="itemsBeritaCateg"
+                :rules="rulesNotEmtpy"
+                item-value="id"
+                item-title="description"
+                auto-select-first
+                density="compact"
+                chips
+                variant="outlined"
+                deletable-chips
+                color="blue-grey lighten-2"
+                label="Kategori Berita"
+                persistent-hint
+            ></v-autocomplete>
+          </v-col>
         </v-row>
         <v-row>
-          <v-col md="6" sm="12" col="12">
-            <v-switch
-                v-model="itemModified.showOnPemudaDesa"
-                label="Tampilkan di Pemuda Desa"
-                density="compact"
-                hide-details
-                color="primary"
-            ></v-switch>
+          <v-col cols="12" md="4">
+            <v-menu
+                v-model="menuDate"
+                :close-on-content-click="false"
+                max-width="290"
+            >
+              <template v-slot:activator="{ props  }">
+                <v-text-field
+                    :model-value="computedDateFormattedDatefns(itemModified.publishTime)"
+                    prepend-inner-icon="mdi-calendar"
+                    clearable
+                    label="Tanggal Publikasi"
+                    variant="outlined"
+                    density="compact"
+                    readonly
+                    v-bind="props"
+                ></v-text-field>
+              </template>
+
+              <v-date-picker
+                  v-model="itemModified.publishTime"
+                  @change="menuDate = false"
+              ></v-date-picker>
+            </v-menu>
           </v-col>
-          <v-col md="6" sm="12" col="12">
-            <v-switch
-                v-model="itemModified.showOnDesaCantik"
-                label="Tampilkan di Lilin Desa"
+          <v-col cols="12" md="4">
+            <v-text-field
+                v-model="itemModified.editorial"
+                label="Editorial"
+                variant="outlined"
                 density="compact"
                 hide-details
-                color="primary"
-            ></v-switch>
+            ></v-text-field>
+          </v-col>
+          <v-col cols="12" md="4">
+            <v-text-field
+                v-model="itemModified.nomorUrut"
+                label="Nomor Urut"
+                type="number"
+                variant="outlined"
+                density="compact"
+                hint="Beri Nomor Urut untuk Home"
+            ></v-text-field>
           </v-col>
         </v-row>
       </v-col>
@@ -210,6 +249,8 @@ import FEnumHelper from "@/models/f-enum-helper";
 import ERole from "@/models/e-role";
 import { quillEditor } from 'vue3-quill'
 import ImageViewerDialog from "@/components/utils/ImageViewerDialog.vue";
+import {EBeritaCategs} from "@/models/e-berita-categ";
+import {useDate} from "vuetify/framework";
 
 export default {
   name: "FBeritaAgendaDoc",
@@ -223,6 +264,7 @@ export default {
   },
   data() {
     return{
+      menuDate: false,
       cacheBust: 0,
       editorOptions: {
         placeholder: 'Tulis seperti halnya ms Word...',
@@ -235,6 +277,7 @@ export default {
         new FEnumHelper(1, 'Berita'), new FEnumHelper(2, 'Agenda')
       ],
 
+      itemsBeritaCateg: EBeritaCategs,
       valid: false,
       rulesLenght: [
         v => !!v || ' Tidak Boleh Kosong',
@@ -280,6 +323,10 @@ export default {
 
   },
   methods: {
+    computedDateFormattedDatefns(value) {
+      const date = useDate()
+      return date.format(value, 'fullDate')
+    },
     showImageViewer(fileName) {
       if(fileName !== "" && fileName !== undefined){
         this.$refs.refImageViewerDialog.showDialog(fileName)

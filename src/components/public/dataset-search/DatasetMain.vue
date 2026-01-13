@@ -61,68 +61,81 @@
         <div class="text-h6 mb-6 font-weight-black text-indigo">
           Katalog Dataset <span class="color-text-primary">Peta</span>
         </div>
-        <v-card  class="mt-2 pa-4" elevation="0" style="box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2) !important;">
-          <v-row v-if="ftDatasetsFiltered.length === 0">
-            <v-col>
-              <div class="text-center text-grey my-6">Dataset not found</div>
-            </v-col>
-          </v-row>
-          <v-row
-              v-else
-              no-gutters
-              class="mt-2 wrap"
-              justify="center"
-          >
-            <v-col
-                v-for="dataset in ftDatasetsFiltered"
-                :key="dataset.id"
-                sm="6"
-                md="3"
-                cols="12"
-                xl="2"
-                class="d-flex justify-center mb-2 pa-2"
-            >
-              <v-hover v-slot="{ isHovering, props }">
-                <v-card
-                    v-bind="props"
-                    width="100%"
-                    :style="isHovering ? 'box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3) !important;' : 'box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2) !important;'"
-                    class="rounded-lg d-flex flex-column h-100"
+
+        <v-skeleton-loader
+            :loading="loading"
+            type="card, card"
+            transition="scale-transition"
+        >
+          <v-responsive>
+
+            <v-card class="mt-2 pa-4" elevation="0" style="box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2) !important;">
+              <v-row v-if="ftDatasetsFiltered.length === 0">
+                <v-col>
+                  <div class="text-center text-grey my-6">Dataset not found</div>
+                </v-col>
+              </v-row>
+              <v-row
+                  v-else
+                  no-gutters
+                  class="mt-2 wrap"
+                  justify="center"
+              >
+                <v-col
+                    v-for="dataset in ftDatasetsFiltered"
+                    :key="dataset.id"
+                    sm="6"
+                    md="3"
+                    cols="12"
+                    xl="2"
+                    class="d-flex justify-center mb-2 pa-2"
                 >
-                  <v-img
-                      width="100%"
-                      height="200"
-                      cover
-                      :src="lookupImageUrl(dataset)"
-                      :lazy-src="lookupImageLazyUrl(dataset)"
-                      class="rounded-lg"
-                  />
-                  <v-card-text>
-                    <div class="text-subtitle-1 font-weight-bold text-indigo">
-                      {{ dataset.description }}
-                    </div>
-                    <div class="text-subtitle-2 font-weight-light text-grey">
-                      {{ dataset.notes }}
-                    </div>
-                    <div class="text-subtitle-2 mt-2 font-weight-bold text-orange">
-                      Tahun {{ dataset.tahun }}
-                    </div>
-                  </v-card-text>
+                  <v-hover v-slot="{ isHovering, props }">
+                    <v-card
+                        v-bind="props"
+                        width="100%"
+                        :style="isHovering ? 'box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3) !important;' : 'box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2) !important;'"
+                        class="rounded-lg d-flex flex-column h-100"
+                    >
+                      <v-img
+                          width="100%"
+                          height="200"
+                          cover
+                          :src="lookupImageUrl(dataset)"
+                          :lazy-src="lookupImageLazyUrl(dataset)"
+                          class="rounded-lg"
+                      />
+                      <v-card-text>
+                        <div class="text-subtitle-1 font-weight-bold text-indigo">
+                          {{ dataset.description }}
+                        </div>
+                        <div class="text-subtitle-2 font-weight-light text-grey">
+                          {{ dataset.notes }}
+                        </div>
+                        <div class="text-subtitle-2 mt-2 font-weight-bold text-orange">
+                          Tahun {{ dataset.tahun }}
+                        </div>
+                      </v-card-text>
 
-                  <v-spacer />
+                      <v-spacer />
 
-                  <v-card-actions class="text-center bg-indigo-lighten-5">
-                    <v-spacer />
-                    <v-btn size="small" class="font-weight-bold" variant="text" color="indigo">
-                      <v-icon>mdi-map</v-icon><span class="ml-2">Lihat Detail</span>
-                    </v-btn>
-                    <v-spacer />
-                  </v-card-actions>
-                </v-card>
-              </v-hover>
-            </v-col>
-          </v-row>
-        </v-card>
+                      <v-card-actions class="text-center bg-indigo-lighten-5">
+                        <v-spacer />
+                        <v-btn size="small" class="font-weight-bold" variant="text" color="indigo">
+                          <v-icon>mdi-map</v-icon><span class="ml-2">Lihat Detail</span>
+                        </v-btn>
+                        <v-spacer />
+                      </v-card-actions>
+                    </v-card>
+                  </v-hover>
+                </v-col>
+              </v-row>
+            </v-card>
+
+          </v-responsive>
+        </v-skeleton-loader>
+
+
         <v-row class="mt-3" justify="center" align="center">
           <v-col class="justify-start" cols="4" md="2" sm="2">
             <v-select
@@ -144,7 +157,9 @@
             ></v-pagination>
           </v-col>
         </v-row>
+
       </v-card-text>
+
     </v-container>
   </v-card>
 </template>
@@ -160,6 +175,8 @@ export default {
   components: {},
   data() {
     return {
+      loading: false,
+
       currentPage: 1,
       totalTablePages: 1,
       totalPaginationPages: 1,
@@ -169,62 +186,7 @@ export default {
       search: "",
       selectedCatId: 'all',
       mapsetItems: [
-        // {
-        //   id: 1,
-        //   title: 'Dataset Titik UMKM',
-        //   desc: 'Persebaran UMKM & lokasi usaha (point layer).',
-        //   img: require('@/assets/images/basemap.webp'),
-        //   color: 'indigo',
-        // },
-        // {
-        //   id: 2,
-        //   title: 'RDTR Zona Peruntukan',
-        //   desc: 'Zonasi pemanfaatan ruang (polygon) untuk RDTR.',
-        //   img: require('@/assets/images/basemap.webp'),
-        //   color: 'deep-purple',
-        // },
-        // {
-        //   id: 3,
-        //   title: 'Jaringan Jalan',
-        //   desc: 'Klasifikasi jalan nasional/prov/kab (line layer).',
-        //   img: require('@/assets/images/basemap.webp'),
-        //   color: 'teal',
-        // },
-        // {
-        //   id: 4,
-        //   title: 'Batas Administrasi',
-        //   desc: 'Kabupaten/Kecamatan/Desa (polygon).',
-        //   img: require('@/assets/images/basemap.webp'),
-        //   color: 'blue',
-        // },
-        // {
-        //   id: 5,
-        //   title: 'Hidrologi',
-        //   desc: 'Sungai, saluran, danau (line/polygon).',
-        //   img: require('@/assets/images/basemap.webp'),
-        //   color: 'cyan',
-        // },
-        // {
-        //   id: 6,
-        //   title: 'Fasilitas Publik',
-        //   desc: 'Sekolah, puskesmas, kantor, dll (point).',
-        //   img: require('@/assets/images/basemap.webp'),
-        //   color: 'pink',
-        // },
-        // {
-        //   id: 7,
-        //   title: 'Kawasan Rawan Bencana',
-        //   desc: 'KRB banjir/longsor (polygon) untuk mitigasi.',
-        //   img: require('@/assets/images/basemap.webp'),
-        //   color: 'orange',
-        // },
-        // {
-        //   id: 8,
-        //   title: 'Potensi Investasi',
-        //   desc: 'Lahan potensial + catatan peluang (point/polygon).',
-        //   img: require('@/assets/images/basemap.webp'),
-        //   color: 'green',
-        // },
+
       ],
       categories: [
         { id: 'all', name: 'All', color: 'primary', count: 37 },
@@ -281,6 +243,7 @@ export default {
         deepSearch = true
       }
       console.log(deepSearch);
+      this.loading = true;
 
       FtDatasetService.getPostAllFtDatasetContainingExtPublic(
           extendedFilter,
@@ -295,7 +258,11 @@ export default {
           (error) => {
             console.log(error);
           }
-      );
+      ).finally(
+          () => {
+            this.loading = false;
+          }
+      )
     },
     fetchFtDataset() {
       this.runExtendedFilter();

@@ -152,10 +152,14 @@
         <v-btn
             @click="routeToHome"
             variant="elevated"
-            class="rounded-lg text-white mx-md-2 mt-md-2 ma-1 color-bg-second"
-            size="small"
+            class="rounded-lg text-white ma-1 color-bg-second"
+            density="default"
+            color="orange-darken-2"
+            style="text-transform: none"
         >
-          <v-icon color="white">mdi-home</v-icon><span class="ml-1 hidden-sm-and-down">Beranda</span>
+          <div class="d-flex align-content-md-stretch">
+            <v-icon color="primary" size="large" >mdi-home</v-icon><span class="ml-1 hidden-sm-and-down font-weight-bold">Beranda</span>
+          </div>
         </v-btn>
 <!--        <v-btn variant="elevated" size="default" class="rounded text-white mx-md-2 mt-md-2 ma-1 color-bg-second" ><v-icon color="white">mdi-home</v-icon><span class="ml-1 hidden-sm-and-down">Beranda</span></v-btn>-->
       </l-control>

@@ -13,7 +13,8 @@
                 class="rounded-lg text-caption pt-1 pb-3 px-3"
                 variant="plain"
                 hide-details
-                placeholder="Cari berdasarkan kata kunci"
+                placeholder="Cari ⏎"
+                @keyup.enter = "runExtendedFilter"
             >
               <template #append-inner>
                 <div class="d-flex flex-row align-center">
@@ -149,7 +150,6 @@
 
 <script>
 
-import FtDataset from "@/models/ft-dataset";
 import FtDatasetService from "@/services/apiservices/ft-dataset-service";
 import FDayaDukungFilter from "@/models/payload/f-dayadukung-filter";
 import FileService from "@/services/apiservices/file-service";
@@ -168,62 +168,62 @@ export default {
       search: "",
       selectedCatId: 'all',
       mapsetItems: [
-        {
-          id: 1,
-          title: 'Dataset Titik UMKM',
-          desc: 'Persebaran UMKM & lokasi usaha (point layer).',
-          img: require('@/assets/images/basemap.jpeg'),
-          color: 'indigo',
-        },
-        {
-          id: 2,
-          title: 'RDTR Zona Peruntukan',
-          desc: 'Zonasi pemanfaatan ruang (polygon) untuk RDTR.',
-          img: require('@/assets/images/basemap.jpeg'),
-          color: 'deep-purple',
-        },
-        {
-          id: 3,
-          title: 'Jaringan Jalan',
-          desc: 'Klasifikasi jalan nasional/prov/kab (line layer).',
-          img: require('@/assets/images/basemap.jpeg'),
-          color: 'teal',
-        },
-        {
-          id: 4,
-          title: 'Batas Administrasi',
-          desc: 'Kabupaten/Kecamatan/Desa (polygon).',
-          img: require('@/assets/images/basemap.jpeg'),
-          color: 'blue',
-        },
-        {
-          id: 5,
-          title: 'Hidrologi',
-          desc: 'Sungai, saluran, danau (line/polygon).',
-          img: require('@/assets/images/basemap.jpeg'),
-          color: 'cyan',
-        },
-        {
-          id: 6,
-          title: 'Fasilitas Publik',
-          desc: 'Sekolah, puskesmas, kantor, dll (point).',
-          img: require('@/assets/images/basemap.jpeg'),
-          color: 'pink',
-        },
-        {
-          id: 7,
-          title: 'Kawasan Rawan Bencana',
-          desc: 'KRB banjir/longsor (polygon) untuk mitigasi.',
-          img: require('@/assets/images/basemap.jpeg'),
-          color: 'orange',
-        },
-        {
-          id: 8,
-          title: 'Potensi Investasi',
-          desc: 'Lahan potensial + catatan peluang (point/polygon).',
-          img: require('@/assets/images/basemap.jpeg'),
-          color: 'green',
-        },
+        // {
+        //   id: 1,
+        //   title: 'Dataset Titik UMKM',
+        //   desc: 'Persebaran UMKM & lokasi usaha (point layer).',
+        //   img: require('@/assets/images/basemap.jpeg'),
+        //   color: 'indigo',
+        // },
+        // {
+        //   id: 2,
+        //   title: 'RDTR Zona Peruntukan',
+        //   desc: 'Zonasi pemanfaatan ruang (polygon) untuk RDTR.',
+        //   img: require('@/assets/images/basemap.jpeg'),
+        //   color: 'deep-purple',
+        // },
+        // {
+        //   id: 3,
+        //   title: 'Jaringan Jalan',
+        //   desc: 'Klasifikasi jalan nasional/prov/kab (line layer).',
+        //   img: require('@/assets/images/basemap.jpeg'),
+        //   color: 'teal',
+        // },
+        // {
+        //   id: 4,
+        //   title: 'Batas Administrasi',
+        //   desc: 'Kabupaten/Kecamatan/Desa (polygon).',
+        //   img: require('@/assets/images/basemap.jpeg'),
+        //   color: 'blue',
+        // },
+        // {
+        //   id: 5,
+        //   title: 'Hidrologi',
+        //   desc: 'Sungai, saluran, danau (line/polygon).',
+        //   img: require('@/assets/images/basemap.jpeg'),
+        //   color: 'cyan',
+        // },
+        // {
+        //   id: 6,
+        //   title: 'Fasilitas Publik',
+        //   desc: 'Sekolah, puskesmas, kantor, dll (point).',
+        //   img: require('@/assets/images/basemap.jpeg'),
+        //   color: 'pink',
+        // },
+        // {
+        //   id: 7,
+        //   title: 'Kawasan Rawan Bencana',
+        //   desc: 'KRB banjir/longsor (polygon) untuk mitigasi.',
+        //   img: require('@/assets/images/basemap.jpeg'),
+        //   color: 'orange',
+        // },
+        // {
+        //   id: 8,
+        //   title: 'Potensi Investasi',
+        //   desc: 'Lahan potensial + catatan peluang (point/polygon).',
+        //   img: require('@/assets/images/basemap.jpeg'),
+        //   color: 'green',
+        // },
       ],
       categories: [
         { id: 'all', name: 'All', color: 'primary', count: 37 },
@@ -238,7 +238,7 @@ export default {
         // { id: 'demografi', name: 'Sosial & Demografi', color: 'pink', count: 7 },
         // { id: 'invest', name: 'Potensi Investasi', color: 'orange', count: 10 },
       ],
-      ftDatasets: [new FtDataset()],
+      ftDatasets: [],
       isActiveDeepSearch: false,
 
     };
@@ -279,16 +279,8 @@ export default {
       if(this.isActiveDeepSearch){
         deepSearch = true
       }
-      // FtDatasetService.getAllFtDatasetPublic(
-      //     deepSearch
-      // ).then(
-      //     (response) => {
-      //       this.ftDatasets = response.data;
-      //     },
-      //     (error) => {
-      //       console.log(error);
-      //     }
-      // );
+      console.log(deepSearch);
+
       FtDatasetService.getPostAllFtDatasetContainingExtPublic(
           extendedFilter,
           deepSearch

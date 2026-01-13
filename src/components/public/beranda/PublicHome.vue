@@ -34,7 +34,8 @@
                   @focus="isSearchActive = false"
                   @input="isSearchActive = false"
                   hide-details
-                  placeholder="Cari berdasarkan kata kunci"
+                  placeholder="Cari ⏎"
+                  @keyup.enter = "searchDataset"
               >
                 <template #append-inner>
                   <div class="d-flex flex-row align-center">

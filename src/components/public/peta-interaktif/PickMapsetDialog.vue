@@ -120,11 +120,9 @@
                 </v-card>
                 <v-card v-else elevation="0" class="d-flex justify-start flex-column h-100">
                   <div>
-                    <v-row class="mb-2">
+                    <v-row class="mb-n2">
                       <v-col cols="12" class="d-flex flex-row align-center">
                         <div class="font-weight-bold text-subtitle-2">Preview</div>
-                        <v-spacer></v-spacer>
-                        <v-btn @click="applyPeta" variant="flat" color="indigo" class="font-weight-bold text-subtitle-2" density="comfortable">Tampilkan pada peta</v-btn>
                       </v-col>
                     </v-row>
                     <BaseMapInteraktif map-min-height="30vh" map-max-height="30vh"></BaseMapInteraktif>
@@ -132,7 +130,8 @@
                       <v-col cols="12" class="d-flex flex-row align-center">
                         <div class="font-weight-bold text-subtitle-2">Mapset Terpilih</div>
                         <v-spacer></v-spacer>
-                        <v-btn @click="deleteAllList" variant="flat" color="red" class="font-weight-bold text-subtitle-2" density="comfortable"><v-icon class="mr-1">mdi-delete</v-icon>Hapus semua</v-btn>
+                        <v-btn @click="deleteAllList" variant="flat" color="red" class="font-weight-bold text-caption rounded" density="comfortable" style="text-transform: none;"><v-icon class="mr-1">mdi-delete</v-icon>Hapus semua</v-btn>
+                        <v-btn @click="applyPeta" variant="flat" color="indigo" class="ml-4 font-weight-bold text-caption rounded" density="comfortable" style="text-transform: none;">Tambahkan pada peta</v-btn>
                       </v-col>
                     </v-row>
                     <v-divider class="mt-3 mb-3" thickness="2" color="grey"></v-divider>
@@ -151,6 +150,7 @@
                     </v-row>
                   </div>
                 </v-card>
+
               </v-card>
             </v-col>
           </v-row>

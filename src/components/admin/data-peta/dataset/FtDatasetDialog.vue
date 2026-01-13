@@ -647,7 +647,7 @@ import FormMode from "@/models/form-mode";
 import FtDataset from "@/models/ft-dataset";
 import FileService from "@/services/apiservices/file-service";
 import UploadImageDialog from "@/components/utils/UploadImageDialog";
-import FDayaDukungPetaMap from "@/components/admin/data-peta/daya-dukung-peta/FDayaDukungPetaMap.vue";
+import FDayaDukungPetaMap from "@/components/admin/data-peta/dataset/FtDatasetMap.vue";
 import UploadImageOriDialog from "@/components/utils/UploadImageOriDialog.vue";
 import {EnumDataSpaTypeList} from "@/models/e-data-spa-type";
 

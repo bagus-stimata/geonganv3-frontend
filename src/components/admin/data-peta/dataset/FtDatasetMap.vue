@@ -119,6 +119,7 @@ import 'leaflet-fullscreen';
 import 'leaflet-fullscreen/dist/leaflet.fullscreen.css';
 
 import FileService from "@/services/apiservices/file-service";
+import zonaMapper from "@/helpers/zona-color-mapper";
 
 import { Icon } from "leaflet";
 
@@ -135,7 +136,7 @@ Icon.Default.mergeOptions({
 });
 
 export default {
-  name: "FtDatasetMap",
+  name: "CekLokasiUsahaMap",
   components: {
     LMap,
     LTileLayer,
@@ -157,7 +158,7 @@ export default {
       isFullScreen: false,
 
       enableTooltip: true,
-      zoom: 13,
+      zoom: 11,
       maxZoom: 18,
       currentMarker: {
         id: 0,
@@ -291,64 +292,36 @@ export default {
       return color;
     },
     styleFunction(feature) {
-      let tebalGarisTepi = 1.2;
+      const geomType = feature?.geometry?.type || '';
+      const props = feature?.properties || {};
+
+      // Gunakan zona-color-mapper seperti pada CekLokasiUsahaMap
+      const descCandidate = zonaMapper.getDescCandidate(props);
+      const match = zonaMapper.findZoneHexByIncludes(descCandidate);
+
+      const fillColor = match?.hex || '#cccccc';
+
+      let borderWeight = 1.4;
       let fillOpacity = 0.35;
 
-      const props = feature?.properties || {};
-      const geomType = feature?.geometry?.type || '';
-
-      // Penyesuaian berdasarkan tipe geometrinya
-      if (geomType === "MultiLineString") {
-        tebalGarisTepi = 4.5;
+      // Untuk geometris garis, jangan di-fill dan pertebal garis
+      if (geomType === 'LineString' || geomType === 'MultiLineString') {
+        fillOpacity = 0.0;
+        borderWeight = 3.5;
       }
 
-      // Cek nilai NAMOBJ
+      // Khusus NAMOBJ = KPI kasih sedikit penekanan (jika relevan di dataset ini)
       const namobj = props.NAMOBJ || '';
-      if (namobj === "Kawasan Peruntukan Industri" || namobj === "KPI") {
+      if (namobj === 'Kawasan Peruntukan Industri' || namobj === 'KPI') {
         fillOpacity = 0.8;
-        tebalGarisTepi = 3;
-      }
-
-      // Gabungkan properti untuk membuat identifier
-      const kandidatKeys = [
-        'Description', 'description', 'DESCRIPTION',
-        'Kabupaten', 'kabupaten', 'KABUPATEN',
-        'Kecamatan', 'kecamatan', 'KECAMATAN',
-        'Kec', 'KEC', 'Kab', 'KAB',
-        'Desa', 'desa', 'DESA',
-        'pola_ruang', 'POLA_RUANG',
-        'keterangan', 'KETERANGAN','Keterangan',
-        'Penggunaan', 'penggunaan', 'PENGGUNAAN',
-        'NAMOBJ', 'OBJECTID',
-        'Sempadan Sungai' // ← tambahkan di sini jika memang dipakai
-      ];
-
-      const parts = kandidatKeys
-          .map(k => props[k])
-          .filter(v => typeof v === 'string' && v.trim() !== '');
-
-      let identifier = parts.length > 0 ? parts.join('_') : 'default';
-
-      // Pastikan this.colorMap sudah ada
-      if (!this.colorMap) {
-        this.colorMap = {};
-      }
-
-      // Buat identifier fallback jika gagal dibuat
-      if (!identifier || typeof identifier !== 'string' || identifier.trim() === '') {
-        identifier = 'default';
-      }
-
-      // Jika belum ada warna untuk identifier ini, buatkan
-      if (!this.colorMap[identifier]) {
-        this.colorMap[identifier] = this.getRandomColor();
+        borderWeight = 3;
       }
 
       return {
-        color: this.colorMap[identifier],
-        weight: tebalGarisTepi,
-        opacity: 0.8,
-        fillColor: this.colorMap[identifier],
+        color: fillColor,
+        weight: borderWeight,
+        opacity: 0.9,
+        fillColor: fillColor,
         fillOpacity: fillOpacity,
       };
     },
@@ -370,55 +343,131 @@ export default {
 
 
     async valueChangedSpaMainGeoJson(value) {
+      if (!value) return;
 
-      let response = null
+      // === NEW: Support inline GeoJSON string (no server fetch) ===
+      const hasInlineGeojson =
+          typeof value.geojson === "string" &&
+          value.geojson.trim() !== "" &&
+          value.geojson.trim() !== "{}";
 
-      if (value.fileNameLow){
-        if (value.fileType ==='geojson-gzip' || value.fileNameLow.endsWith('.geojson.gz') ) {
-          value.selected = true;
-          response = await fetch(FileService.fileGeojsonGzip(value.fileNameLow));
-        }else {
-          value.selected = true;
-          response = await fetch(FileService.file_url(value.fileNameLow));
-        }
-        if (value.selected === true ) {
-          const geojsonResponse = await response.json();
-
-          if (!geojsonResponse || !Array.isArray(geojsonResponse.features)) {
-            console.warn("GeoJSON tidak memiliki fitur yang valid", geojsonResponse);
+      if (hasInlineGeojson) {
+        try {
+          const parsed = JSON.parse(value.geojson);
+          if (!parsed || !Array.isArray(parsed.features)) {
+            console.warn("GeoJSON inline tidak valid (features tidak ada/bukan array)", parsed);
             return;
           }
 
-          this.itemSpaDayaDukungGeojson.push({
-            id: value.id,
-            data: {
-              ...geojsonResponse,
-              features: geojsonResponse.features.map(f => ({
-                ...f,
-                properties: {
-                  ...f.properties,
-                  "Sumber Data": value.notes,
-                }
-              }))
-            },
+          const id = value.id ?? 0;
+          const features = parsed.features;
+
+          const dataWithMeta = {
+            ...parsed,
+            features: features.map((f) => ({
+              ...f,
+              properties: {
+                ...(f.properties || {}),
+                "Sumber Data": value.notes || value.sumberData || "",
+              },
+            })),
+          };
+
+          const payload = {
+            id,
+            data: dataWithMeta,
             lineColor: value.remark1,
-            fillColor: value.remark2
-          });
-        } else {
-          const index = this.itemSpaDayaDukungGeojson.findIndex(
-              (item) => item.id === value.id
-          );
-          this.itemSpaDayaDukungGeojson.splice(index, 1);
+            fillColor: value.remark2,
+          };
+
+          // replace if exists, else push
+          const idx = this.itemSpaDayaDukungGeojson.findIndex((it) => it.id === id);
+          if (idx >= 0) {
+            this.itemSpaDayaDukungGeojson.splice(idx, 1, payload);
+          } else {
+            this.itemSpaDayaDukungGeojson.push(payload);
+          }
+
+          return;
+        } catch (e) {
+          console.error("Gagal parse GeoJSON inline:", e);
+          return;
         }
-
-
       }
 
+      // === Legacy: load geojson by fileNameLow from server ===
+      let response = null;
 
+      if (value.fileNameLow) {
+        try {
+          if (value.fileType === "geojson-gzip" || value.fileNameLow.endsWith(".geojson.gz")) {
+            value.selected = true;
+            response = await fetch(FileService.fileGeojsonGzip(value.fileNameLow));
+          } else {
+            value.selected = true;
+            response = await fetch(FileService.file_url(value.fileNameLow));
+          }
+
+          if (!response) return;
+
+          if (value.selected === true) {
+            const geojsonResponse = await response.json();
+
+            // Guard: features harus array
+            const features = Array.isArray(geojsonResponse?.features) ? geojsonResponse.features : [];
+            if (features.length === 0) {
+              console.warn("GeoJSON response tidak memiliki features array", geojsonResponse);
+              return;
+            }
+
+            this.itemSpaDayaDukungGeojson.push({
+              id: value.id,
+              data: {
+                ...geojsonResponse,
+                features: features.map((f) => ({
+                  ...f,
+                  properties: {
+                    ...(f.properties || {}),
+                    "Sumber Data": value.notes,
+                  },
+                })),
+              },
+              lineColor: value.remark1,
+              fillColor: value.remark2,
+            });
+          } else {
+            const index = this.itemSpaDayaDukungGeojson.findIndex((item) => item.id === value.id);
+            if (index >= 0) this.itemSpaDayaDukungGeojson.splice(index, 1);
+          }
+        } catch (e) {
+          console.error("Gagal load GeoJSON dari server:", e);
+        }
+      }
     },
-    tampilkanPeta(itemModified){
-      this.itemModified = itemModified;
-      this.valueChangedSpaMainGeoJson(this.itemModified)
+    tampilkanPeta(item) {
+      this.itemModified = item;
+
+      // Clear previous preview layers first
+      this.itemSpaDayaDukungGeojson = [];
+
+      // Prefer inline GeoJSON (new concept)
+      const hasInlineGeojson =
+          item &&
+          typeof item.geojson === "string" &&
+          item.geojson.trim() !== "" &&
+          item.geojson.trim() !== "{}";
+
+      if (hasInlineGeojson) {
+        // render directly from inline content
+        this.valueChangedSpaMainGeoJson({ ...item, selected: true });
+        return;
+      }
+
+      // Fallback (legacy): only fetch if fileNameLow is truly a server file (optional)
+      // If you still use server files elsewhere, keep this fallback.
+      if (item && item.fileNameLow) {
+        this.valueChangedSpaMainGeoJson({ ...item, selected: true });
+      }
     },
     resetTampilanPeta(){
       this.itemSpaDayaDukungGeojson = [];

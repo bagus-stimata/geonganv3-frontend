@@ -55,8 +55,9 @@
                       </div>
                     </div>
                     <div class="d-flex flex-row">
+                      <v-chip size="x-small" color="teal">Dataset</v-chip>
                       <v-spacer />
-                      <v-btn size="small" class="font-weight-bold" variant="text" color="indigo">
+                      <v-btn  @click="goToPetaInteraktif(dataset)"  size="small" class="font-weight-bold" variant="text" color="indigo" style="text-transform: none;">
                         <span class="mr-2">Lihat Detail</span><v-icon>mdi-arrow-right</v-icon>
                       </v-btn>
                     </div>
@@ -133,6 +134,10 @@ export default {
     },
   },
   methods: {
+    goToPetaInteraktif(item) {
+      const listIds = [item.id];
+      this.$router.push("/public-peta-interaktif?itemIds=" + listIds.join(","));
+    },
     runExtendedFilter(search) {
       this.ftDatasets = []
       this.search = search

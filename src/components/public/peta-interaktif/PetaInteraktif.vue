@@ -1415,8 +1415,8 @@ export default {
      * Jika mendapatkan parameter yang berisi Array Id Dataset maka
      * ambil nilai array tersebut
      */
-    // Ambil itemIds dari route query jika ada
     const qIds = this.$route && this.$route.query ? this.$route.query.itemIds : null;
+    const qTemaId = this.$route && this.$route.query ? this.$route.query.temaId : null;
 
     const mapsetIds = (qIds == null)
       ? []
@@ -1436,6 +1436,27 @@ export default {
           console.error('Gagal mengambil data dataset peta: ', error);
         });
     }
+    const mapsetTemaId = (qTemaId != null && Number.isFinite(Number(qTemaId)))
+      ? Number(qTemaId)
+      : null;
+    if (mapsetTemaId != null) {
+      // FtDatasetService.getFtDatasetByTemaIdPublic(mapsetTemaId)
+      //   .then((response) => {
+      //     const data = Array.isArray(response.data) ? response.data : [];
+      //     this.itemsMapsetSelected = data;
+      //     this.applyPeta(this.itemsMapsetSelected);
+      //   })
+      //   .catch((error) => {
+      //     console.error('Gagal mengambil data dataset peta berdasarkan tema: ', error);
+      //   });
+
+    }
+
+
+
+
+
+
 
     if(this.$vuetify.display.smAndDown){
       this.showMapsetController = false

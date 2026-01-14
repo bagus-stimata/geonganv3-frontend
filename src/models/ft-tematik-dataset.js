@@ -4,6 +4,8 @@ export default class FtTematikDataset {
         ftTematikBean = 0,
         ftDatasetBean = 0,
 
+        ftDataset, //Transient
+
         created = new Date(),
         modifiedBy = ""
     ) {
@@ -11,6 +13,8 @@ export default class FtTematikDataset {
 
         this.ftTematikBean = ftTematikBean;   // id atau object, sesuai kebutuhan API
         this.ftDatasetBean = ftDatasetBean;   // id atau object
+
+        this.ftDataset = ftDataset;
 
         this.created = created;
         this.modifiedBy = modifiedBy;

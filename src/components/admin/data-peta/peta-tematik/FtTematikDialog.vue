@@ -235,7 +235,7 @@
                   </v-row>
 
                  <v-row v-else no-gutters class="ga-2">
-                    <v-col cols="12" v-for="dataset in listFtTematikDataset" :key="dataset.id">
+                    <v-col cols="12" v-for="item in listFtTematikDataset" :key="item.id">
                       <v-card
                           elevation="0"
                           class="pa-2 border-thin border-opacity-25 rounded-lg"
@@ -249,7 +249,7 @@
                                 height="120"
                                 class="rounded"
                                 cover
-                                :src="lookupImageUrlLazy(dataset)"
+                                :src="lookupImageUrlLazy(item.ftDataset)"
                             />
                           </v-col>
 
@@ -257,14 +257,14 @@
                             <div class="d-flex align-center">
                               <div class="flex-grow-1">
                                 <div class="text-caption font-weight-bold text-indigo text-truncate">
-                                  {{ dataset.description }}
+                                  {{ item.ftDataset.description }}
                                 </div>
-                                <div class="text-blue">{{ dataset.tahun }}</div>
+                                <div class="text-blue">{{ item.ftDataset.tahun }}</div>
                                 <div
                                     style="font-size: 11px !important"
                                     class="text-caption font-weight-light text-grey-darken-4 text-truncate"
                                 >
-                                  {{ dataset.notes }}
+                                  {{ item.ftDataset.notes }}
                                 </div>
                               </div>
 
@@ -275,7 +275,7 @@
                                 density="comfortable"
                                 variant="text"
                                 color="red"
-                                @click.stop="removeTematikDataset(dataset)"
+                                @click.stop="removeTematikDataset(item)"
                               >
                                 <v-icon>mdi-delete</v-icon>
                               </v-btn>
@@ -725,6 +725,7 @@ export default {
 
         this.itemDefault = JSON.parse(JSON.stringify(this.itemModified));
         await this.reloadDetails();
+
       } catch (e) {
         console.error(e);
         this.formDialogOptions.errorMessage = "Gagal memuat data Tematik";
@@ -748,7 +749,19 @@ export default {
         this.dialogPickupMapsetShow = false;
     },
     tambahkanPilihanDataset() {
-      this.listFtTematikDataset = this.itemsMapsetSelected
+      this.listFtTematikDataset = [];
+      let noUrut = 1;
+      for (const dataset of this.itemsMapsetSelected) {
+        if (!dataset || !dataset.id) continue;
+        const newitem = new FtTematikDataset();
+        newitem.id = noUrut++
+        newitem.ftTematikBean = this.itemModified.id;
+        newitem.ftDatasetBean = dataset.id;
+        newitem.ftDataset = { ...dataset }; // simpan full object buat tampilan
+
+        this.listFtTematikDataset.push(newitem);
+      }
+
       this.dialogPickupMapsetShow = false;
     },
 
@@ -768,10 +781,8 @@ export default {
 
         const payload = this.buildPayload();
         const listFtTematikDataset = (this.listFtTematikDataset || []).map((it) => {
-          const newIt = new FtTematikDataset();
+          const newIt = it
           newIt.id = 0
-          newIt.ftTematikBean = payload.id;
-          newIt.ftDatasetBean = it.id
           return newIt;
         });
 
@@ -836,13 +847,8 @@ export default {
       try {
         const resp = await FtTematikDatasetService.getAllFtTematikDatasetByFtTematik(this.itemModified.id);
         const rows = resp?.data || [];
-        this.listFtTematikDataset = (Array.isArray(rows) ? rows : []).map((x) => new FtTematikDataset(
-            x.id ?? 0,
-            x.ftTematikBean ?? this.itemModified.id,
-            x.ftDatasetBean ?? 0,
-            x.created ? new Date(x.created) : new Date(),
-            x.modifiedBy ?? ""
-        ));
+
+        this.listFtTematikDataset = rows;
         this.listFtTematikDatasetDefault = JSON.parse(JSON.stringify(this.listFtTematikDataset || []));
       } catch (e) {
         console.error(e);
@@ -850,22 +856,12 @@ export default {
       }
     },
 
-    lookupDatasetName(datasetId) {
-      const id = Number(datasetId || 0);
-      const found = (this.itemsFtDataset || []).find((x) => Number(x.id) === id);
-      return found?.description || "-";
-    },
 
 
     openPickDatasetDialog() {
       this.dialogPickupMapsetShow = true
 
       this.dialogPickDataset = false;
-    },
-
-    isDatasetPicked(id) {
-      const v = Number(id || 0);
-      return (this.itemsDatasetPicked || []).some((it) => Number(it?.id) === v);
     },
 
     // Avatar upload (no map)

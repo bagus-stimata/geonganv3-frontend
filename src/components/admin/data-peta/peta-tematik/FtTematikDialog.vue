@@ -846,9 +846,7 @@ export default {
       }
       try {
         const resp = await FtTematikDatasetService.getAllFtTematikDatasetByFtTematik(this.itemModified.id);
-        const rows = resp?.data || [];
-
-        this.listFtTematikDataset = rows;
+        this.listFtTematikDataset = resp?.data || [];
         this.listFtTematikDatasetDefault = JSON.parse(JSON.stringify(this.listFtTematikDataset || []));
       } catch (e) {
         console.error(e);

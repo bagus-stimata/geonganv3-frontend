@@ -111,6 +111,19 @@
         </div>
       </template>
 
+      <template v-slot:[`item.notes`]="{ item }">
+        <div class="text-caption">
+          {{ item.notes }}
+        </div>
+      </template>
+
+      <template v-slot:[`item.categ`]="{ item }">
+        <v-chip v-if="item.categ" size="x-small" color="blue" variant="flat">
+          {{ item.categ }}
+        </v-chip>
+        <span v-else class="text-caption font-weight-light">-</span>
+      </template>
+
       <template v-slot:[`item.avatarImage`]="{ item }">
         <v-img
             :lazy-src="lookupImageUrlLazy(item)"
@@ -133,15 +146,6 @@
         </div>
       </template>
 
-      <template v-slot:[`item.hasGeojson`]="{ item }">
-        <v-chip
-            size="x-small"
-            :color="item.hasGeojson ? 'green' : 'grey'"
-            variant="flat"
-        >
-          {{ item.hasGeojson ? "Ada GeoJSON" : "Belum Ada" }}
-        </v-chip>
-      </template>
 
       <template v-slot:[`item.actions`]="{ item }">
         <v-btn
@@ -188,13 +192,13 @@
       </v-row>
     </v-container>
 
-    <FDayaDukungPetaDialog
+    <FtTematikDialog
         v-model:formMode="formMode"
         :itemsFDivision="itemsFDivision"
         ref="refFormDialog"
         @eventFromFormDialogNew="saveDataNew"
         @eventFromFormDialogEdit="saveDataEdit"
-    ></FDayaDukungPetaDialog>
+    ></FtTematikDialog>
 
     <DeleteConfirmDialog
         ref="refDeleteConfirmDialog"
@@ -230,18 +234,18 @@
 </template>
 
 <script>
-import FtDatasetService from "@/services/apiservices/ft-dataset-service";
+import FtTematikService from "@/services/apiservices/ft-tematik-service";
 import FDivisionService from "@/services/apiservices/f-division-service";
 import DeleteConfirmDialog from "@/components/utils/DeleteConfirmDialog.vue";
-import FtTematikDatasetDialog from "./FtTematikDatasetDialog.vue";
+import FtTematikDialog from "./FtTematikDialog.vue";
 import FormMode from "@/models/form-mode";
-import FtDataset from "@/models/ft-dataset";
+import FtTematik from "@/models/ft-tematik";
 import FileService from "@/services/apiservices/file-service";
-import FDayaDukungFilter from "@/models/payload/f-dayadukung-filter";
+import DataFilter from "@/models/payload/data-filter";
 
 export default {
   components: {
-    FDayaDukungPetaDialog: FtTematikDatasetDialog,
+    FtTematikDialog: FtTematikDialog,
     DeleteConfirmDialog,
   },
   data() {
@@ -275,9 +279,9 @@ export default {
           sortable: false,
         },
         { title: "", key: "avatarImage", width: "14%" },
-        { title: "Deskripsi", key: "description", width: "20%" },
-        { title: "Tahun", key: "tahun" },
-        { title: "GeoJSON", key: "hasGeojson", width: "12%" },
+        { title: "Deskripsi", key: "description", width: "28%" },
+        { title: "Notes", key: "notes", width: "18%" },
+        { title: "Kategori", key: "categ", width: "12%" },
         { title: "Produsen Data", key: "fdivisionBean" },
         { title: "Actions", key: "actions", sortable: false },
       ],
@@ -285,7 +289,7 @@ export default {
       formMode: "",
       itemSelectedIndex: -1,
       itemSelected: "",
-      ftDatasets: [new FtDataset()],
+      ftDatasets: [new FtTematik()],
       itemsFDivision: [{ id: 0, kode1: "", description: "" }],
     };
   },
@@ -293,7 +297,7 @@ export default {
     currentPage(newPage) {
       console.log(newPage);
       if (newPage) {
-        this.fetchFtDataset();
+        this.fetchFtTematik();
       }
     },
     pageSize(newValue) {
@@ -301,7 +305,7 @@ export default {
       this.currentPage = 1;
       if (refreshData) {
         console.log("Change PageSize " + newValue);
-        this.fetchFtDataset();
+        this.fetchFtTematik();
       }
     },
   },
@@ -319,7 +323,7 @@ export default {
     },
 
     runExtendedFilter() {
-      const extendedFilter = new FDayaDukungFilter();
+      const extendedFilter = new DataFilter();
       extendedFilter.fdivisionIds = this.filterFdivisions;
       extendedFilter.pageNo = this.currentPage;
       extendedFilter.pageSize = this.pageSize;
@@ -328,7 +332,7 @@ export default {
       extendedFilter.search = this.search;
       extendedFilter.city = "";
 
-      FtDatasetService.getPostAllFtDatasetContainingExt(
+      FtTematikService.getPostAllFtTematikContainingExt(
           extendedFilter,
           false
       ).then(
@@ -374,7 +378,7 @@ export default {
       }
     },
 
-    fetchFtDataset() {
+    fetchFtTematik() {
       this.runExtendedFilter();
     },
 
@@ -388,7 +392,7 @@ export default {
     saveDataNew(itemFromRest) {
       this.itemSelected = itemFromRest;
       this.closeDialog();
-      this.fetchFtDataset();
+      this.fetchFtTematik();
     },
 
     showDialogEdit(item) {
@@ -404,7 +408,7 @@ export default {
 
     saveDataEdit(item) {
       this.itemSelected = item;
-      this.fetchFtDataset();
+      this.fetchFtTematik();
       this.closeDialog();
     },
 
@@ -428,7 +432,7 @@ export default {
 
     deleteItemConfirmedSingleSelect() {
       const deletedItem = this.ftDatasets[this.itemSelectedIndex];
-      FtDatasetService.deleteFtDataset(deletedItem.id).then(
+      FtTematikService.deleteFtTematik(deletedItem.id).then(
           () => {
             this.ftDatasets.splice(this.itemSelectedIndex, 1);
             this.closeDialog();
@@ -445,9 +449,9 @@ export default {
     deleteItemConfirmedMultiSelect(items) {
       if (items.length > -1) {
         const itemIds = items.map((x) => x.id);
-        FtDatasetService.deleteAllFtDataset(itemIds).then(
+        FtTematikService.deleteAllFtTematik(itemIds).then(
             () => {
-              this.fetchFtDataset();
+              this.fetchFtTematik();
               this.selectedItems = [];
               this.closeDialog();
             },
@@ -464,7 +468,7 @@ export default {
       this.$refs.refFormDialog.setDialogState(false);
 
       this.$nextTick(() => {
-        this.itemSelected = Object.assign({}, new FtDataset());
+        this.itemSelected = Object.assign({}, new FtTematik());
         this.itemSelectedIndex = -1;
       });
     },
@@ -505,7 +509,7 @@ export default {
       this.$router.push("/login");
     } else {
       await this.fetchParent();
-      this.fetchFtDataset();
+      this.fetchFtTematik();
     }
   },
 };

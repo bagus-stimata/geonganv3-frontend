@@ -21,6 +21,20 @@ class FtTematikService {
     getAllFtTematikContainingPublic(page, pageSize, sortBy, order, search){
         return axios.get(API_URL + `public/getAllFtTematikContaining?page=${page}&pageSize=${pageSize}&sortBy=${sortBy}&order=${order}&search=${search}`, { headers: authHeader() });
     }
+    getPostAllFtTematikContainingExt(item, includeGeojson = false) {
+        return axios.post(
+            API_URL + `getPostAllFtTematikContainingExt?includeGeojson=${includeGeojson}`,
+            item,
+            { headers: authHeader() }
+        );
+    }
+    getPostAllFtTematikContainingExtPublic(item, includeGeojson = false) {
+        return axios.post(
+            API_URL + `public/getPostAllFtTematikContainingExt?includeGeojson=${includeGeojson}`,
+            item,
+            { headers: authHeader() }
+        );
+    }
 
     getFtTematikById(id){
         return axios.get(API_URL + `getFtTematikById/${id}`, { headers: authHeader() });

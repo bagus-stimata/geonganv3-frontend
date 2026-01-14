@@ -931,7 +931,7 @@ export default {
         const approxMb = this.itemModified.geojson.length / (1024 * 1024);
         if (approxMb > 10) {
           console.warn(
-            "[FtTematikDatasetDialog] skip build feature table: geojson string too large for table view (~" +
+            "[FtTematikDialog] skip build feature table: geojson string too large for table view (~" +
               approxMb.toFixed(1) +
               " MB)"
           );
@@ -953,7 +953,7 @@ export default {
           geo = this.itemModified.geojson;
         }
       } catch (e) {
-        console.warn("[FtTematikDatasetDialog] gagal parse geojson untuk feature table", e);
+        console.warn("[FtTematikDialog] gagal parse geojson untuk feature table", e);
         return;
       }
 
@@ -965,7 +965,7 @@ export default {
       // Guard 2: batasi jumlah feature yang diizinkan untuk mode edit tabel
       if (this.maxFeatureTableRows && totalFeatures > this.maxFeatureTableRows) {
         console.warn(
-          "[FtTematikDatasetDialog] skip build feature table: too many features for table view",
+          "[FtTematikDialog] skip build feature table: too many features for table view",
           totalFeatures
         );
         this.snackBarMessage =
@@ -1014,7 +1014,7 @@ export default {
           geo = this.itemModified.geojson;
         }
       } catch (e) {
-        console.warn("[FtTematikDatasetDialog] gagal parse geojson saat sync dari feature table", e);
+        console.warn("[FtTematikDialog] gagal parse geojson saat sync dari feature table", e);
         return;
       }
 
@@ -1022,7 +1022,7 @@ export default {
 
       if (geo.features.length !== this.featureRows.length) {
         console.warn(
-            "[FtTematikDatasetDialog] jumlah features dan featureRows tidak sama, skip sync",
+            "[FtTematikDialog] jumlah features dan featureRows tidak sama, skip sync",
             geo.features.length,
             this.featureRows.length
         );
@@ -1048,7 +1048,7 @@ export default {
         this.itemModified.withGeojson = true;
         this.itemModified.hasGeojson = true;
       } catch (e) {
-        console.warn("[FtTematikDatasetDialog] gagal stringify geojson setelah sync feature table", e);
+        console.warn("[FtTematikDialog] gagal stringify geojson setelah sync feature table", e);
       }
     },
 
@@ -1213,7 +1213,7 @@ export default {
         try {
           keys = JSON.parse(item.propertyKeys);
         } catch (e) {
-          console.warn("[FtTematikDatasetDialog] gagal parse propertyKeys string", e);
+          console.warn("[FtTematikDialog] gagal parse propertyKeys string", e);
         }
       }
 
@@ -1223,7 +1223,7 @@ export default {
         try {
           meta = JSON.parse(meta);
         } catch (e) {
-          console.warn("[FtTematikDatasetDialog] gagal parse propertiesMeta string", e);
+          console.warn("[FtTematikDialog] gagal parse propertiesMeta string", e);
           meta = {};
         }
       } else if (!meta || typeof meta !== "object") {
@@ -1257,7 +1257,7 @@ export default {
           const parsed = JSON.parse(trimmed);
           return Array.isArray(parsed) ? parsed : [];
         } catch (e) {
-          console.warn("[FtTematikDatasetDialog] gagal parse propertiesShow", e);
+          console.warn("[FtTematikDialog] gagal parse propertiesShow", e);
           return [];
         }
       }
@@ -1269,7 +1269,7 @@ export default {
       try {
         return JSON.stringify(groups || []);
       } catch (e) {
-        console.warn("[FtTematikDatasetDialog] gagal stringify propertiesShow", e);
+        console.warn("[FtTematikDialog] gagal stringify propertiesShow", e);
         return "[]";
       }
     },
@@ -1461,7 +1461,7 @@ export default {
         try {
           meta = JSON.parse(rawMeta);
         } catch (e) {
-          console.warn("[FtTematikDatasetDialog] gagal parse propertiesMeta saat sync alias", e);
+          console.warn("[FtTematikDialog] gagal parse propertiesMeta saat sync alias", e);
           meta = {};
         }
       } else if (rawMeta && typeof rawMeta === "object") {
@@ -1818,7 +1818,7 @@ export default {
 
       // 1) Kalau belum ada geojson sama sekali
       if (!geo) {
-        console.warn('[FtTematikDatasetDialog] downloadInlineGeojson: geojson is null/undefined');
+        console.warn('[FtTematikDialog] downloadInlineGeojson: geojson is null/undefined');
         this.$root.$emit('show-snackbar', 'GeoJSON belum dimuat / tidak tersedia');
         return;
       }
@@ -1829,7 +1829,7 @@ export default {
       if (typeof geo === 'string') {
         const trimmed = geo.trim();
         if (trimmed === '' || trimmed === '{}') {
-          console.warn('[FtTematikDatasetDialog] downloadInlineGeojson: geojson string kosong / {}');
+          console.warn('[FtTematikDialog] downloadInlineGeojson: geojson string kosong / {}');
           this.$root.$emit('show-snackbar', 'GeoJSON belum dimuat / tidak tersedia');
           return;
         }
@@ -1839,7 +1839,7 @@ export default {
         try {
           geoString = JSON.stringify(geo, null, 2);
         } catch (e) {
-          console.error('[FtTematikDatasetDialog] downloadInlineGeojson: gagal stringify geojson object', e);
+          console.error('[FtTematikDialog] downloadInlineGeojson: gagal stringify geojson object', e);
           this.$root.$emit('show-snackbar', 'Gagal memproses GeoJSON untuk diunduh');
           return;
         }
@@ -1859,9 +1859,9 @@ export default {
         document.body.removeChild(link);
 
         window.URL.revokeObjectURL(url);
-        console.log('[FtTematikDatasetDialog] downloadInlineGeojson.after, file triggered');
+        console.log('[FtTematikDialog] downloadInlineGeojson.after, file triggered');
       } catch (e) {
-        console.error('[FtTematikDatasetDialog] downloadInlineGeojson: error creating download blob', e);
+        console.error('[FtTematikDialog] downloadInlineGeojson: error creating download blob', e);
         this.$root.$emit('show-snackbar', 'Gagal membuat file GeoJSON untuk diunduh');
       }
     },

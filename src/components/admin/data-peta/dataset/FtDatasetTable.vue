@@ -188,13 +188,13 @@
       </v-row>
     </v-container>
 
-    <FDayaDukungPetaDialog
+    <FtDatasetDialog
         v-model:formMode="formMode"
         :itemsFDivision="itemsFDivision"
         ref="refFormDialog"
         @eventFromFormDialogNew="saveDataNew"
         @eventFromFormDialogEdit="saveDataEdit"
-    ></FDayaDukungPetaDialog>
+    ></FtDatasetDialog>
 
     <DeleteConfirmDialog
         ref="refDeleteConfirmDialog"
@@ -237,11 +237,11 @@ import FtDatasetDialog from "./FtDatasetDialog.vue";
 import FormMode from "@/models/form-mode";
 import FtDataset from "@/models/ft-dataset";
 import FileService from "@/services/apiservices/file-service";
-import FDayaDukungFilter from "@/models/payload/f-dayadukung-filter";
+import DataFilter from "@/models/payload/data-filter";
 
 export default {
   components: {
-    FDayaDukungPetaDialog: FtDatasetDialog,
+    FtDatasetDialog: FtDatasetDialog,
     DeleteConfirmDialog,
   },
   data() {
@@ -319,7 +319,7 @@ export default {
     },
 
     runExtendedFilter() {
-      const extendedFilter = new FDayaDukungFilter();
+      const extendedFilter = new DataFilter();
       extendedFilter.fdivisionIds = this.filterFdivisions;
       extendedFilter.pageNo = this.currentPage;
       extendedFilter.pageSize = this.pageSize;

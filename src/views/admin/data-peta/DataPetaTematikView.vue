@@ -1,17 +1,17 @@
 <template>
     <v-card elevation="0">
-      <FtTematikDatasetTable></FtTematikDatasetTable>
+      <FtTematikTable></FtTematikTable>
     </v-card>
   </template>
 
   <script>
 
-  import FtTematikDatasetTable from "@/components/admin/data-peta/peta-tematik/FtTematikDatasetTable.vue"
+  import FtTematikTable from "@/components/admin/data-peta/peta-tematik/FtTematikTable.vue"
 
   export default {
     name: "DataPetaDatasetView",
     components: {
-      FtTematikDatasetTable
+      FtTematikTable: FtTematikTable
     },
     data() {
       return {

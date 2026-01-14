@@ -55,7 +55,7 @@ class FtTematikDatasetService {
         return axios.get(API_URL + `public/getAllFtTematikDatasetByFtDataset/${ftDatasetBean}`, { headers: authHeader() });
     }
 
-    getAllFtTematikDatasetByFtTematikForDatasets(ftTematikBean){
+    getAllFtTematikDatasetByFtTematikForDatasetsPublic(ftTematikBean){
         return axios.get(API_URL + `public/getAllFtTematikDatasetByFtTematikForDatasets/${ftTematikBean}`, { headers: authHeader() });
     }
 }

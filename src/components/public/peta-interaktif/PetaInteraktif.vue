@@ -1,5 +1,11 @@
 <template>
   <div>
+    <v-card v-if="ftTematik">
+      <div>{{ ftTematik.avatarImage}}</div>
+      <div>{{ ftTematik.description }}</div>
+      <div>{{ ftTematik.notes}}</div>
+    </v-card>
+
     <l-map
         :zoom="zoom"
         :max-zoom="maxZoom"
@@ -284,6 +290,7 @@ import RBush from 'rbush'
 import * as turf from '@turf/turf'
 import PickMapsetDialog from "@/components/public/peta-interaktif/PickMapsetDialog.vue";
 import FtDatasetService from "@/services/apiservices/ft-dataset-service";
+import FtTematikDatasetService from "@/services/apiservices/ft-tematik-dataset-service";
 
 delete Icon.Default.prototype.Default;
 // Icon.Default.mergeOptions({
@@ -333,6 +340,8 @@ export default {
   },
   data()  {
     return {
+      ftTematik: undefined,
+
       isApply: false,
       itemsMapsetSelected:[],
       showMapsetController:true,
@@ -1431,6 +1440,7 @@ export default {
           const data = Array.isArray(response.data) ? response.data : [];
           this.itemsMapsetSelected = data;
           this.applyPeta(this.itemsMapsetSelected);
+          this.ftTematik = undefined
         })
         .catch((error) => {
           console.error('Gagal mengambil data dataset peta: ', error);
@@ -1440,23 +1450,18 @@ export default {
       ? Number(qTemaId)
       : null;
     if (mapsetTemaId != null) {
-      // FtDatasetService.getFtDatasetByTemaIdPublic(mapsetTemaId)
-      //   .then((response) => {
-      //     const data = Array.isArray(response.data) ? response.data : [];
-      //     this.itemsMapsetSelected = data;
-      //     this.applyPeta(this.itemsMapsetSelected);
-      //   })
-      //   .catch((error) => {
-      //     console.error('Gagal mengambil data dataset peta berdasarkan tema: ', error);
-      //   });
-
+      FtTematikDatasetService.getAllFtTematikDatasetByFtTematikForDatasetsPublic(mapsetTemaId)
+        .then((response) => {
+          const {ftTematik, listFtTematikDataset} = Array.isArray(response.data) ? response.data : [];
+          const datasets = listFtTematikDataset.map(item => item.dataset)
+          this.itemsMapsetSelected = datasets;
+          this.applyPeta(this.itemsMapsetSelected);
+          this.ftTematik = ftTematik
+        })
+        .catch((error) => {
+          console.error('Gagal mengambil data dataset peta berdasarkan tema: ', error);
+        });
     }
-
-
-
-
-
-
 
     if(this.$vuetify.display.smAndDown){
       this.showMapsetController = false

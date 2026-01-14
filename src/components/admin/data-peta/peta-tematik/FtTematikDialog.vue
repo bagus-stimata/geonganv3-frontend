@@ -207,20 +207,6 @@
             </div>
 
             <v-row class="mt-2" no-gutters>
-              <v-col cols="12" md="8" class="pr-2">
-                <v-text-field
-                  :model-value="pickedDatasetsLabel"
-                  label="Dataset dipilih"
-                  variant="outlined"
-                  density="compact"
-                  readonly
-                  hide-details
-                  :disabled="!(itemModified.id && itemModified.id > 0)"
-                  prepend-inner-icon="mdi-database-search"
-                  @click="openPickDatasetDialog"
-                />
-              </v-col>
-
               <v-col cols="12" md="4">
                 <v-btn
                   color="primary"
@@ -231,169 +217,11 @@
                   :disabled="!(itemModified.id && itemModified.id > 0)"
                   @click="openPickDatasetDialog"
                 >
-                  Pilih Dataset…
+                  Pilih Dataset
                 </v-btn>
               </v-col>
             </v-row>
 
-            <v-row class="mt-2" no-gutters>
-              <v-col cols="12" class="d-flex align-center">
-                <v-chip
-                  v-if="itemsDatasetPicked.length"
-                  class="mr-2"
-                  size="small"
-                  color="primary"
-                  variant="outlined"
-                >
-                  Dipilih: {{ itemsDatasetPicked.length }}
-                </v-chip>
-
-                <v-spacer />
-
-                <v-btn
-                  color="primary"
-                  variant="flat"
-                  class="rounded-lg"
-                  style="text-transform:none;"
-                  :disabled="!(itemModified.id && itemModified.id > 0) || !itemsDatasetPicked.length"
-                  @click="applyPickedDatasets"
-                >
-                  Tambahkan ke Tematik
-                </v-btn>
-              </v-col>
-            </v-row>
-      <!-- Pick Dataset Dialog (no map) -->
-      <v-dialog v-model="dialogPickDataset" max-width="900" persistent>
-        <v-card>
-          <v-toolbar density="compact" class="color-bg-second text-white">
-            <v-btn icon @click="closePickDatasetDialog">
-              <v-icon>mdi-close</v-icon>
-            </v-btn>
-            <v-toolbar-title class="text-subtitle-2">Pilih Dataset</v-toolbar-title>
-            <v-spacer />
-            <v-btn
-              variant="text"
-              :disabled="!itemsDatasetPicked.length"
-              @click="applyPickedDatasets"
-              style="text-transform:none;"
-            >
-              Tambahkan ({{ itemsDatasetPicked.length }})
-            </v-btn>
-          </v-toolbar>
-
-          <v-card-text>
-            <v-row no-gutters class="ga-2">
-              <v-col cols="12" md="7">
-                <v-text-field
-                  v-model="pickDatasetSearch"
-                  label="Search dataset"
-                  variant="outlined"
-                  density="compact"
-                  clearable
-                  prepend-inner-icon="mdi-magnify"
-                  hide-details
-                />
-              </v-col>
-
-              <v-col cols="12" md="5" class="d-flex align-center">
-                <v-chip
-                  size="small"
-                  color="primary"
-                  variant="outlined"
-                  v-if="itemsDatasetPicked.length"
-                >
-                  Dipilih: {{ itemsDatasetPicked.length }}
-                </v-chip>
-                <v-spacer />
-                <v-btn
-                  variant="outlined"
-                  color="red-darken-1"
-                  style="text-transform:none;"
-                  :disabled="!itemsDatasetPicked.length"
-                  @click="clearPickedDatasets"
-                >
-                  Reset
-                </v-btn>
-              </v-col>
-            </v-row>
-
-            <v-divider class="my-3" />
-
-            <v-table density="compact">
-              <thead>
-                <tr>
-                  <th style="width: 70px;">Pick</th>
-                  <th style="width: 90px;">ID</th>
-                  <th>Dataset</th>
-                  <th style="width: 150px;">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-if="!filteredDatasets.length">
-                  <td colspan="4" class="text-caption text-grey pa-3">
-                    Dataset tidak ditemukan.
-                  </td>
-                </tr>
-
-                <tr v-for="ds in filteredDatasets" :key="ds.id">
-                  <td>
-                    <v-btn
-                      icon
-                      density="comfortable"
-                      variant="text"
-                      :color="isDatasetPicked(ds.id) ? 'primary' : 'grey'"
-                      @click="toggleDatasetPick(ds)"
-                    >
-                      <v-icon>
-                        {{ isDatasetPicked(ds.id) ? 'mdi-checkbox-marked' : 'mdi-checkbox-blank-outline' }}
-                      </v-icon>
-                    </v-btn>
-                  </td>
-                  <td class="text-caption">{{ ds.id }}</td>
-                  <td>
-                    <div class="text-subtitle-2 font-weight-bold">{{ ds.description || '-' }}</div>
-                    <div class="text-caption font-weight-light" v-if="ds.kode1">{{ ds.kode1 }}</div>
-                  </td>
-                  <td>
-                    <v-chip
-                      size="small"
-                      :color="isAlreadyLinkedDataset(ds.id) ? 'orange' : 'success'"
-                      variant="outlined"
-                    >
-                      {{ isAlreadyLinkedDataset(ds.id) ? 'Sudah ditautkan' : 'Ready' }}
-                    </v-chip>
-                  </td>
-                </tr>
-              </tbody>
-            </v-table>
-
-            <div class="text-caption text-grey mt-3">
-              *Tip: yang sudah ditautkan bakal ditandai “Sudah ditautkan”, tapi tetap bisa kamu uncheck kalau mau rapiin.
-            </div>
-          </v-card-text>
-
-          <v-card-actions class="bg-amber-lighten-4">
-            <v-spacer />
-            <v-btn
-              variant="outlined"
-              color="red-darken-1"
-              style="text-transform:none;"
-              @click="closePickDatasetDialog"
-            >
-              Tutup
-            </v-btn>
-            <v-btn
-              variant="flat"
-              color="primary"
-              style="text-transform:none;"
-              :disabled="!itemsDatasetPicked.length"
-              @click="applyPickedDatasets"
-            >
-              Tambahkan ({{ itemsDatasetPicked.length }})
-            </v-btn>
-          </v-card-actions>
-        </v-card>
-      </v-dialog>
 
             <v-table density="compact" class="mt-3">
               <thead>
@@ -517,6 +345,229 @@
         </template>
       </v-snackbar>
     </v-dialog>
+
+    <v-dialog
+      v-model="dialogPickupMapsetShow"
+      :max-width="formDialogOptions.width"
+      :style="{ zIndex: formDialogOptions.zIndex }"
+      @keydown.esc.prevent="closeDialogPickDataset"
+      persistent
+      :class="$vuetify.display.smAndDown ? '' : 'overflow-hidden'"
+      :hide-overlay="$vuetify.display.smAndDown"
+    >
+      <v-card
+        class="rounded-lg d-flex flex-column"
+        :class="$vuetify.display.smAndDown ? '' : 'overflow-hidden'"
+        style="height: 85vh;"
+      >
+        <v-toolbar class="bg-white py-2 px-2" density="compact">
+          <v-toolbar-title class="font-weight-bold text-subtitle-1">Katalog Mapset</v-toolbar-title>
+          <v-spacer />
+          <v-toolbar-items>
+            <v-btn icon @click="closeDialogPickDataset">
+              <v-icon>mdi-close</v-icon>
+            </v-btn>
+          </v-toolbar-items>
+        </v-toolbar>
+
+        <v-divider class="mx-4" />
+
+        <!-- IMPORTANT: min-height:0 biar flex children bisa scroll dengan benar -->
+        <v-card-text class="pa-4 d-flex flex-column" style="flex: 1; min-height: 0;">
+          <v-row no-gutters class="ga-3 flex-grow-1" style="min-height: 0;">
+            <!-- LEFT: Katalog -->
+            <v-col
+              cols="12"
+              md="5"
+              class="order-1 order-md-1 d-flex flex-column"
+              style="min-height: 0;"
+            >
+              <div class="flex-grow-0">
+                <v-text-field
+                  v-model="search"
+                  prepend-inner-icon="mdi-magnify"
+                  density="compact"
+                  label="Cari data pada mapset"
+                  hide-details
+                  class="rounded-lg text-caption"
+                  variant="outlined"
+                  @keyup.enter="runExtendedFilter"
+                >
+                  <template #append-inner>
+                    <div class="d-flex flex-row align-center">
+                      <v-divider vertical />
+                      <v-btn
+                        @click="runExtendedFilter"
+                        class="font-weight-bold text-white"
+                        variant="flat"
+                        size="small"
+                      >
+                        Search
+                      </v-btn>
+                    </div>
+                  </template>
+                </v-text-field>
+              </div>
+
+              <!-- List container: flex-grow + min-height:0 => overflow works -->
+              <v-card
+                elevation="0"
+                class="mt-3 px-1 flex-grow-1 overflow-y-auto"
+                style="min-height: 0;"
+              >
+                <v-row v-if="ftDatasetsFiltered.length === 0">
+                  <v-col>
+                    <div class="text-center text-grey my-3 text-subtitle-2">Dataset not found</div>
+                  </v-col>
+                </v-row>
+
+                <v-row v-else no-gutters class="ga-2">
+                  <v-col cols="12" v-for="dataset in ftDatasetsFiltered" :key="dataset.id">
+                    <v-card
+                      :class="isDatasetSelected(dataset.id) ? 'border-activated' : ''"
+                      elevation="0"
+                      class="pa-2 border-thin border-opacity-25 rounded-lg"
+                      width="100%"
+                      @click="toggleDatasetSelection(dataset)"
+                      style="cursor: pointer;"
+                    >
+                      <v-row no-gutters class="align-center">
+                        <v-col cols="3" class="pe-2">
+                          <v-img
+                            width="100%"
+                            height="68"
+                            class="rounded"
+                            cover
+                            :src="lookupImageUrlLazy(dataset)"
+                          />
+                        </v-col>
+
+                        <v-col cols="9">
+                          <div class="d-flex align-center">
+                            <div class="flex-grow-1">
+                              <div class="text-caption font-weight-bold text-indigo text-truncate">
+                                {{ dataset.description }}
+                              </div>
+                              <div
+                                style="font-size: 11px !important"
+                                class="text-caption font-weight-light text-grey-darken-4 text-truncate"
+                              >
+                                {{ dataset.notes }} - {{ dataset.tahun }}
+                              </div>
+                            </div>
+
+                            <v-checkbox-btn
+                              class="ms-2"
+                              :color="isDatasetSelected(dataset.id) ? 'orange' : ''"
+                              :model-value="isDatasetSelected(dataset.id)"
+                              @click.stop
+                              @update:model-value="(val) => toggleDatasetSelection(dataset, val)"
+                            />
+                          </div>
+                        </v-col>
+                      </v-row>
+                    </v-card>
+                  </v-col>
+                </v-row>
+              </v-card>
+            </v-col>
+
+            <!-- RIGHT: Selected -->
+            <v-col
+              cols="12"
+              md="7"
+              class="order-2 order-md-2 d-flex flex-column"
+              style="min-height: 0;"
+            >
+              <div class="d-flex align-center flex-grow-0">
+                <div class="text-subtitle-2 font-weight-bold">Mapset Terpilih</div>
+                <v-spacer />
+                <v-chip
+                  size="small"
+                  variant="outlined"
+                  color="primary"
+                  v-if="itemsMapsetSelected && itemsMapsetSelected.length"
+                >
+                  {{ itemsMapsetSelected.length }} item
+                </v-chip>
+              </div>
+
+              <div class="text-caption text-grey mt-1 flex-grow-0">
+                Klik item di kiri untuk select/unselect. Drag handle siap kalo nanti mau reorder.
+              </div>
+
+              <v-card
+                elevation="0"
+                class="mt-3 flex-grow-1 overflow-y-auto border-thin border-opacity-25 rounded-lg"
+                style="min-height: 0;"
+              >
+                <v-row v-if="!itemsMapsetSelected || itemsMapsetSelected.length === 0" class="pa-4">
+                  <v-col>
+                    <div class="text-center text-grey text-subtitle-2">Belum ada yang dipilih</div>
+                  </v-col>
+                </v-row>
+
+                <v-row v-else no-gutters class="ga-2 pa-2">
+                  <v-col cols="12" v-for="(itemSelected, index) in itemsMapsetSelected" :key="itemSelected.id">
+                    <v-card
+                      elevation="0"
+                      class="d-flex rounded-lg flex-row align-center pa-2 border-thin border-opacity-25"
+                    >
+                      <v-icon size="small" class="me-2" color="grey">mdi-dots-vertical</v-icon>
+                      <span class="bg-orange rounded-lg py-1 px-3 text-caption font-weight-bold text-white">
+                        {{ index + 1 }}
+                      </span>
+                      <div class="ms-3">
+                        <div class="text-subtitle-2 font-weight-bold text-indigo text-truncate" style="max-width: 42vw;">
+                          {{ itemSelected.description }}
+                        </div>
+                        <div class="text-caption text-grey-darken-1 text-truncate" style="max-width: 42vw;">
+                          {{ itemSelected.notes }}
+                        </div>
+                      </div>
+                      <v-spacer />
+                      <v-btn
+                        icon
+                        density="comfortable"
+                        variant="text"
+                        color="red"
+                        @click.stop="toggleDatasetSelection(itemSelected, false)"
+                      >
+                        <v-icon>mdi-delete</v-icon>
+                      </v-btn>
+                    </v-card>
+                  </v-col>
+                </v-row>
+              </v-card>
+
+              <div class="d-flex justify-end mt-3 flex-grow-0">
+                <v-btn
+                  variant="outlined"
+                  color="red"
+                  class="me-2"
+                  style="text-transform:none;"
+                  :disabled="!itemsMapsetSelected || itemsMapsetSelected.length === 0"
+                  @click="itemsMapsetSelected = []"
+                >
+                  Hapus semua
+                </v-btn>
+
+                <v-btn
+                  variant="flat"
+                  color="primary"
+                  style="text-transform:none;"
+                  :disabled="!itemsMapsetSelected || itemsMapsetSelected.length === 0"
+                  @click="closeDialogPickDataset"
+                >
+                  Selesai
+                </v-btn>
+              </div>
+            </v-col>
+          </v-row>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
+
   </div>
 </template>
 
@@ -531,6 +582,8 @@ import FormMode from "@/models/form-mode";
 
 import FtTematik from "@/models/ft-tematik";
 import FtTematikDataset from "@/models/ft-tematik-dataset";
+import DataFilter from "@/models/payload/f-dayadukung-filter";
+import FtDatasetService from "@/services/apiservices/ft-dataset-service";
 
 export default {
   components: {
@@ -546,6 +599,7 @@ export default {
     return {
       title: "Tematik Peta",
       dialogShow: false,
+      dialogPickupMapsetShow: false,
 
       snackbar: false,
       snackBarMessage: "",
@@ -569,10 +623,20 @@ export default {
 
       listFtTematikDataset: [],
 
-      // pick dataset dialog
+      // Pick Dataset dialog state
       dialogPickDataset: false,
       pickDatasetSearch: "",
       itemsDatasetPicked: [],
+
+      // Katalog Mapset state (dipakai dialog kedua)
+      ftDatasets: [],
+      itemsMapsetSelected: [],
+      currentPage: 1,
+      pageSize: 20,
+      totalPaginationPages: 0,
+      totalItems: 0,
+      isActiveDeepSearch: false,
+      search: "",
     };
   },
   computed: {
@@ -580,6 +644,9 @@ export default {
       const a = JSON.stringify(this.itemDefault || {});
       const b = JSON.stringify(this.itemModified || {});
       return a !== b;
+    },
+    ftDatasetsFiltered() {
+      return this.ftDatasets;
     },
 
     pickedDatasetsLabel() {
@@ -665,6 +732,9 @@ export default {
             "Tetap tutup dan reset perubahan?"
         );
       }
+    },
+    closeDialogPickDataset() {
+        this.dialogPickupMapsetShow = false;
     },
 
     passingEventFromCloseConfirm(value) {
@@ -757,24 +827,8 @@ export default {
 
 
     openPickDatasetDialog() {
-      if (!(this.itemModified?.id > 0)) {
-        this.snackBarMessage = "Simpan Tematik dulu sebelum menambah detail";
-        this.snackbar = true;
-        return;
-      }
+      this.dialogPickupMapsetShow = true
 
-      // Preselect currently linked datasets
-      const currentIds = (this.listFtTematikDataset || [])
-        .map((x) => Number(x?.ftDatasetBean || 0))
-        .filter((x) => x > 0);
-
-      const list = Array.isArray(this.itemsFtDataset) ? this.itemsFtDataset : [];
-      this.itemsDatasetPicked = list.filter((x) => currentIds.includes(Number(x?.id)));
-
-      this.dialogPickDataset = true;
-    },
-
-    closePickDatasetDialog() {
       this.dialogPickDataset = false;
     },
 
@@ -898,7 +952,9 @@ export default {
 
     completeUploadSuccess(val) {
       if (this.itemModified.avatarImage) {
-        FileService.deleteImage(this.itemModified.avatarImage).catch(() => {});
+        FileService.deleteImage(this.itemModified.avatarImage).catch((e) => {
+          console.warn("[FtTematikDialog] delete old image failed", e);
+        });
       }
       if (val?.fileName) {
         this.$refs.refUploadDialog.closeDialog();
@@ -916,7 +972,57 @@ export default {
       if (!item?.avatarImage) return require("@/assets/images/no_image_available.jpeg");
       return FileService.image_url_verylow(item.avatarImage);
     },
+
+    runExtendedFilter() {
+      const extendedFilter = new DataFilter();
+      extendedFilter.fdivisionIds = [];
+      extendedFilter.pageNo = this.currentPage;
+      extendedFilter.pageSize = this.pageSize;
+      extendedFilter.sortBy = "id";
+      extendedFilter.order = "DESC";
+      extendedFilter.search = this.search;
+      let deepSearch = this.isActiveDeepSearch
+      if(this.isActiveDeepSearch){
+        deepSearch = true
+      }
+      FtDatasetService.getPostAllFtDatasetContainingExtPublic(
+          extendedFilter,
+          deepSearch
+      ).then(
+          (response) => {
+            const { items, totalPages, totalItems } = response.data;
+            this.ftDatasets = items;
+            this.totalPaginationPages = totalPages;
+            this.totalItems = totalItems;
+          },
+          (error) => {
+            console.log(error);
+          }
+      );
+    },
+    isDatasetSelected(id) {
+      return this.itemsMapsetSelected.some((it) => it && it.id === id);
+    },
+    toggleDatasetSelection(dataset, forceValue) {
+      if (!dataset) return;
+
+      const exists = this.isDatasetSelected(dataset.id);
+      const shouldSelect = (typeof forceValue === 'boolean') ? forceValue : !exists;
+
+      if (shouldSelect && !exists) {
+        // push full object (shallow copy to avoid accidental reactive side-effects)
+        this.itemsMapsetSelected.push({ ...dataset });
+        return;
+      }
+
+      if (!shouldSelect && exists) {
+        this.itemsMapsetSelected = this.itemsMapsetSelected.filter((it) => it && it.id !== dataset.id);
+      }
+    },
   },
+  mounted() {
+    this.runExtendedFilter()
+  }
 };
 </script>
 
@@ -924,5 +1030,16 @@ export default {
 .show-btns {
   color: blue !important;
   opacity: 1;
+}
+
+.border-activated {
+  border: 2px solid #fb8c00 !important; /* orange */
+  background: rgba(251, 140, 0, 0.06) !important;
+}
+
+.text-truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 </style>

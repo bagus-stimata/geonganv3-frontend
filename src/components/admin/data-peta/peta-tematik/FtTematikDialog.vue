@@ -208,33 +208,192 @@
 
             <v-row class="mt-2" no-gutters>
               <v-col cols="12" md="8" class="pr-2">
-                <v-autocomplete
-                    v-model="selectedDatasetId"
-                    :items="itemsFtDataset"
-                    item-value="id"
-                    item-title="description"
-                    label="Pilih Dataset"
-                    variant="outlined"
-                    density="compact"
-                    clearable
-                    :disabled="!(itemModified.id && itemModified.id > 0)"
-                    hide-details
+                <v-text-field
+                  :model-value="pickedDatasetsLabel"
+                  label="Dataset dipilih"
+                  variant="outlined"
+                  density="compact"
+                  readonly
+                  hide-details
+                  :disabled="!(itemModified.id && itemModified.id > 0)"
+                  prepend-inner-icon="mdi-database-search"
+                  @click="openPickDatasetDialog"
                 />
               </v-col>
+
               <v-col cols="12" md="4">
                 <v-btn
-                    color="primary"
-                    variant="flat"
-                    block
-                    class="rounded-lg"
-                    style="text-transform:none;"
-                    :disabled="!(itemModified.id && itemModified.id > 0) || !selectedDatasetId"
-                    @click="addDatasetRelation"
+                  color="primary"
+                  variant="flat"
+                  block
+                  class="rounded-lg"
+                  style="text-transform:none;"
+                  :disabled="!(itemModified.id && itemModified.id > 0)"
+                  @click="openPickDatasetDialog"
                 >
-                  Tambah Dataset
+                  Pilih Dataset…
                 </v-btn>
               </v-col>
             </v-row>
+
+            <v-row class="mt-2" no-gutters>
+              <v-col cols="12" class="d-flex align-center">
+                <v-chip
+                  v-if="itemsDatasetPicked.length"
+                  class="mr-2"
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                >
+                  Dipilih: {{ itemsDatasetPicked.length }}
+                </v-chip>
+
+                <v-spacer />
+
+                <v-btn
+                  color="primary"
+                  variant="flat"
+                  class="rounded-lg"
+                  style="text-transform:none;"
+                  :disabled="!(itemModified.id && itemModified.id > 0) || !itemsDatasetPicked.length"
+                  @click="applyPickedDatasets"
+                >
+                  Tambahkan ke Tematik
+                </v-btn>
+              </v-col>
+            </v-row>
+      <!-- Pick Dataset Dialog (no map) -->
+      <v-dialog v-model="dialogPickDataset" max-width="900" persistent>
+        <v-card>
+          <v-toolbar density="compact" class="color-bg-second text-white">
+            <v-btn icon @click="closePickDatasetDialog">
+              <v-icon>mdi-close</v-icon>
+            </v-btn>
+            <v-toolbar-title class="text-subtitle-2">Pilih Dataset</v-toolbar-title>
+            <v-spacer />
+            <v-btn
+              variant="text"
+              :disabled="!itemsDatasetPicked.length"
+              @click="applyPickedDatasets"
+              style="text-transform:none;"
+            >
+              Tambahkan ({{ itemsDatasetPicked.length }})
+            </v-btn>
+          </v-toolbar>
+
+          <v-card-text>
+            <v-row no-gutters class="ga-2">
+              <v-col cols="12" md="7">
+                <v-text-field
+                  v-model="pickDatasetSearch"
+                  label="Search dataset"
+                  variant="outlined"
+                  density="compact"
+                  clearable
+                  prepend-inner-icon="mdi-magnify"
+                  hide-details
+                />
+              </v-col>
+
+              <v-col cols="12" md="5" class="d-flex align-center">
+                <v-chip
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                  v-if="itemsDatasetPicked.length"
+                >
+                  Dipilih: {{ itemsDatasetPicked.length }}
+                </v-chip>
+                <v-spacer />
+                <v-btn
+                  variant="outlined"
+                  color="red-darken-1"
+                  style="text-transform:none;"
+                  :disabled="!itemsDatasetPicked.length"
+                  @click="clearPickedDatasets"
+                >
+                  Reset
+                </v-btn>
+              </v-col>
+            </v-row>
+
+            <v-divider class="my-3" />
+
+            <v-table density="compact">
+              <thead>
+                <tr>
+                  <th style="width: 70px;">Pick</th>
+                  <th style="width: 90px;">ID</th>
+                  <th>Dataset</th>
+                  <th style="width: 150px;">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-if="!filteredDatasets.length">
+                  <td colspan="4" class="text-caption text-grey pa-3">
+                    Dataset tidak ditemukan.
+                  </td>
+                </tr>
+
+                <tr v-for="ds in filteredDatasets" :key="ds.id">
+                  <td>
+                    <v-btn
+                      icon
+                      density="comfortable"
+                      variant="text"
+                      :color="isDatasetPicked(ds.id) ? 'primary' : 'grey'"
+                      @click="toggleDatasetPick(ds)"
+                    >
+                      <v-icon>
+                        {{ isDatasetPicked(ds.id) ? 'mdi-checkbox-marked' : 'mdi-checkbox-blank-outline' }}
+                      </v-icon>
+                    </v-btn>
+                  </td>
+                  <td class="text-caption">{{ ds.id }}</td>
+                  <td>
+                    <div class="text-subtitle-2 font-weight-bold">{{ ds.description || '-' }}</div>
+                    <div class="text-caption font-weight-light" v-if="ds.kode1">{{ ds.kode1 }}</div>
+                  </td>
+                  <td>
+                    <v-chip
+                      size="small"
+                      :color="isAlreadyLinkedDataset(ds.id) ? 'orange' : 'success'"
+                      variant="outlined"
+                    >
+                      {{ isAlreadyLinkedDataset(ds.id) ? 'Sudah ditautkan' : 'Ready' }}
+                    </v-chip>
+                  </td>
+                </tr>
+              </tbody>
+            </v-table>
+
+            <div class="text-caption text-grey mt-3">
+              *Tip: yang sudah ditautkan bakal ditandai “Sudah ditautkan”, tapi tetap bisa kamu uncheck kalau mau rapiin.
+            </div>
+          </v-card-text>
+
+          <v-card-actions class="bg-amber-lighten-4">
+            <v-spacer />
+            <v-btn
+              variant="outlined"
+              color="red-darken-1"
+              style="text-transform:none;"
+              @click="closePickDatasetDialog"
+            >
+              Tutup
+            </v-btn>
+            <v-btn
+              variant="flat"
+              color="primary"
+              style="text-transform:none;"
+              :disabled="!itemsDatasetPicked.length"
+              @click="applyPickedDatasets"
+            >
+              Tambahkan ({{ itemsDatasetPicked.length }})
+            </v-btn>
+          </v-card-actions>
+        </v-card>
+      </v-dialog>
 
             <v-table density="compact" class="mt-3">
               <thead>
@@ -409,7 +568,11 @@ export default {
       itemModified: new FtTematik(),
 
       listFtTematikDataset: [],
-      selectedDatasetId: null,
+
+      // pick dataset dialog
+      dialogPickDataset: false,
+      pickDatasetSearch: "",
+      itemsDatasetPicked: [],
     };
   },
   computed: {
@@ -417,6 +580,28 @@ export default {
       const a = JSON.stringify(this.itemDefault || {});
       const b = JSON.stringify(this.itemModified || {});
       return a !== b;
+    },
+
+    pickedDatasetsLabel() {
+      if (!this.itemsDatasetPicked || !this.itemsDatasetPicked.length) return "Klik untuk memilih dataset";
+      const names = this.itemsDatasetPicked
+        .slice(0, 3)
+        .map((x) => x?.description || x?.kode1 || `#${x?.id}`)
+        .filter(Boolean);
+      const more = this.itemsDatasetPicked.length - names.length;
+      return more > 0 ? `${names.join(", ")} (+${more} lagi)` : names.join(", ");
+    },
+
+    filteredDatasets() {
+      const list = Array.isArray(this.itemsFtDataset) ? this.itemsFtDataset : [];
+      const q = (this.pickDatasetSearch || "").toLowerCase().trim();
+      if (!q) return list;
+      return list.filter((x) => {
+        const id = String(x?.id ?? "");
+        const kode1 = String(x?.kode1 ?? "").toLowerCase();
+        const desc = String(x?.description ?? "").toLowerCase();
+        return id.includes(q) || kode1.includes(q) || desc.includes(q);
+      });
     },
   },
   methods: {
@@ -437,7 +622,6 @@ export default {
       this.itemModified = new FtTematik();
       this.itemDefault = JSON.parse(JSON.stringify(this.itemModified));
       this.listFtTematikDataset = [];
-      this.selectedDatasetId = null;
     },
 
     async initializeEditMode(id) {
@@ -571,38 +755,106 @@ export default {
       return found?.description || "-";
     },
 
-    async addDatasetRelation() {
+
+    openPickDatasetDialog() {
+      if (!(this.itemModified?.id > 0)) {
+        this.snackBarMessage = "Simpan Tematik dulu sebelum menambah detail";
+        this.snackbar = true;
+        return;
+      }
+
+      // Preselect currently linked datasets
+      const currentIds = (this.listFtTematikDataset || [])
+        .map((x) => Number(x?.ftDatasetBean || 0))
+        .filter((x) => x > 0);
+
+      const list = Array.isArray(this.itemsFtDataset) ? this.itemsFtDataset : [];
+      this.itemsDatasetPicked = list.filter((x) => currentIds.includes(Number(x?.id)));
+
+      this.dialogPickDataset = true;
+    },
+
+    closePickDatasetDialog() {
+      this.dialogPickDataset = false;
+    },
+
+    clearPickedDatasets() {
+      this.itemsDatasetPicked = [];
+    },
+
+    isDatasetPicked(id) {
+      const v = Number(id || 0);
+      return (this.itemsDatasetPicked || []).some((it) => Number(it?.id) === v);
+    },
+
+    toggleDatasetPick(dataset, forceValue) {
+      if (!dataset || !dataset.id) return;
+
+      const exists = this.isDatasetPicked(dataset.id);
+      const shouldSelect = (typeof forceValue === 'boolean') ? forceValue : !exists;
+
+      if (shouldSelect && !exists) {
+        this.itemsDatasetPicked.push({ ...dataset });
+      }
+
+      if (!shouldSelect && exists) {
+        this.itemsDatasetPicked = this.itemsDatasetPicked.filter((it) => Number(it?.id) !== Number(dataset.id));
+      }
+    },
+
+    isAlreadyLinkedDataset(datasetId) {
+      const id = Number(datasetId || 0);
+      return (this.listFtTematikDataset || []).some((x) => Number(x?.ftDatasetBean || 0) === id);
+    },
+
+    async applyPickedDatasets() {
       try {
         if (!(this.itemModified?.id > 0)) {
           this.snackBarMessage = "Simpan Tematik dulu sebelum menambah detail";
           this.snackbar = true;
           return;
         }
-        if (!this.selectedDatasetId) return;
+
+        const pickedIds = (this.itemsDatasetPicked || [])
+          .map((x) => Number(x?.id || 0))
+          .filter((x) => x > 0);
+
+        if (!pickedIds.length) return;
+
+        // Create only the ones not yet linked
+        const existingIds = (this.listFtTematikDataset || [])
+          .map((x) => Number(x?.ftDatasetBean || 0))
+          .filter((x) => x > 0);
+
+        const toCreateIds = pickedIds.filter((id) => !existingIds.includes(id));
+
+        if (!toCreateIds.length) {
+          this.snackBarMessage = "Semua dataset yang dipilih sudah ditautkan";
+          this.snackbar = true;
+          this.dialogPickDataset = false;
+          return;
+        }
 
         this.dialogLoading = true;
 
-        const payload = [
-          {
-            id: 0,
-            ftTematikBean: this.itemModified.id,
-            ftDatasetBean: Number(this.selectedDatasetId),
-            created: new Date(),
-            modifiedBy: "",
-          },
-        ];
+        const payload = toCreateIds.map((id) => ({
+          id: 0,
+          ftTematikBean: this.itemModified.id,
+          ftDatasetBean: id,
+          created: new Date(),
+          modifiedBy: "",
+        }));
 
         await FtTematikDatasetService.createFtTematikDatasetMultiple(payload);
 
-        this.selectedDatasetId = null;
         await this.reloadDetails();
 
-        this.snackBarMessage = "Dataset ditambahkan";
+        this.dialogPickDataset = false;
+        this.snackBarMessage = `Dataset ditambahkan: ${toCreateIds.length}`;
         this.snackbar = true;
       } catch (e) {
         console.error(e);
-        this.formDialogOptions.errorMessage =
-            e?.response?.data?.message || "Gagal menambah dataset";
+        this.formDialogOptions.errorMessage = e?.response?.data?.message || "Gagal menambah dataset";
       } finally {
         this.dialogLoading = false;
       }

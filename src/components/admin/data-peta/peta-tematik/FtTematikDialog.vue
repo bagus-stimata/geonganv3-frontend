@@ -438,7 +438,7 @@
               <v-card
                 elevation="0"
                 class="mt-3 px-1 flex-grow-1 overflow-y-auto"
-                style="min-height: 0;"
+                style="min-height: 0; max-height: 500px;"
               >
                 <v-row v-if="ftDatasetsFiltered.length === 0">
                   <v-col>
@@ -503,7 +503,7 @@
               cols="12"
               md="5"
               class="order-2 order-md-2 d-flex flex-column"
-              style="min-height: 0;"
+              style="min-height: 0; max-height: 480px;"
             >
               <div class="d-flex align-center flex-grow-0">
                 <div class="text-subtitle-2 font-weight-bold">Mapset Terpilih</div>
@@ -780,24 +780,32 @@ export default {
         this.dialogLoading = true;
 
         const payload = this.buildPayload();
-        const listFtTematikDataset = (this.listFtTematikDataset || []).map((it) => {
-          const newIt = it
-          newIt.id = 0
-          return newIt;
+        const newListFtTematikDataset = (this.listFtTematikDataset || []).map((it) => {
+          // const newIt = it
+          // newIt.id = 0
+          // return newIt;
+          const newIt = {
+            "id": 0,
+            "ftTematikBean": it.ftTematikBean,
+            "ftDatasetBean": it.ftDatasetBean
+          }
+          return newIt
         });
+
+        console.log(JSON.stringify(newListFtTematikDataset));
 
 
         if (this.formMode === FormMode.EDIT_FORM && payload.id > 0) {
           await FtTematikService.updateFtTematik(payload, false);
 
           await FtTematikDatasetService.deleteFtTematikDatasetByFtTematik(payload.id)
-          await FtTematikDatasetService.createFtTematikDatasetMultiple(listFtTematikDataset)
+          await FtTematikDatasetService.createFtTematikDatasetMultiple(newListFtTematikDataset)
 
         } else {
           const resp = await FtTematikService.createFtTematik(payload);
           if (resp?.data?.id) this.itemModified.id = resp.data.id;
 
-          await FtTematikDatasetService.createFtTematikDatasetMultiple(this.listFtTematikDataset)
+          await FtTematikDatasetService.createFtTematikDatasetMultiple(newListFtTematikDataset)
 
           this.$emit("update:formMode", FormMode.EDIT_FORM);
         }

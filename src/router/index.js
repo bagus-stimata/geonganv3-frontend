@@ -84,8 +84,8 @@ const routes = [
 
     {
         path: '/admin-peta-tematik',
-        name: 'AdminDataPetaTabularViewDummy',
-        component: () => import('@/views/admin/data-peta/DataPetaTabularView.vue')
+        name: 'DataPetaTematikView',
+        component: () => import('@/views/admin/data-peta/DataPetaTematikView.vue')
     },
 
 

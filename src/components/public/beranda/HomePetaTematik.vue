@@ -51,7 +51,7 @@
                       {{ tematik.description }}
                     </div>
                     <div class="text-subtitle-2 font-weight-light text-grey">
-                      {{ tematik.notes }}
+                      {{ truncateNotes(tematik.notes) }}
                     </div>
                     <div class="text-subtitle-2 font-weight-black">
                       {{ tematik.categ }}
@@ -154,6 +154,11 @@ export default {
           }
       )
     },
+    truncateNotes(notes) {
+      if (!notes) return "";
+      return notes.length > 150 ? notes.substring(0, 150) + "…" : notes;
+    },
+
   },
   mounted() {
     this.fetchTematik()

@@ -14,20 +14,12 @@
                 variant="plain"
                 hide-details
                 placeholder="Cari ⏎"
+                @keyup.enter = "runExtendedFilter"
             >
               <template #append-inner>
                 <div class="d-flex flex-row align-center">
                   <v-divider vertical></v-divider>
-                  <v-btn @click="activateDeepSearchGeojson" size="regular" class="px-2 font-weight-bold" :color="isActiveDeepSearch?'blue':''" density="comfortable" variant="text">
-                    <v-chip prepend-icon="mdi-map" :class="isActiveDeepSearch?'text-blue':'text-grey-darken-2'" class="ml-1 font-weight-bold text-caption" style="text-transform: none;">
-                      Deep
-                    </v-chip>
-                    <v-tooltip
-                        activator="parent"
-                        location="top"
-                    >Pencarian lebih dalam ke isi geospasial</v-tooltip>
-                  </v-btn>
-                  <v-btn :color="isActiveDeepSearch?'indigo' : 'green'" class="font-weight-bold text-white" variant="flat" size="small">Search</v-btn>
+                  <v-btn @click="runExtendedFilter" color="green" class="font-weight-bold text-white" variant="flat" size="small">Search</v-btn>
                 </div>
               </template>
             </v-text-field>
@@ -40,7 +32,7 @@
         <v-row class="ga-2">
           <v-col cols="12" class="d-flex flex-wrap ga-2">
             <v-btn
-                v-for="cat in categories"
+                v-for="cat in itemsCategComputed"
                 :key="cat.id"
                 :variant="selectedCatId === cat.id ? 'flat' : 'outlined'"
                 :color="selectedCatId === cat.id ? 'indigo' : undefined"
@@ -49,7 +41,7 @@
                 class="text-subtitle-2 px-4"
                 @click="selectedCatId = cat.id"
             >
-              {{ cat.name }}
+              {{ cat.description }}
               <span class="ml-2 font-weight-bold" :class="selectedCatId === cat.id ? 'text-white' : 'text-medium-emphasis'">
                 ({{ cat.count }})
               </span>
@@ -61,58 +53,68 @@
         <div class="text-h6 mb-6 font-weight-black text-indigo">
           Katalog <span class="color-text-primary">Peta Tematik</span>
         </div>
-        <v-card class="mt-2 pa-4" elevation="0" style="box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2) !important;">
-          <v-row
-              no-gutters
-              class="mt-2 wrap"
-              justify="center"
-          >
-            <v-col
-                v-for="set in mapsetItems"
-                :key="set.id"
-                sm="6"
-                md="4"
-                cols="12"
-                xl="2"
-                class="d-flex justify-center mb-2 pa-2"
-            >
-              <v-hover v-slot="{ isHovering, props }">
-                <v-card
-                    v-bind="props"
-                    width="100%"
-                    :style="isHovering ? 'box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3) !important;' : 'box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2) !important;'"
-                    class="rounded-lg d-flex flex-column h-100"
+        <v-skeleton-loader
+            :loading="loading"
+            type="card, card"
+            transition="scale-transition"
+        >
+          <v-responsive>
+            <v-card class="mt-2 pa-4" elevation="0" style="box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2) !important;">
+              <v-row
+                  no-gutters
+                  class="mt-2 wrap"
+                  justify="center"
+              >
+                <v-col
+                    v-for="tematik in ftTematiksFiltered"
+                    :key="tematik.id"
+                    sm="6"
+                    md="4"
+                    cols="12"
+                    xl="2"
+                    class="d-flex justify-center mb-2 pa-2"
                 >
-                  <v-img
-                      width="100%"
-                      height="200"
-                      cover
-                      :src="require('@/assets/images/peta-tematik.png')"
-                      class="rounded-lg"
-                  />
-                  <v-card-text>
-                    <div class="text-subtitle-1 font-weight-bold text-indigo">
-                      {{ set.title }}
-                    </div>
-                    <div class="text-subtitle-2 font-weight-light text-grey">
-                      {{ set.desc }}
-                    </div>
-                  </v-card-text>
-
-                  <v-spacer />
-
-                  <v-card-actions class="text-center bg-indigo-lighten-5">
-                    <v-spacer />
-                    <v-btn size="small" class="font-weight-bold" variant="text" color="indigo">
-                      <v-icon>mdi-map</v-icon><span class="ml-2">Lihat Detail</span>
-                    </v-btn>
-                    <v-spacer />
-                  </v-card-actions>
-                </v-card>
-              </v-hover>
-            </v-col>
-          </v-row>
-        </v-card>
+                  <v-hover v-slot="{ isHovering, props }">
+                    <v-card
+                        v-bind="props"
+                        width="100%"
+                        :style="isHovering ? 'box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3) !important;' : 'box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2) !important;'"
+                        class="rounded-lg d-flex flex-column h-100"
+                    >
+                      <v-img
+                          width="100%"
+                          height="200"
+                          cover
+                          :src="lookupImageUrl(tematik)"
+                          :lazy-src="lookupImageLazyUrl(tematik)"
+                          class="rounded-lg"
+                      />
+                      <v-card-text>
+                        <div class="text-subtitle-1 font-weight-bold text-indigo">
+                          {{ tematik.description }}
+                        </div>
+                        <div class="text-subtitle-2 font-weight-light text-grey">
+                          {{ tematik.notes }}
+                        </div>
+                        <div class="text-subtitle-2 font-weight-black">
+                          {{ tematik.categ }}
+                        </div>
+                        <v-chip size="small" density="comfortable" color="pink" class="font-weight-bold mt-2">Tematik</v-chip>
+                      </v-card-text>
+                      <v-spacer />
+                      <v-card-actions class="text-center">
+                        <v-spacer />
+                        <v-btn  @click="goToPetaInteraktif(tematik)" size="default"  variant="text" color="indigo" style="text-transform: none;">
+                          <span class="mr-2 font-weight-black">Lihat Detail</span><v-icon>mdi-arrow-right</v-icon>
+                        </v-btn>
+                      </v-card-actions>
+                    </v-card>
+                  </v-hover>
+                </v-col>
+              </v-row>
+            </v-card>
+          </v-responsive>
+        </v-skeleton-loader>
         <v-row class="mt-3" justify="center" align="center">
           <v-col class="justify-start" cols="4" md="2" sm="2">
             <v-select
@@ -141,11 +143,16 @@
 
 <script>
 
+import DataFilter from "@/models/payload/f-dayadukung-filter";
+import FtTematikService from "@/services/apiservices/ft-tematik-service";
+import FileService from "@/services/apiservices/file-service";
+
 export default {
   name: "PetaTematikMain",
   components: {},
   data() {
     return {
+      loading: false,
       currentPage: 1,
       totalTablePages: 1,
       totalPaginationPages: 1,
@@ -153,7 +160,7 @@ export default {
       pageSizes: [6, 10, 20],
       totalItems: 0,
       search: "",
-      selectedCatId: 'all',
+      selectedCatId: 'All',
       mapsetItems: [
         {
           id: 1,
@@ -198,25 +205,91 @@ export default {
           color: 'pink',
         },
       ],
-      categories: [
-        { id: 'all', name: 'All', color: 'primary', count: 128 },
-        { id: 'admin', name: 'Administrasi', color: 'indigo', count: 18 },
-        { id: 'infra', name: 'Infrastruktur & Utilitas', color: 'teal', count: 50 },
-        { id: 'hydro', name: 'Hidrologi', color: 'blue-grey', count: 11 },
-        { id: 'sosenv', name: 'Sosial & Lingkungan', color: 'light-green', count: 21 },
-        { id: 'invest', name: 'Potensi Investasi', color: 'orange', count: 10 },
-      ],
+      ftTematiks:[],
       isActiveDeepSearch: false,
+      filterFdivisions: [],
 
     };
   },
+  watch: {
+    currentPage(newPage) {
+      if (newPage) {
+        this.fetchTematik();
+      }
+    },
+    pageSize() {
+      const refreshData = this.currentPage === 1;
+      this.currentPage = 1;
+      if (refreshData) {
+        this.fetchTematik();
+      }
+    },
+  },
+  computed: {
+    itemsCategComputed(){
+      const itemAll = { id: 'All', description: 'All', count: this.totalItems }
+      // const base = (this.itemsCated || []).filter(item => item.id !== 'All')
+      // return [itemAll, ...base]
+      return [itemAll]
+    },
+    currentUser() {
+      return this.$store.state.auth.user;
+    },
+    ftTematiksFiltered() {
+      return this.ftTematiks;
+    },
+  },
   methods: {
-    activateDeepSearchGeojson(){
-      this.isActiveDeepSearch = !this.isActiveDeepSearch
+    lookupImageUrl(item){
+      if (item.avatarImage===undefined || item.avatarImage===""){
+        return require('@/assets/images/peta-tematik.png')
+      }else {
+        return FileService.image_url_low(item.avatarImage)
+      }
+    },
+    lookupImageLazyUrl(item){
+      if (item.avatarImage===undefined || item.avatarImage===""){
+        return require('@/assets/images/peta-tematik.png')
+      }else {
+        return FileService.image_url_verylow(item.avatarImage)
+      }
+    },
+    goToPetaInteraktif(item) {
+      const tematikId = item.id;
+      this.$router.push("/public-peta-interaktif?tematikId=" + tematikId);
+    },
+    fetchTematik(){
+      this.runExtendedFilter()
+    },
+    runExtendedFilter() {
+      const extendedFilter = new DataFilter();
+      extendedFilter.fdivisionIds = this.filterFdivisions;
+      extendedFilter.pageNo = this.currentPage;
+      extendedFilter.pageSize = this.pageSize;
+      extendedFilter.sortBy = "id";
+      extendedFilter.order = "DESC";
+      extendedFilter.search = this.search;
+
+      this.loading = true;
+      FtTematikService.getPostAllFtTematikContainingExtPublic(extendedFilter).then(
+          (response) => {
+            const { items, totalPages, totalItems } = response.data;
+            this.ftTematiks = items;
+            this.totalPaginationPages = totalPages;
+            this.totalItems = totalItems;
+          },
+          (error) => {
+            console.log(error);
+          }
+      ).finally(
+          () => {
+            this.loading = false;
+          }
+      )
     },
   },
   mounted() {
-
+    this.fetchTematik()
   },
 };
 </script>

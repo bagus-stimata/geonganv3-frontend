@@ -30,7 +30,7 @@ class FtTematikService {
     }
     getPostAllFtTematikContainingExtPublic(item) {
         return axios.post(
-            API_URL + `public/getPostAllFtTematikContainingExt?includeGeojson}`,
+            API_URL + `public/getPostAllFtTematikContainingExt`,
             item,
             { headers: authHeader() }
         );

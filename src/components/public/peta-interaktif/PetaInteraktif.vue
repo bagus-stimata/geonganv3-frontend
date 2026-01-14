@@ -173,7 +173,7 @@
             style="text-transform: none"
         >
           <div class="d-flex align-content-md-stretch">
-            <v-icon color="primary" size="large" >mdi-home</v-icon><span class="ml-1 hidden-sm-and-down font-weight-bold">Beranda</span>
+            <v-icon color="white" size="default" >mdi-home</v-icon><span class="ml-1 hidden-sm-and-down font-weight-bold">Beranda</span>
           </div>
         </v-btn>
       </l-control>
@@ -1425,7 +1425,7 @@ export default {
      * ambil nilai array tersebut
      */
     const qIds = this.$route && this.$route.query ? this.$route.query.itemIds : null;
-    const qTemaId = this.$route && this.$route.query ? this.$route.query.temaId : null;
+    const qTematikId = this.$route && this.$route.query ? this.$route.query.tematikId : null;
 
     const mapsetIds = (qIds == null)
       ? []
@@ -1446,12 +1446,13 @@ export default {
           console.error('Gagal mengambil data dataset peta: ', error);
         });
     }
-    const mapsetTemaId = (qTemaId != null && Number.isFinite(Number(qTemaId)))
-      ? Number(qTemaId)
+    const mapsetTemaId = (qTematikId != null && Number.isFinite(Number(qTematikId)))
+      ? Number(qTematikId)
       : null;
     if (mapsetTemaId != null) {
       FtTematikDatasetService.getAllFtTematikDatasetByFtTematikForDatasetsPublic(mapsetTemaId)
         .then((response) => {
+          console.log(response.data)
           const {ftTematik, listFtTematikDataset} = Array.isArray(response.data) ? response.data : [];
           const datasets = listFtTematikDataset.map(item => item.dataset)
           this.itemsMapsetSelected = datasets;

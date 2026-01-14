@@ -23,8 +23,8 @@
               justify="center"
           >
             <v-col
-                v-for="set in mapsetItems"
-                :key="set.id"
+                v-for="tematik in ftTematiksFiltered"
+                :key="tematik.id"
                 sm="6"
                 md="4"
                 cols="12"
@@ -42,23 +42,26 @@
                       width="100%"
                       height="200"
                       cover
-                      :src="require('@/assets/images/peta-tematik.png')"
+                      :src="lookupImageUrl(tematik)"
+                      :lazy-src="lookupImageLazyUrl(tematik)"
                       class="rounded-lg"
                   />
                   <v-card-text>
                     <div class="text-subtitle-1 font-weight-bold text-indigo">
-                      {{ set.title }}
+                      {{ tematik.description }}
                     </div>
                     <div class="text-subtitle-2 font-weight-light text-grey">
-                      {{ set.desc }}
+                      {{ tematik.notes }}
                     </div>
+                    <div class="text-subtitle-2 font-weight-black">
+                      {{ tematik.categ }}
+                    </div>
+                    <v-chip size="small" density="comfortable" color="pink" class="font-weight-bold mt-2">Tematik</v-chip>
                   </v-card-text>
-
                   <v-spacer />
-
                   <v-card-actions class="text-center bg-indigo-lighten-5">
                     <v-spacer />
-                    <v-btn size="small" class="font-weight-bold" variant="text" color="indigo">
+                    <v-btn @click="goToPetaInteraktif(tematik)" size="small" class="font-weight-bold" variant="text" color="indigo">
                       <v-icon>mdi-map</v-icon><span class="ml-2">Lihat Detail</span>
                     </v-btn>
                     <v-spacer />
@@ -74,42 +77,86 @@
 
 <script>
 
+import FileService from "@/services/apiservices/file-service";
+import DataFilter from "@/models/payload/f-dayadukung-filter";
+import FtTematikService from "@/services/apiservices/ft-tematik-service";
+
 export default {
   name: "HomePetaInteraktif",
   components: {},
   data() {
     return {
-      mapsetItems: [
-        {
-          id: 1,
-          title: 'Peta Tematik Kependudukan',
-          desc: 'Sebaran & kepadatan penduduk per wilayah (choropleth/polygon).',
-          img: require('@/assets/images/peta-tematik.png'),
-          color: 'indigo',
-        },
-        {
-          id: 2,
-          title: 'Peta Tematik Ekonomi',
-          desc: 'Indikator ekonomi wilayah: UMKM, pasar, dan pusat aktivitas (point/polygon).',
-          img: require('@/assets/images/peta-tematik.png'),
-          color: 'deep-purple',
-        },
-        {
-          id: 3,
-          title: 'Peta Tematik Infrastruktur',
-          desc: 'Jaringan jalan, jembatan, utilitas dasar & aksesibilitas (line/point).',
-          img: require('@/assets/images/peta-tematik.png'),
-          color: 'teal',
-        },
-      ],
+      loading: false,
+      currentPage: 1,
+      totalTablePages: 1,
+      totalPaginationPages: 1,
+      pageSize: 6,
+      pageSizes: [6, 10, 20],
+      totalItems: 0,
+      search: "",
+      ftTematiks:[],
+      filterFdivisions: [],
     };
   },
   computed: {
+    ftTematiksFiltered() {
+      return this.ftTematiks;
+    },
   },
   methods: {
+    lookupImageUrl(item){
+      if (item.avatarImage===undefined || item.avatarImage===""){
+        return require('@/assets/images/peta-tematik.png')
+      }else {
+        return FileService.image_url_low(item.avatarImage)
+      }
+    },
+    lookupImageLazyUrl(item){
+      if (item.avatarImage===undefined || item.avatarImage===""){
+        return require('@/assets/images/peta-tematik.png')
+      }else {
+        return FileService.image_url_verylow(item.avatarImage)
+      }
+    },
     toPetaTematik(){
       this.$router.push("/public-peta-tematik")
-    }
+    },
+    goToPetaInteraktif(item) {
+      const tematikId = item.id;
+      this.$router.push("/public-peta-interaktif?tematikId=" + tematikId);
+    },
+    fetchTematik(){
+      this.runExtendedFilter()
+    },
+    runExtendedFilter() {
+      const extendedFilter = new DataFilter();
+      extendedFilter.fdivisionIds = this.filterFdivisions;
+      extendedFilter.pageNo = this.currentPage;
+      extendedFilter.pageSize = this.pageSize;
+      extendedFilter.sortBy = "id";
+      extendedFilter.order = "DESC";
+      extendedFilter.search = this.search;
+
+      this.loading = true;
+      FtTematikService.getPostAllFtTematikContainingExtPublic(extendedFilter).then(
+          (response) => {
+            const { items, totalPages, totalItems } = response.data;
+            this.ftTematiks = items;
+            this.totalPaginationPages = totalPages;
+            this.totalItems = totalItems;
+          },
+          (error) => {
+            console.log(error);
+          }
+      ).finally(
+          () => {
+            this.loading = false;
+          }
+      )
+    },
+  },
+  mounted() {
+    this.fetchTematik()
   },
 };
 </script>

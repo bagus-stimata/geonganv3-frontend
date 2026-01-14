@@ -330,12 +330,8 @@ export default {
       extendedFilter.sortBy = "id";
       extendedFilter.order = "DESC";
       extendedFilter.search = this.search;
-      extendedFilter.city = "";
 
-      FtTematikService.getPostAllFtTematikContainingExt(
-          extendedFilter,
-          false
-      ).then(
+      FtTematikService.getPostAllFtTematikContainingExt(extendedFilter).then(
           (response) => {
             const { items, totalPages, totalItems } = response.data;
             this.ftDatasets = items;

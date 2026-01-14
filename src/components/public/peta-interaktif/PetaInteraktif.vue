@@ -1,11 +1,5 @@
 <template>
   <div>
-    <v-card v-if="ftTematik">
-      <div>{{ ftTematik.avatarImage}}</div>
-      <div>{{ ftTematik.description }}</div>
-      <div>{{ ftTematik.notes}}</div>
-    </v-card>
-
     <l-map
         :zoom="zoom"
         :max-zoom="maxZoom"
@@ -273,6 +267,33 @@
     </v-snackbar>
     <PickMapsetDialog @applyPeta="applyPeta" ref="refPickMapsetDialog"></PickMapsetDialog>
 
+    <v-card
+        v-if="ftTematik"
+        class="rounded ma-2 overflow-hidden"
+        elevation="1"
+    >
+      <v-card-text>
+        <v-row>
+          <v-col cols="12" sm="12" md="4">
+            <v-img
+                :src="lookupImageMediumUrl(ftTematik)"
+                height="220"
+                cover
+            >
+            </v-img>
+          </v-col>
+          <v-col cols="12" sm="12" md="8">
+            <div>
+              <span class="font-weight-bold">{{ ftTematik.description }}</span>
+              <span class="ml-1 text-caption text-orange ">{{ ftTematik.tahun }}</span>
+            </div>
+            <div class="mt-3 text-caption">{{ ftTematik.notes }}</div>
+          </v-col>
+        </v-row>
+
+      </v-card-text>
+    </v-card>
+
   </div>
 </template>
 
@@ -291,6 +312,8 @@ import * as turf from '@turf/turf'
 import PickMapsetDialog from "@/components/public/peta-interaktif/PickMapsetDialog.vue";
 import FtDatasetService from "@/services/apiservices/ft-dataset-service";
 import FtTematikDatasetService from "@/services/apiservices/ft-tematik-dataset-service";
+import {lookupImageUrl} from "@/helpers/lookup-file-helper";
+import FileService from "@/services/apiservices/file-service";
 
 delete Icon.Default.prototype.Default;
 // Icon.Default.mergeOptions({
@@ -579,6 +602,7 @@ export default {
     },
   },
   methods: {
+    lookupImageUrl,
 
     async toggleMapsetVisibility(itemSelected) {
       const id = itemSelected && itemSelected.id;
@@ -1119,17 +1143,6 @@ export default {
       }
     },
 
-    onRadiusToggle(val) {
-      this.useRadiusFilter = !!val;
-
-      const mode = this.useRadiusFilter ? 'Radius 2 km' : 'Full';
-      this.snackbar = {
-        show: true,
-        color: 'info',
-        text: `Mode tampilan: ${mode}. Silakan klik/Check Peta, agar dapat memperbarui tampilan peta`,
-        timeout: 3500,
-      };
-    },
     _filterGeoJSONByRadius(geojson, centerLatLng, radiusMeters = 2000) {
       if (!geojson || !Array.isArray(geojson.features) || !centerLatLng || centerLatLng.length < 2) return geojson;
       const [lat, lng] = centerLatLng;
@@ -1417,6 +1430,15 @@ export default {
       }
       return null;
     },
+
+    lookupImageMediumUrl(item){
+      if (item.avatarImage===undefined || item.avatarImage===""){
+        return require('@/assets/images/peta-tematik.png')
+      }else {
+        return FileService.image_url_medium(item.avatarImage)
+      }
+    },
+
   },
   async mounted() {
 
@@ -1446,16 +1468,18 @@ export default {
           console.error('Gagal mengambil data dataset peta: ', error);
         });
     }
+
+
     const mapsetTemaId = (qTematikId != null && Number.isFinite(Number(qTematikId)))
       ? Number(qTematikId)
       : null;
+
     if (mapsetTemaId != null) {
       FtTematikDatasetService.getAllFtTematikDatasetByFtTematikForDatasetsPublic(mapsetTemaId)
         .then((response) => {
-          console.log(response.data)
-          const {ftTematik, listFtTematikDataset} = Array.isArray(response.data) ? response.data : [];
-          const datasets = listFtTematikDataset.map(item => item.dataset)
-          this.itemsMapsetSelected = datasets;
+          const {ftTematik, listFtDataset} = response.data ? response.data : [];
+          const data = Array.isArray(listFtDataset) ? listFtDataset : [];
+          this.itemsMapsetSelected = data;
           this.applyPeta(this.itemsMapsetSelected);
           this.ftTematik = ftTematik
         })
@@ -1463,6 +1487,9 @@ export default {
           console.error('Gagal mengambil data dataset peta berdasarkan tema: ', error);
         });
     }
+
+
+
 
     if(this.$vuetify.display.smAndDown){
       this.showMapsetController = false

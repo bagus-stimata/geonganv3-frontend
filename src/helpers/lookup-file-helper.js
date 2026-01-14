@@ -15,7 +15,7 @@ export function lookupImageUrl(item) {
     if (item.avatarImage === undefined || item.avatarImage === "") {
         return require("@/assets/images/no_image_available.jpeg");
     } else {
-        return FileService.image_url_high(item.avatarImage);
+        return FileService.image_url_medium(item.avatarImage);
     }
 }
 export function lookupImageUrlLazy(item) {

@@ -41,7 +41,7 @@
         <v-row class="ga-2">
           <v-col cols="12" class="d-flex flex-wrap ga-2">
             <v-btn
-                v-for="cat in categories"
+                v-for="cat in itemsCategComputed"
                 :key="cat.id"
                 :variant="selectedCatId === cat.id ? 'flat' : 'outlined'"
                 :color="selectedCatId === cat.id ? 'indigo' : undefined"
@@ -50,7 +50,7 @@
                 class="text-subtitle-2 px-4"
                 @click="selectedCatId = cat.id"
             >
-              {{ cat.name }}
+              {{ cat.description }}
               <span class="ml-2 font-weight-bold" :class="selectedCatId === cat.id ? 'text-white' : 'text-medium-emphasis'">
                 ({{ cat.count }})
               </span>
@@ -116,6 +116,7 @@
                         <div class="text-subtitle-2 mt-2 font-weight-bold text-orange">
                           Tahun {{ dataset.tahun }}
                         </div>
+                        <v-chip size="x-small" color="teal">Dataset</v-chip>
                       </v-card-text>
 
                       <v-spacer />
@@ -185,23 +186,7 @@ export default {
       pageSizes: [8, 15, 20],
       totalItems: 0,
       search: "",
-      selectedCatId: 'all',
-      mapsetItems: [
-
-      ],
-      categories: [
-        { id: 'all', name: 'All', color: 'primary', count: 37 },
-        // { id: 'admin', name: 'Administrasi', color: 'indigo', count: 18 },
-        // { id: 'rdtr', name: 'RDTR / RTRW', color: 'deep-purple', count: 12 },
-        // { id: 'infra', name: 'Infrastruktur', color: 'teal', count: 26 },
-        // { id: 'transport', name: 'Transportasi', color: 'blue', count: 15 },
-        // { id: 'util', name: 'Utilitas', color: 'cyan', count: 9 },
-        // { id: 'landuse', name: 'Tata Guna Lahan', color: 'green', count: 22 },
-        // { id: 'env', name: 'Lingkungan', color: 'light-green', count: 14 },
-        // { id: 'hydro', name: 'Hidrologi', color: 'blue-grey', count: 11 },
-        // { id: 'demografi', name: 'Sosial & Demografi', color: 'pink', count: 7 },
-        // { id: 'invest', name: 'Potensi Investasi', color: 'orange', count: 10 },
-      ],
+      selectedCatId: 'All',
       ftDatasets: [],
       isActiveDeepSearch: false,
 
@@ -222,6 +207,12 @@ export default {
     },
   },
   computed: {
+    itemsCategComputed(){
+      const itemAll = { id: 'All', description: 'All', count: this.totalItems }
+      // const base = (this.itemsCated || []).filter(item => item.id !== 'All')
+      // return [itemAll, ...base]
+      return [itemAll]
+    },
     currentUser() {
       return this.$store.state.auth.user;
     },

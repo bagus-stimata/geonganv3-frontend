@@ -260,8 +260,8 @@
             </v-col>
             <v-col cols="12" sm="12" md="6">
               <v-switch
-                  v-model="itemModified.showToMap"
-                  :label="itemModified.showToMap? 'Tampilkan Pada Peta Beranda': 'Jangan Tampilkan Pada Peta Beranda'"
+                  v-model="itemModified.showOnHome"
+                  :label="itemModified.showOnHome? 'Tampilkan Pada Beranda': 'Jangan Tampilkan Pada Beranda'"
                   density="compact"
                   hide-details
                   color="primary"

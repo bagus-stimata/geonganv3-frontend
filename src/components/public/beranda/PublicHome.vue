@@ -61,7 +61,7 @@
             <v-chip size="large" style="box-shadow: 0 3px 6px 0 rgba(255, 255, 255, 0.4)" color="blue-accent-4"  variant="elevated" class="text-white font-weight-bold"><v-icon class="mr-2 text-white">mdi-creation</v-icon> Konten Terpopuler</v-chip>
           </v-col>
         </v-row>
-        <v-sheet class="mx-auto bg-transparent" elevation="0" width="100%">
+        <v-sheet v-if="ftDatasetsFiltered.length > 0" class="mx-auto bg-transparent" elevation="0" width="100%">
           <v-slide-group
               v-model="model"
               class="pa-4 bg-transparent"
@@ -85,25 +85,70 @@
                           width="100%"
                           :height="isMobile ? (isSelected ? '146' : '130') : (isSelected ? '224' : '186')"
                           cover
-                          :src="lookupImageLazyUrl(dataset)"
+                          :src="lookupImageUrlDataset(dataset)"
                           class="rounded-xl"
                       />
                     </v-col>
                     <v-col cols="7" class="py-4 d-flex flex-column justify-space-between">
                       <div>
-                        <div class="text-subtitle-1 font-weight-bold text-indigo">
+                        <div class="text-subtitle-2 text-md-h6 font-weight-bold text-indigo">
                           {{ dataset.description }}
                         </div>
-                        <div class="text-subtitle-2 font-weight-light text-grey">
+                        <div class="text-caption mt-1 text-md-subtitle-1 font-weight-light text-grey">
                           {{ dataset.notes }}
                         </div>
-                        <div class="text-subtitle-2 mt-2 font-weight-bold text-orange">
+                        <div class="text-caption  text-md-subtitle-1 font-weight-bold text-orange">
                           Tahun {{ dataset.tahun }}
                         </div>
+                        <v-chip size="small" density="comfortable" color="teal" class="font-weight-bold mt-2">Dataset</v-chip>
                       </div>
                       <div class="d-flex flex-row">
                         <v-spacer />
-                        <v-btn size="small" class="font-weight-bold" variant="text" color="indigo">
+                        <v-btn  @click="goToPetaInteraktif(dataset, 'dataset')" size="small" class="font-weight-bold" variant="text" color="indigo">
+                          <span class="mr-2">Lihat Detail</span><v-icon>mdi-arrow-right</v-icon>
+                        </v-btn>
+                      </div>
+                    </v-col>
+                  </v-row>
+                </v-card>
+              </div>
+            </v-slide-group-item>
+            <v-slide-group-item
+                v-for="tematik in ftTematiksFiltered"
+                :key="tematik.id"
+                v-slot="{ isSelected, toggle }"
+            >
+              <div class="sg-item-wrap" @click="toggle">
+                <v-card
+                    class="sg-card rounded-xl pa-2"
+                    :class="{ 'sg-card--active': isSelected }"
+                >
+                  <v-row>
+                    <v-col cols="5">
+                      <v-img
+                          width="100%"
+                          :height="isMobile ? (isSelected ? '146' : '130') : (isSelected ? '224' : '186')"
+                          cover
+                          :src="lookupImageUrlTematik(tematik)"
+                          class="rounded-xl"
+                      />
+                    </v-col>
+                    <v-col cols="7" class="py-4 d-flex flex-column justify-space-between">
+                      <div>
+                        <div class="text-subtitle-2 text-md-h6 font-weight-bold text-indigo">
+                          {{ tematik.description }}
+                        </div>
+                        <div class="text-caption mt-1 text-md-subtitle-1 font-weight-light text-grey">
+                          {{ tematik.notes }}
+                        </div>
+                        <div class="text-caption text-md-subtitle-1 font-weight-bold">
+                          {{ tematik.categ }}
+                        </div>
+                        <v-chip size="small" density="comfortable" color="teal" class="font-weight-bold mt-2">Tematik</v-chip>
+                      </div>
+                      <div class="d-flex flex-row">
+                        <v-spacer />
+                        <v-btn  @click="goToPetaInteraktif(tematik, 'tematik')" size="small" class="font-weight-bold" variant="text" color="indigo">
                           <span class="mr-2">Lihat Detail</span><v-icon>mdi-arrow-right</v-icon>
                         </v-btn>
                       </div>
@@ -141,6 +186,8 @@ import FtDatasetService from "@/services/apiservices/ft-dataset-service";
 import FtDataset from "@/models/ft-dataset";
 import FileService from "@/services/apiservices/file-service";
 import FNewsService from "@/services/apiservices/f-news-service";
+import FtTematikService from "@/services/apiservices/ft-tematik-service";
+import FtTematik from "@/models/ft-tematik";
 
 export default {
   name: "PublicHome",
@@ -167,6 +214,7 @@ export default {
       backgroundImage: require("@/assets/images/background/homeimage.webp"),
       isActiveDeepSearch: false,
       ftDatasets: [new FtDataset()],
+      ftTematiks: [new FtTematik()],
       fnews: []
     };
   },
@@ -190,7 +238,10 @@ export default {
       return beritasModified;
     },
     ftDatasetsFiltered() {
-      return this.ftDatasets.filter(items => (items.showToMap === true));
+      return this.ftDatasets
+    },
+    ftTematiksFiltered() {
+      return this.ftTematiks
     },
     isSmAndDown() {
       // Vuetify 3: use $vuetify.display; fallback false to avoid runtime crash
@@ -202,6 +253,14 @@ export default {
     },
   },
   methods: {
+    goToPetaInteraktif(item, type) {
+      const listIds = [item.id];
+      if(type === 'dataset'){
+        this.$router.push("/public-peta-interaktif?itemIds=" + listIds.join(","));
+      }else if(type=== 'tematik'){
+        this.$router.push("/public-peta-interaktif?tematikId=" + item.id);
+      }
+    },
     fetchFNews(){
       FNewsService.getAllFNewsContainingPublic(this.currentPage, this.pageSize, "nomorUrut", "DESC", this.search).then(
           (response)=> {
@@ -212,21 +271,34 @@ export default {
           }
       )
     },
-    lookupImageLazyUrl(item){
+    lookupImageUrlDataset(item){
       if (item.avatarImage===undefined || item.avatarImage===""){
         return require('@/assets/images/basemap.webp')
       }else {
-        return FileService.image_url_verylow(item.avatarImage)
+        return FileService.image_url_medium(item.avatarImage)
+      }
+    },
+    lookupImageUrlTematik(item){
+      if (item.avatarImage===undefined || item.avatarImage===""){
+        return require('@/assets/images/peta-tematik.png')
+      }else {
+        return FileService.image_url_medium(item.avatarImage)
       }
     },
     fetchFtDataset() {
-      let deepSearch = this.isActiveDeepSearch
-      if(this.isActiveDeepSearch){
-        deepSearch = true
-      }
-      FtDatasetService.getAllFtDatasetPublic(deepSearch).then(
+      FtDatasetService.getAllFtDatasetShowOnHomeOnlyPublic(false).then(
           (response) => {
             this.ftDatasets = response.data;
+          },
+          (error) => {
+            console.log(error);
+          }
+      );
+    },
+    fetchFtTematik() {
+      FtTematikService.getAllFtTematikShowOnHomeOnly().then(
+          (response) => {
+            this.ftTematiks = response.data;
           },
           (error) => {
             console.log(error);
@@ -252,6 +324,7 @@ export default {
   },
   mounted() {
     this.fetchFtDataset()
+    this.fetchFtTematik()
     this.fetchFNews()
     this.model = 1;
     this.cycleTimer = window.setInterval(() => {

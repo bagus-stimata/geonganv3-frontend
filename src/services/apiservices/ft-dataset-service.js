@@ -29,6 +29,12 @@ class FtDatasetService {
             { headers: authHeader() }
         );
     }
+    getAllFtDatasetShowOnHomeOnlyPublic(includeGeojson = false) {
+        return axios.get(
+            API_URL + `public/getAllFtDatasetShowOnHomeOnly?includeGeojson=${includeGeojson}`,
+            { headers: authHeader() }
+        );
+    }
 
 
     /**

@@ -39,7 +39,7 @@
         <v-divider class="mt-4 text-white"></v-divider>
 
         <v-list-item class="text-white text-body-2 font-weight-medium" to="/dashboard" link prepend-icon="mdi-monitor" value="dashboard">Dashboard</v-list-item>
-        <v-list-item class="text-white text-body-2 font-weight-medium" to="/public-peta-persebaran" link prepend-icon="mdi-map" value="peta">PETA</v-list-item>
+        <v-list-item class="text-white text-body-2 font-weight-medium" to="/public-peta-interaktif" link prepend-icon="mdi-map" value="peta">PETA</v-list-item>
 
         <v-list-group
             :value="nav_drawer.title"

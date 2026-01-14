@@ -95,7 +95,7 @@
                           {{ dataset.description }}
                         </div>
                         <div class="text-caption mt-1 text-md-subtitle-1 font-weight-light text-grey">
-                          {{ dataset.notes }}
+                          {{ truncateNotes(dataset.notes) }}
                         </div>
                         <div class="text-caption  text-md-subtitle-1 font-weight-bold text-orange">
                           Tahun {{ dataset.tahun }}
@@ -139,7 +139,7 @@
                           {{ tematik.description }}
                         </div>
                         <div class="text-caption mt-1 text-md-subtitle-1 font-weight-light text-grey">
-                          {{ tematik.notes }}
+                          {{ truncateNotes(tematik.notes) }}
                         </div>
                         <div class="text-caption text-md-subtitle-1 font-weight-bold">
                           {{ tematik.categ }}
@@ -183,11 +183,9 @@ import HomePetaInteraktif from "@/components/public/beranda/HomePetaTematik.vue"
 import HomeNews from "@/components/public/beranda/HomeNews.vue";
 import HomeSearchResult from "@/components/public/beranda/HomeSearchResult.vue";
 import FtDatasetService from "@/services/apiservices/ft-dataset-service";
-import FtDataset from "@/models/ft-dataset";
 import FileService from "@/services/apiservices/file-service";
 import FNewsService from "@/services/apiservices/f-news-service";
 import FtTematikService from "@/services/apiservices/ft-tematik-service";
-import FtTematik from "@/models/ft-tematik";
 
 export default {
   name: "PublicHome",
@@ -213,8 +211,8 @@ export default {
       itemsFDivision: [],
       backgroundImage: require("@/assets/images/background/homeimage.webp"),
       isActiveDeepSearch: false,
-      ftDatasets: [new FtDataset()],
-      ftTematiks: [new FtTematik()],
+      ftDatasets: [],
+      ftTematiks: [],
       fnews: []
     };
   },
@@ -321,6 +319,11 @@ export default {
     activateDeepSearchGeojson(){
       this.isActiveDeepSearch = !this.isActiveDeepSearch
     },
+    truncateNotes(notes) {
+      if (!notes) return "";
+      return notes.length > 150 ? notes.substring(0, 150) + "…" : notes;
+    },
+
   },
   mounted() {
     this.fetchFtDataset()

@@ -111,7 +111,7 @@
                           {{ dataset.description }}
                         </div>
                         <div class="text-subtitle-2 font-weight-light text-grey">
-                          {{ dataset.notes }}
+                          {{ truncateNotes(dataset.notes) }}
                         </div>
                         <div class="text-subtitle-2 mt-2 font-weight-bold text-orange">
                           Tahun {{ dataset.tahun }}
@@ -279,6 +279,11 @@ export default {
     activateDeepSearchGeojson(){
       this.isActiveDeepSearch = !this.isActiveDeepSearch
     },
+    truncateNotes(notes) {
+      if (!notes) return "";
+      return notes.length > 150 ? notes.substring(0, 150) + "…" : notes;
+    },
+
   },
   mounted() {
 

@@ -285,8 +285,8 @@
           </v-col>
           <v-col cols="12" sm="12" md="8">
             <div>
-              <span class="font-weight-bold">{{ ftTematik.description }}</span>
-              <span class="ml-1 text-caption text-orange ">{{ ftTematik.tahun }}</span>
+              <span class="font-weight-bold text-subtitle-1">{{ ftTematik.description }}</span>
+              <v-chip size="small" color="pink" density="compact" class="ml-2 text-caption text-orange ">{{ ftTematik.categ }}</v-chip>
             </div>
             <div class="mt-3 text-caption">{{ ftTematik.notes }}</div>
           </v-col>

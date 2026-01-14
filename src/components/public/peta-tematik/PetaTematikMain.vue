@@ -68,8 +68,8 @@
                 <v-col
                     v-for="tematik in ftTematiksFiltered"
                     :key="tematik.id"
-                    sm="6"
-                    md="4"
+                    sm="4"
+                    md="6"
                     cols="12"
                     xl="2"
                     class="d-flex justify-center mb-2 pa-2"
@@ -94,7 +94,7 @@
                           {{ tematik.description }}
                         </div>
                         <div class="text-subtitle-2 font-weight-light text-grey">
-                          {{ tematik.notes }}
+                          {{ truncateNotes(tematik.notes) }}
                         </div>
                         <div class="text-subtitle-2 font-weight-black">
                           {{ tematik.categ }}
@@ -287,6 +287,12 @@ export default {
           }
       )
     },
+
+    truncateNotes(notes) {
+      if (!notes) return "";
+      return notes.length > 150 ? notes.substring(0, 150) + "…" : notes;
+    },
+
   },
   mounted() {
     this.fetchTematik()

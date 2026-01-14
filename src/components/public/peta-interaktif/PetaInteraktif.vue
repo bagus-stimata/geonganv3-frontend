@@ -277,6 +277,7 @@
           <v-col cols="12" sm="12" md="4">
             <v-img
                 :src="lookupImageMediumUrl(ftTematik)"
+                :lazy-src="lookupImageLazyUrl(ftTematik)"
                 height="220"
                 cover
             >
@@ -1436,6 +1437,13 @@ export default {
         return require('@/assets/images/peta-tematik.png')
       }else {
         return FileService.image_url_medium(item.avatarImage)
+      }
+    },
+    lookupImageLazyUrl(item){
+      if (item.avatarImage===undefined || item.avatarImage===""){
+        return require('@/assets/images/peta-tematik.png')
+      }else {
+        return FileService.image_url_verylow(item.avatarImage)
       }
     },
 

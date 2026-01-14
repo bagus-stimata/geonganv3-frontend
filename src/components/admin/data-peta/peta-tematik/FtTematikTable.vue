@@ -113,7 +113,7 @@
 
       <template v-slot:[`item.notes`]="{ item }">
         <div class="text-caption">
-          {{ item.notes }}
+          {{ truncateNotes(item.notes) }}
         </div>
       </template>
 
@@ -321,7 +321,10 @@ export default {
     showFilterDialog() {
       this.showFilter = !this.showFilter;
     },
-
+    truncateNotes(notes) {
+      if (!notes) return "";
+      return notes.length > 50 ? notes.substring(0, 50) + "…" : notes;
+    },
     runExtendedFilter() {
       const extendedFilter = new DataFilter();
       extendedFilter.fdivisionIds = this.filterFdivisions;

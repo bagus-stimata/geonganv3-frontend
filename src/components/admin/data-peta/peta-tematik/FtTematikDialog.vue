@@ -221,48 +221,73 @@
                 </v-btn>
               </v-col>
             </v-row>
+            <v-row v-if="listFtTematikDataset">
+              <v-col cols="12">
+                <v-card
+                    elevation="0"
+                    class="mt-3 px-1 flex-grow-1 overflow-y-auto"
+                    style="min-height: 0;"
+                >
+                  <v-row v-if="listFtTematikDataset.length === 0">
+                    <v-col>
+                      <div class="text-center text-grey my-3 text-subtitle-2">Belum ada dataset terpilih</div>
+                    </v-col>
+                  </v-row>
 
+                 <v-row v-else no-gutters class="ga-2">
+                    <v-col cols="12" v-for="dataset in listFtTematikDataset" :key="dataset.id">
+                      <v-card
+                          elevation="0"
+                          class="pa-2 border-thin border-opacity-25 rounded-lg"
+                          width="100%"
+                          style="cursor: pointer;"
+                      >
+                        <v-row no-gutters class="align-center">
+                          <v-col cols="3" class="pe-2">
+                            <v-img
+                                width="100%"
+                                height="120"
+                                class="rounded"
+                                cover
+                                :src="lookupImageUrlLazy(dataset)"
+                            />
+                          </v-col>
 
-            <v-table density="compact" class="mt-3">
-              <thead>
-              <tr>
-                <th style="width: 56px;">#</th>
-                <th>Dataset</th>
-                <th style="width: 140px;">Aksi</th>
-              </tr>
-              </thead>
-              <tbody>
-              <tr v-if="!listFtTematikDataset || !listFtTematikDataset.length">
-                <td colspan="3" class="text-caption text-grey pa-3">
-                  Belum ada dataset terkait.
-                </td>
-              </tr>
+                          <v-col cols="9">
+                            <div class="d-flex align-center">
+                              <div class="flex-grow-1">
+                                <div class="text-caption font-weight-bold text-indigo text-truncate">
+                                  {{ dataset.description }}
+                                </div>
+                                <div class="text-blue">{{ dataset.tahun }}</div>
+                                <div
+                                    style="font-size: 11px !important"
+                                    class="text-caption font-weight-light text-grey-darken-4 text-truncate"
+                                >
+                                  {{ dataset.notes }}
+                                </div>
+                              </div>
 
-              <tr v-for="(row, idx) in listFtTematikDataset" :key="row.id || idx">
-                <td>{{ idx + 1 }}</td>
-                <td>
-                  <div class="text-subtitle-2 font-weight-bold">
-                    {{ lookupDatasetName(row.ftDatasetBean) }}
-                  </div>
-                  <div class="text-caption font-weight-light" v-if="row.ftDatasetBean">
-                    *ID: {{ row.ftDatasetBean }}
-                  </div>
-                </td>
-                <td>
-                  <v-btn
-                      icon
-                      density="comfortable"
-                      variant="text"
-                      color="red"
-                      :disabled="!(row.id && row.id > 0)"
-                      @click="deleteDatasetRelation(row)"
-                  >
-                    <v-icon>mdi-delete</v-icon>
-                  </v-btn>
-                </td>
-              </tr>
-              </tbody>
-            </v-table>
+                              <v-spacer />
+
+                              <v-btn
+                                icon
+                                density="comfortable"
+                                variant="text"
+                                color="red"
+                                @click.stop="removeTematikDataset(dataset)"
+                              >
+                                <v-icon>mdi-delete</v-icon>
+                              </v-btn>
+                            </div>
+                          </v-col>
+                        </v-row>
+                      </v-card>
+                    </v-col>
+                  </v-row>
+                </v-card>
+              </v-col>
+            </v-row>
           </v-card-text>
 
           <v-divider />
@@ -378,7 +403,7 @@
             <!-- LEFT: Katalog -->
             <v-col
               cols="12"
-              md="5"
+              md="6"
               class="order-1 order-md-1 d-flex flex-column"
               style="min-height: 0;"
             >
@@ -470,12 +495,13 @@
                   </v-col>
                 </v-row>
               </v-card>
+
             </v-col>
 
             <!-- RIGHT: Selected -->
             <v-col
               cols="12"
-              md="7"
+              md="5"
               class="order-2 order-md-2 d-flex flex-column"
               style="min-height: 0;"
             >
@@ -490,10 +516,6 @@
                 >
                   {{ itemsMapsetSelected.length }} item
                 </v-chip>
-              </div>
-
-              <div class="text-caption text-grey mt-1 flex-grow-0">
-                Klik item di kiri untuk select/unselect. Drag handle siap kalo nanti mau reorder.
               </div>
 
               <v-card
@@ -520,9 +542,6 @@
                       <div class="ms-3">
                         <div class="text-subtitle-2 font-weight-bold text-indigo text-truncate" style="max-width: 42vw;">
                           {{ itemSelected.description }}
-                        </div>
-                        <div class="text-caption text-grey-darken-1 text-truncate" style="max-width: 42vw;">
-                          {{ itemSelected.notes }}
                         </div>
                       </div>
                       <v-spacer />
@@ -557,14 +576,16 @@
                   color="primary"
                   style="text-transform:none;"
                   :disabled="!itemsMapsetSelected || itemsMapsetSelected.length === 0"
-                  @click="closeDialogPickDataset"
+                  @click="tambahkanPilihanDataset"
                 >
-                  Selesai
+                  Tambahkan Pilihan
                 </v-btn>
               </div>
             </v-col>
+
           </v-row>
         </v-card-text>
+
       </v-card>
     </v-dialog>
 
@@ -622,6 +643,7 @@ export default {
       itemModified: new FtTematik(),
 
       listFtTematikDataset: [],
+      listFtTematikDatasetDefault: [],
 
       // Pick Dataset dialog state
       dialogPickDataset: false,
@@ -641,35 +663,23 @@ export default {
   },
   computed: {
     isItemModified() {
+      // compare main form
       const a = JSON.stringify(this.itemDefault || {});
       const b = JSON.stringify(this.itemModified || {});
-      return a !== b;
+      if (a !== b) {
+        return true;
+      }
+      // compare detail list (dataset terkait)
+      const d1 = JSON.stringify(this.listFtTematikDatasetDefault || []);
+      const d2 = JSON.stringify(this.listFtTematikDataset || []);
+      return d1 !== d2;
     },
     ftDatasetsFiltered() {
       return this.ftDatasets;
     },
 
-    pickedDatasetsLabel() {
-      if (!this.itemsDatasetPicked || !this.itemsDatasetPicked.length) return "Klik untuk memilih dataset";
-      const names = this.itemsDatasetPicked
-        .slice(0, 3)
-        .map((x) => x?.description || x?.kode1 || `#${x?.id}`)
-        .filter(Boolean);
-      const more = this.itemsDatasetPicked.length - names.length;
-      return more > 0 ? `${names.join(", ")} (+${more} lagi)` : names.join(", ");
-    },
 
-    filteredDatasets() {
-      const list = Array.isArray(this.itemsFtDataset) ? this.itemsFtDataset : [];
-      const q = (this.pickDatasetSearch || "").toLowerCase().trim();
-      if (!q) return list;
-      return list.filter((x) => {
-        const id = String(x?.id ?? "");
-        const kode1 = String(x?.kode1 ?? "").toLowerCase();
-        const desc = String(x?.description ?? "").toLowerCase();
-        return id.includes(q) || kode1.includes(q) || desc.includes(q);
-      });
-    },
+
   },
   methods: {
     // Public API for parent
@@ -689,6 +699,7 @@ export default {
       this.itemModified = new FtTematik();
       this.itemDefault = JSON.parse(JSON.stringify(this.itemModified));
       this.listFtTematikDataset = [];
+      this.listFtTematikDatasetDefault = [];
     },
 
     async initializeEditMode(id) {
@@ -736,6 +747,10 @@ export default {
     closeDialogPickDataset() {
         this.dialogPickupMapsetShow = false;
     },
+    tambahkanPilihanDataset() {
+      this.listFtTematikDataset = this.itemsMapsetSelected
+      this.dialogPickupMapsetShow = false;
+    },
 
     passingEventFromCloseConfirm(value) {
       if (value === "OKE") this.dialogShow = false;
@@ -752,12 +767,27 @@ export default {
         this.dialogLoading = true;
 
         const payload = this.buildPayload();
+        const listFtTematikDataset = (this.listFtTematikDataset || []).map((it) => {
+          const newIt = new FtTematikDataset();
+          newIt.id = 0
+          newIt.ftTematikBean = payload.id;
+          newIt.ftDatasetBean = it.id
+          return newIt;
+        });
+
 
         if (this.formMode === FormMode.EDIT_FORM && payload.id > 0) {
           await FtTematikService.updateFtTematik(payload, false);
+
+          await FtTematikDatasetService.deleteFtTematikDatasetByFtTematik(payload.id)
+          await FtTematikDatasetService.createFtTematikDatasetMultiple(listFtTematikDataset)
+
         } else {
           const resp = await FtTematikService.createFtTematik(payload);
           if (resp?.data?.id) this.itemModified.id = resp.data.id;
+
+          await FtTematikDatasetService.createFtTematikDatasetMultiple(this.listFtTematikDataset)
+
           this.$emit("update:formMode", FormMode.EDIT_FORM);
         }
 
@@ -813,6 +843,7 @@ export default {
             x.created ? new Date(x.created) : new Date(),
             x.modifiedBy ?? ""
         ));
+        this.listFtTematikDatasetDefault = JSON.parse(JSON.stringify(this.listFtTematikDataset || []));
       } catch (e) {
         console.error(e);
         this.listFtTematikDataset = [];
@@ -832,105 +863,9 @@ export default {
       this.dialogPickDataset = false;
     },
 
-    clearPickedDatasets() {
-      this.itemsDatasetPicked = [];
-    },
-
     isDatasetPicked(id) {
       const v = Number(id || 0);
       return (this.itemsDatasetPicked || []).some((it) => Number(it?.id) === v);
-    },
-
-    toggleDatasetPick(dataset, forceValue) {
-      if (!dataset || !dataset.id) return;
-
-      const exists = this.isDatasetPicked(dataset.id);
-      const shouldSelect = (typeof forceValue === 'boolean') ? forceValue : !exists;
-
-      if (shouldSelect && !exists) {
-        this.itemsDatasetPicked.push({ ...dataset });
-      }
-
-      if (!shouldSelect && exists) {
-        this.itemsDatasetPicked = this.itemsDatasetPicked.filter((it) => Number(it?.id) !== Number(dataset.id));
-      }
-    },
-
-    isAlreadyLinkedDataset(datasetId) {
-      const id = Number(datasetId || 0);
-      return (this.listFtTematikDataset || []).some((x) => Number(x?.ftDatasetBean || 0) === id);
-    },
-
-    async applyPickedDatasets() {
-      try {
-        if (!(this.itemModified?.id > 0)) {
-          this.snackBarMessage = "Simpan Tematik dulu sebelum menambah detail";
-          this.snackbar = true;
-          return;
-        }
-
-        const pickedIds = (this.itemsDatasetPicked || [])
-          .map((x) => Number(x?.id || 0))
-          .filter((x) => x > 0);
-
-        if (!pickedIds.length) return;
-
-        // Create only the ones not yet linked
-        const existingIds = (this.listFtTematikDataset || [])
-          .map((x) => Number(x?.ftDatasetBean || 0))
-          .filter((x) => x > 0);
-
-        const toCreateIds = pickedIds.filter((id) => !existingIds.includes(id));
-
-        if (!toCreateIds.length) {
-          this.snackBarMessage = "Semua dataset yang dipilih sudah ditautkan";
-          this.snackbar = true;
-          this.dialogPickDataset = false;
-          return;
-        }
-
-        this.dialogLoading = true;
-
-        const payload = toCreateIds.map((id) => ({
-          id: 0,
-          ftTematikBean: this.itemModified.id,
-          ftDatasetBean: id,
-          created: new Date(),
-          modifiedBy: "",
-        }));
-
-        await FtTematikDatasetService.createFtTematikDatasetMultiple(payload);
-
-        await this.reloadDetails();
-
-        this.dialogPickDataset = false;
-        this.snackBarMessage = `Dataset ditambahkan: ${toCreateIds.length}`;
-        this.snackbar = true;
-      } catch (e) {
-        console.error(e);
-        this.formDialogOptions.errorMessage = e?.response?.data?.message || "Gagal menambah dataset";
-      } finally {
-        this.dialogLoading = false;
-      }
-    },
-
-    async deleteDatasetRelation(row) {
-      try {
-        if (!(row?.id > 0)) return;
-
-        this.dialogLoading = true;
-        await FtTematikDatasetService.deleteFtTematikDataset(row.id);
-        await this.reloadDetails();
-
-        this.snackBarMessage = "Dataset dihapus";
-        this.snackbar = true;
-      } catch (e) {
-        console.error(e);
-        this.formDialogOptions.errorMessage =
-            e?.response?.data?.message || "Gagal menghapus dataset";
-      } finally {
-        this.dialogLoading = false;
-      }
     },
 
     // Avatar upload (no map)
@@ -981,13 +916,9 @@ export default {
       extendedFilter.sortBy = "id";
       extendedFilter.order = "DESC";
       extendedFilter.search = this.search;
-      let deepSearch = this.isActiveDeepSearch
-      if(this.isActiveDeepSearch){
-        deepSearch = true
-      }
       FtDatasetService.getPostAllFtDatasetContainingExtPublic(
           extendedFilter,
-          deepSearch
+          false
       ).then(
           (response) => {
             const { items, totalPages, totalItems } = response.data;
@@ -1018,6 +949,14 @@ export default {
       if (!shouldSelect && exists) {
         this.itemsMapsetSelected = this.itemsMapsetSelected.filter((it) => it && it.id !== dataset.id);
       }
+    },
+
+    removeTematikDataset(dataset) {
+      if (!dataset) return;
+      const id = dataset.id;
+      this.listFtTematikDataset = (this.listFtTematikDataset || []).filter(
+        (it) => it && it.id !== id
+      );
     },
   },
   mounted() {

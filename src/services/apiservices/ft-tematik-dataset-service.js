@@ -40,7 +40,11 @@ class FtTematikDatasetService {
             data: itemIds
         });
     }
-
+    deleteFtTematikDatasetByFtTematik(ftTematikBean){
+        return axios.delete(API_URL + `deleteFtTematikDatasetByFtTematik/${ftTematikBean}`, {
+            headers: authHeader()
+        });
+    }
     getAllFtTematikDatasetByFtTematik(ftTematikBean){
         return axios.get(API_URL + `getAllFtTematikDatasetByFtTematik/${ftTematikBean}`, { headers: authHeader() });
     }

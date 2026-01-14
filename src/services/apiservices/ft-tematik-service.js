@@ -60,8 +60,7 @@ class FtTematikService {
             headers:  authHeader(),
             data: itemIds
         });
-
-
     }
+
 }
 export default new FtTematikService()

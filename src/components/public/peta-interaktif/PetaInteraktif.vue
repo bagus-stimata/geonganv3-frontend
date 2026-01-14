@@ -47,7 +47,7 @@
                   @blur="searchAndHighlight(searchText)"
                   append-inner-icon="mdi-magnify"
                   density="compact"
-                  label="Filter"
+                  label="Cari pada peta (highlight)"
                   hide-details
                   class="rounded-lg text-caption border-opacity-25 mt-2 mx-2"
                   variant="outlined"
@@ -55,7 +55,7 @@
             </v-expand-transition>
           </v-card-title>
           <v-expand-transition v-show="showMapsetController === true">
-            <v-card class="bg-white mt-3 py-4 rounded-lg" height="500px" style="overflow-y: auto;">
+            <v-card class="bg-white mt-2 py-4 rounded-lg" min-height="370px" style="overflow-y: auto;">
               <v-card-text>
                 <div class="text-subtitle-1 mb-1 font-weight-bold d-flex flex-row align-center">
                   <div>Mapset Selected</div>
@@ -99,7 +99,7 @@
             </v-card>
           </v-expand-transition>
 
-          <v-expand-transition v-show="showMapsetController === true">
+          <v-expand-transition>
             <v-card-text class="bg-white mt-3 py-4 rounded-lg">
               <div class="text-subtitle-1 mb-2 font-weight-bold">Alat Peta</div>
               <v-row no-gutters>
@@ -114,8 +114,8 @@
                       <v-tooltip
                           activator="parent"
                           location="bottom"
-                      >Add Marker</v-tooltip>
-                      <v-icon size="large" :class="{ 'text-white': isHovering }">mdi-map-marker</v-icon>
+                      >Aktifkan Tooltip pada Peta</v-tooltip>
+                      <v-icon size="large" :class="{ 'text-white': isHovering }">mdi-tooltip-outline</v-icon>
                     </v-btn>
                   </v-hover>
                 </v-col>

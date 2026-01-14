@@ -5,9 +5,9 @@
         Hasil Pencarian
       </div>
       <div>
-        <v-row v-if="ftDatasetsFiltered.length === 0">
+        <v-row v-if="ftDatasetsFiltered.length === 0 && ftTematiksFiltered.length === 0">
           <v-col>
-            <div class="text-center text-grey my-6">Dataset not found</div>
+            <div class="text-center text-grey my-6">No data found</div>
           </v-col>
         </v-row>
         <v-row
@@ -22,7 +22,7 @@
               sm="6"
               md="6"
               cols="12"
-              xl="2"
+              xl="4"
               class="d-flex justify-center mb-2 pa-2"
           >
             <v-hover v-slot="{ isHovering, props }">
@@ -36,9 +36,9 @@
                   <v-col cols="4">
                     <v-img
                         width="100%"
-                        height="124"
+                        height="140"
                         cover
-                        :src="lookupImageUrl(dataset)"
+                        :src="lookupImageUrlDataset(dataset)"
                         class="rounded-lg"
                     />
                   </v-col>
@@ -50,14 +50,64 @@
                       <div class="text-subtitle-2 font-weight-light text-grey">
                         {{ dataset.notes }}
                       </div>
-                      <div class="text-caption mt-2 font-weight-bold text-orange">
+                      <div class="text-caption font-weight-bold text-orange">
                         Tahun {{ dataset.tahun }}
                       </div>
+                      <v-chip size="x-small" color="teal">Dataset</v-chip>
                     </div>
                     <div class="d-flex flex-row">
-                      <v-chip size="x-small" color="teal">Dataset</v-chip>
                       <v-spacer />
-                      <v-btn  @click="goToPetaInteraktif(dataset)"  size="small" class="font-weight-bold" variant="text" color="indigo" style="text-transform: none;">
+                      <v-btn  @click="goToPetaInteraktif(dataset, 'dataset')"  size="small" class="font-weight-bold" variant="text" color="indigo" style="text-transform: none;">
+                        <span class="mr-2">Lihat Detail</span><v-icon>mdi-arrow-right</v-icon>
+                      </v-btn>
+                    </div>
+                  </v-col>
+                </v-row>
+              </v-card>
+            </v-hover>
+          </v-col>
+          <v-col
+              v-for="tematik in ftTematiksFiltered"
+              :key="tematik.id"
+              sm="6"
+              md="6"
+              cols="12"
+              xl="4"
+              class="d-flex justify-center mb-2 pa-2"
+          >
+            <v-hover v-slot="{ isHovering, props }">
+              <v-card
+                  v-bind="props"
+                  width="100%"
+                  :style="isHovering ? 'box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3) !important;' : 'box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2) !important;'"
+                  class="rounded-lg"
+              >
+                <v-row>
+                  <v-col cols="4">
+                    <v-img
+                        width="100%"
+                        height="140"
+                        cover
+                        :src="lookupImageUrlTematik(tematik)"
+                        class="rounded-lg"
+                    />
+                  </v-col>
+                  <v-col cols="8" class="py-5 pe-4 d-flex flex-column justify-space-between">
+                    <div>
+                      <div class="text-subtitle-1 font-weight-bold text-indigo">
+                        {{ tematik.description }}
+                      </div>
+                      <div class="text-subtitle-2 font-weight-light text-grey">
+                        {{ tematik.notes }}
+                      </div>
+                      <div class="text-caption font-weight-black">
+                        {{ tematik.categ }}
+                      </div>
+                      <v-chip size="x-small" color="pink">Tematik</v-chip>
+                    </div>
+                    <div class="d-flex flex-row">
+                      <v-spacer />
+                      <v-btn  @click="goToPetaInteraktif(tematik, 'tematik')"  size="small" class="font-weight-bold" variant="text" color="indigo" style="text-transform: none;">
                         <span class="mr-2">Lihat Detail</span><v-icon>mdi-arrow-right</v-icon>
                       </v-btn>
                     </div>
@@ -69,15 +119,7 @@
         </v-row>
       </div>
       <v-row class="mt-3" justify="center" align="center">
-        <v-col class="justify-start" cols="4" md="2" sm="2">
-          <v-select
-              v-model="pageSize"
-              :items="pageSizes"
-              label="Items per page"
-              variant="outlined"
-              density="compact"
-          ></v-select>
-        </v-col>
+        <v-spacer></v-spacer>
         <v-col cols="8" md="10" sm="8" class="d-flex flex-row justify-end">
           <v-pagination
               v-model="currentPage"
@@ -98,6 +140,8 @@ import FtDataset from "@/models/ft-dataset";
 import FDayaDukungFilter from "@/models/payload/f-dayadukung-filter";
 import FtDatasetService from "@/services/apiservices/ft-dataset-service";
 import FileService from "@/services/apiservices/file-service";
+import FtTematikService from "@/services/apiservices/ft-tematik-service";
+import FtTematik from "@/models/ft-tematik";
 
 export default {
   name: "HomeSearch",
@@ -107,24 +151,24 @@ export default {
       currentPage: 1,
       totalTablePages: 1,
       totalPaginationPages: 1,
-      pageSize: 8,
+      pageSize: 4,
       pageSizes: [8, 16],
-      totalItems: 0,
       search: "",
       ftDatasets: [new FtDataset()],
+      ftTematiks: [new FtTematik()],
     };
   },
   watch: {
     currentPage(newPage) {
       if (newPage) {
-        this.fetchFtDataset();
+        this.fetchData();
       }
     },
     pageSize() {
       const refreshData = this.currentPage === 1;
       this.currentPage = 1;
       if (refreshData) {
-        this.fetchFtDataset();
+        this.fetchData();
       }
     },
   },
@@ -132,58 +176,77 @@ export default {
     ftDatasetsFiltered() {
       return this.ftDatasets;
     },
+    ftTematiksFiltered() {
+      return this.ftTematiks;
+    },
   },
   methods: {
-    goToPetaInteraktif(item) {
+    goToPetaInteraktif(item, type) {
       const listIds = [item.id];
-      this.$router.push("/public-peta-interaktif?itemIds=" + listIds.join(","));
+      if(type === 'dataset'){
+        this.$router.push("/public-peta-interaktif?itemIds=" + listIds.join(","));
+      }else if(type=== 'tematik'){
+        this.$router.push("/public-peta-interaktif?tematikId=" + item.id);
+      }
     },
     runExtendedFilter(search) {
-      this.ftDatasets = []
-      this.search = search
+      if (typeof search === "string") {
+        this.search = search.trim();
+        this.currentPage = 1;
+      }
       const extendedFilter = new FDayaDukungFilter();
       extendedFilter.fdivisionIds = [];
-      extendedFilter.pageNo = this.currentPage;
+      extendedFilter.pageNo = this.currentPage; // sesuaikan kalau BE pakai 0-based
       extendedFilter.pageSize = this.pageSize;
       extendedFilter.sortBy = "id";
       extendedFilter.order = "DESC";
-      extendedFilter.search = this.search;
+      extendedFilter.search = this.search || "";
       extendedFilter.city = "";
-      let deepSearch = this.isActiveDeepSearch
-      if(this.isActiveDeepSearch){
-        deepSearch = true
-      }
-      // FtDatasetService.getAllFtDatasetPublic(
-      //     deepSearch
-      // ).then(
-      //     (response) => {
-      //       this.ftDatasets = response.data;
-      //     },
-      //     (error) => {
-      //       console.log(error);
-      //     }
-      // );
-      FtDatasetService.getPostAllFtDatasetContainingExtPublic(
-          extendedFilter,
-          deepSearch
-      ).then(
-          (response) => {
-            const { items, totalPages, totalItems } = response.data;
-            this.ftDatasets = items;
-            this.totalPaginationPages = totalPages;
-            this.totalItems = totalItems;
-          },
-          (error) => {
-            console.log(error);
-          }
-      );
+
+      const deepSearch = !!this.isActiveDeepSearch;
+
+      // Clone filter supaya nggak ke-mutate silang di service
+      const filterDataset = { ...extendedFilter };
+      const filterTematik = { ...extendedFilter };
+
+      // Optional: clear dulu biar UX keliatan "refresh"
+      this.ftDatasets = [];
+      this.ftTematiks = [];
+
+      Promise.all([
+        FtDatasetService.getPostAllFtDatasetContainingExtPublic(filterDataset, deepSearch),
+        FtTematikService.getPostAllFtTematikContainingExtPublic(filterTematik),
+      ])
+          .then(([resDataset, resTematik]) => {
+            const { items: itemsDataset, totalPages: tpDatasetRaw } = (resDataset && resDataset.data) || {};
+            const { items: itemsTematik, totalPages: tpTematikRaw } = (resTematik && resTematik.data) || {};
+
+            this.ftDatasets = Array.isArray(itemsDataset) ? itemsDataset : [];
+            this.ftTematiks = Array.isArray(itemsTematik) ? itemsTematik : [];
+
+            const safeDatasetPages = Number.isFinite(Number(tpDatasetRaw)) ? Number(tpDatasetRaw) : 0;
+            const safeTematikPages = Number.isFinite(Number(tpTematikRaw)) ? Number(tpTematikRaw) : 0;
+
+            const maxPages = Math.max(safeDatasetPages, safeTematikPages, 1);
+            this.totalPaginationPages = maxPages;
+          })
+          .catch((err) => {
+            console.log(err);
+          });
     },
-    fetchFtDataset() {
+    fetchData() {
       this.runExtendedFilter();
     },
-    lookupImageUrl(item){
+    lookupImageUrlDataset(item){
       if (item.avatarImage===undefined || item.avatarImage===""){
         return require('@/assets/images/basemap.webp')
+      }else {
+        return FileService.image_url_medium(item.avatarImage)
+      }
+    },
+    lookupImageUrlTematik(item){
+      if (item.avatarImage===undefined || item.avatarImage===""){
+        return require('@/assets/images/peta-tematik.png')
       }else {
         return FileService.image_url_medium(item.avatarImage)
       }

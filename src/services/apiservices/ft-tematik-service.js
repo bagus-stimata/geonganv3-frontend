@@ -21,6 +21,9 @@ class FtTematikService {
     getAllFtTematikContainingPublic(page, pageSize, sortBy, order, search){
         return axios.get(API_URL + `public/getAllFtTematikContaining?page=${page}&pageSize=${pageSize}&sortBy=${sortBy}&order=${order}&search=${search}`, { headers: authHeader() });
     }
+    getAllFtTematikShowOnHomeOnly(){
+        return axios.get(API_URL + `public/getAllFtTematikShowOnHomeOnly`, { headers: authHeader() });
+    }
     getPostAllFtTematikContainingExt(item) {
         return axios.post(
             API_URL + `getPostAllFtTematikContainingExt`,

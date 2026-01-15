@@ -999,7 +999,7 @@ export default {
         if (matches.length === 1) {
           // Kalau cuma 1 hasil, fokus ke titik / area itu
           const center = bounds.getCenter();
-          const targetZoom = map.getZoom() < 17 ? 17 : map.getZoom();
+          const targetZoom = map.getZoom() < 16 ? 16 : map.getZoom();
           map.setView(center, targetZoom, { animate: true });
         } else {
           // Kalau banyak hasil, fit semua

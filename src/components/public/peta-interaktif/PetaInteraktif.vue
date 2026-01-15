@@ -99,11 +99,11 @@
             </v-card>
           </v-expand-transition>
 
-          <v-expand-transition>
+          <v-expand-transition v-show="showMapsetController === true">
             <v-card-text class="bg-white mt-3 py-4 rounded-lg">
               <div class="text-subtitle-1 mb-2 font-weight-bold">Alat Peta</div>
               <v-row no-gutters>
-                <v-col cols="4" class="px-1">
+                <v-col cols="4" md="4" class="px-1">
                   <v-hover v-slot="{ isHovering, props }">
                     <v-btn
                         v-bind="props"
@@ -119,7 +119,7 @@
                     </v-btn>
                   </v-hover>
                 </v-col>
-                <v-col cols="4" class="px-1">
+                <v-col cols="4" md="4" class="px-1">
                   <v-hover v-slot="{ isHovering, props }">
                     <v-btn
                         v-bind="props"
@@ -130,12 +130,12 @@
                       <v-tooltip
                           activator="parent"
                           location="bottom"
-                      >Draw Line</v-tooltip>
-                      <v-icon size="large" :class="{ 'text-white': isHovering }">mdi-vector-polyline</v-icon>
+                      >Menggambar pada Peta</v-tooltip>
+                      <v-icon size="large" :class="{ 'text-white': isHovering }">mdi-vector-polygon</v-icon>
                     </v-btn>
                   </v-hover>
                 </v-col>
-                <v-col cols="4" class="px-1">
+                <v-col cols="4" md="4" class="px-1">
                   <v-hover v-slot="{ isHovering, props }">
                     <v-btn
                         v-bind="props"
@@ -146,8 +146,8 @@
                       <v-tooltip
                           activator="parent"
                           location="bottom"
-                      >Draw Shape</v-tooltip>
-                      <v-icon size="large" :class="{ 'text-white': isHovering }">mdi-vector-polygon</v-icon>
+                      >Download Data Geojson</v-tooltip>
+                      <v-icon size="large" :class="{ 'text-white': isHovering }">mdi-download-outline</v-icon>
                     </v-btn>
                   </v-hover>
                 </v-col>

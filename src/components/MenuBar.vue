@@ -191,12 +191,19 @@
         </template>
         <v-list-item-subtitle>Katalog Peta</v-list-item-subtitle>
       </v-list-item>
+      <v-list-item color="deep-orange" route to="/public-peta-tematik">
+        <template #prepend>
+          <v-icon>mdi-map-marker-multiple</v-icon>
+        </template>
+        <v-list-item-subtitle>Peta Tematik</v-list-item-subtitle>
+      </v-list-item>
       <v-list-item color="deep-orange" route to="/public-peta-interaktif">
         <template #prepend>
-          <v-icon>mdi-map-marker</v-icon>
+          <v-icon>mdi-map-marker-radius</v-icon>
         </template>
         <v-list-item-subtitle>Peta Interaktif</v-list-item-subtitle>
       </v-list-item>
+
       <v-list-item color="deep-orange" route to="/public-berita">
         <template #prepend>
           <v-icon>mdi-newspaper</v-icon>

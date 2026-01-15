@@ -105,17 +105,18 @@
               <v-row no-gutters>
                 <v-col cols="4" md="4" class="px-1">
                   <v-hover v-slot="{ isHovering, props }">
-                    <v-btn
+                   <v-btn
                         v-bind="props"
                         block
-                        :variant="isHovering ? 'flat' : 'outlined'"
-                        :class="{ 'color-bg-primary': isHovering }"
+                        :variant="mapToolTipOn ? 'flat' : (isHovering ? 'flat' : 'outlined')"
+                        :class="{ 'color-bg-primary': isHovering || mapToolTipOn }"
+                        @click="setMapToolTip"
                     >
                       <v-tooltip
                           activator="parent"
                           location="bottom"
                       >Aktifkan Tooltip pada Peta</v-tooltip>
-                      <v-icon size="large" :class="{ 'text-white': isHovering }">mdi-tooltip-outline</v-icon>
+                      <v-icon size="large" :class="{ 'text-white': isHovering || mapToolTipOn }">mdi-tooltip-outline</v-icon>
                     </v-btn>
                   </v-hover>
                 </v-col>
@@ -366,6 +367,8 @@ export default {
     return {
       ftTematik: undefined,
 
+      mapToolTipOn: false,
+
       isApply: false,
       itemsMapsetSelected:[],
       showMapsetController:true,
@@ -496,6 +499,7 @@ export default {
     };
   },
   computed: {
+
     computedTileProviders(){
       const base = Array.isArray(this.tileProviders) ? this.tileProviders.slice() : [];
       if (this.currentUser && this.googleApiKey) {
@@ -587,6 +591,16 @@ export default {
 
         // 5) Popup pada klik hanya untuk desktop (biarkan seperti semula)
         if (!this.isMobileDevice) {
+
+          if (this.mapToolTipOn) {
+            layer.bindTooltip(
+                `<div style='max-height: 350px; overflow-y: auto; min-width: 300px; overflow-x: auto;' >
+                    ${this.jsonToHtmlTable(feature.properties)}
+                </div>`,
+                { permanent: false, sticky: true }
+            );
+          }
+
           layer.on('click', (e) => {
             const latlng = e.latlng;
             layer.bindPopup(
@@ -596,6 +610,7 @@ export default {
             ).openPopup();
           });
         }
+
       };
     },
     currentUser() {
@@ -604,6 +619,47 @@ export default {
   },
   methods: {
     lookupImageUrl,
+
+    setMapToolTip() {
+      this.mapToolTipOn = !this.mapToolTipOn;
+
+      // Setelah flag di-toggle, update semua layer yang sudah ada
+      this.updateLayerTooltips();
+
+      this.snackbar = {
+        show: true,
+        color: this.mapToolTipOn ? 'primary' : 'info',
+        text: this.mapToolTipOn ? 'Tooltip peta diaktifkan' : 'Tooltip peta dimatikan',
+        timeout: 1500,
+      };
+    },
+    updateLayerTooltips() {
+      try {
+        const enable = this.mapToolTipOn && !this.isMobileDevice;
+        if (!this.featureIndex || typeof this.featureIndex.forEach !== 'function') return;
+
+        this.featureIndex.forEach((layer) => {
+          if (!layer || typeof layer.bindTooltip !== 'function') return;
+
+          // Bersihkan dulu supaya nggak dobel
+          if (typeof layer.unbindTooltip === 'function') {
+            layer.unbindTooltip();
+          }
+
+          if (enable) {
+            const props = layer.feature && layer.feature.properties ? layer.feature.properties : {};
+            const html = `
+          <div style="max-height: 350px; overflow-y: auto; min-width: 300px; overflow-x: auto;">
+            ${this.jsonToHtmlTable(props)}
+          </div>
+        `;
+            layer.bindTooltip(html, { permanent: false, sticky: true });
+          }
+        });
+      } catch (e) {
+        console.warn('updateLayerTooltips error', e);
+      }
+    },
 
     async toggleMapsetVisibility(itemSelected) {
       const id = itemSelected && itemSelected.id;

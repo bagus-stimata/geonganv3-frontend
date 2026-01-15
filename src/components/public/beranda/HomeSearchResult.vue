@@ -214,7 +214,7 @@ export default {
       this.ftTematiks = [];
 
       Promise.all([
-        FtDatasetService.getPostAllFtDatasetContainingExtPublic(filterDataset, deepSearch),
+        FtDatasetService.getPostAllFtDatasetContainingExtPublic(filterDataset, false, deepSearch),
         FtTematikService.getPostAllFtTematikContainingExtPublic(filterTematik),
       ])
           .then(([resDataset, resTematik]) => {

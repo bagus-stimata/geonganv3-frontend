@@ -966,6 +966,7 @@ export default {
       extendedFilter.search = this.search;
       FtDatasetService.getPostAllFtDatasetContainingExtPublic(
           extendedFilter,
+          false,
           false
       ).then(
           (response) => {

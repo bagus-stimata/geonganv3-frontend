@@ -11,6 +11,7 @@ export default class FtTematik {
         fdivisionBean=0,
 
         statusActive = true,
+        showOnHome,
 
         created = new Date(),
         modified = new Date(),
@@ -27,6 +28,7 @@ export default class FtTematik {
 
         this.fdivisionBean = fdivisionBean;
         this.statusActive = statusActive;
+        this.showOnHome = showOnHome;
 
         this.created = created;
         this.modified = modified;

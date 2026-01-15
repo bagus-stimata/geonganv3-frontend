@@ -161,8 +161,8 @@
                     </v-col>
                   </v-row>
 
-                  <v-row no-gutters>
-                    <v-col cols="12">
+                  <v-row no-gutters class="ga-4">
+                    <v-col cols="12" sm="12" md="6">
                       <v-autocomplete
                           v-model="itemModified.fdivisionBean"
                           :items="itemsFDivision"
@@ -178,6 +178,15 @@
                           variant="outlined"
                           density="compact"
                       />
+                    </v-col>
+                    <v-col cols="12" sm="12" md="5">
+                      <v-switch
+                          v-model="itemModified.showOnHome"
+                          label="Tandai Sebagai Konten Popular"
+                          density="compact"
+                          hide-details
+                          color="primary"
+                      ></v-switch>
                     </v-col>
                   </v-row>
                 </v-col>
@@ -453,11 +462,12 @@
                       elevation="0"
                       class="pa-2 border-thin border-opacity-25 rounded-lg"
                       width="100%"
+                      height="86"
                       @click="toggleDatasetSelection(dataset)"
                       style="cursor: pointer;"
                     >
-                      <v-row no-gutters class="align-center">
-                        <v-col cols="3" class="pe-2">
+                      <v-row>
+                        <v-col cols="3">
                           <v-img
                             width="100%"
                             height="68"
@@ -466,36 +476,60 @@
                             :src="lookupImageUrlLazy(dataset)"
                           />
                         </v-col>
-
-                        <v-col cols="9">
-                          <div class="d-flex align-center">
-                            <div class="flex-grow-1">
-                              <div class="text-caption font-weight-bold text-indigo text-truncate">
-                                {{ dataset.description }}
+                        <v-col cols="9" class="d-flex flex-row align-center justify-center">
+                          <v-row class="align-center justify-center pe-4">
+                            <v-col cols="10">
+                              <div>
+                                <div class="text-caption font-weight-bold text-indigo text-truncate">
+                                  {{ dataset.description }}
+                                </div>
+                                <div
+                                    style="font-size: 11px !important"
+                                    class="text-caption font-weight-light text-grey-darken-4 text-truncate"
+                                >
+                                  {{ dataset.notes }} - {{ dataset.tahun }}
+                                </div>
                               </div>
-                              <div
-                                style="font-size: 11px !important"
-                                class="text-caption font-weight-light text-grey-darken-4 text-truncate"
-                              >
-                                {{ dataset.notes }} - {{ dataset.tahun }}
-                              </div>
-                            </div>
-
-                            <v-checkbox-btn
-                              class="ms-2"
-                              :color="isDatasetSelected(dataset.id) ? 'orange' : ''"
-                              :model-value="isDatasetSelected(dataset.id)"
-                              @click.stop
-                              @update:model-value="(val) => toggleDatasetSelection(dataset, val)"
-                            />
-                          </div>
+                            </v-col>
+                            <v-col cols="2" class="justify-center align-center">
+                              <v-checkbox-btn
+                                  class="ms-2"
+                                  :color="isDatasetSelected(dataset.id) ? 'orange' : ''"
+                                  :model-value="isDatasetSelected(dataset.id)"
+                                  @click.stop
+                                  @update:model-value="(val) => toggleDatasetSelection(dataset, val)"
+                              />
+                            </v-col>
+                          </v-row>
                         </v-col>
                       </v-row>
                     </v-card>
                   </v-col>
                 </v-row>
               </v-card>
-
+              <div class="py-2">
+                <v-row class="mt-3" justify="center" align="center">
+                  <v-col class="justify-start" cols="4" md="4" sm="4">
+                    <v-select
+                        v-model="pageSize"
+                        :items="pageSizes"
+                        variant="outlined"
+                        density="compact"
+                        hide-details
+                    ></v-select>
+                  </v-col>
+                  <v-col cols="8" md="8" sm="8" class="d-flex flex-row justify-end">
+                    <v-pagination
+                        v-model="currentPage"
+                        :length="totalPaginationPages"
+                        total-visible="1"
+                        active-color="orange-darken-4"
+                        size="x-small"
+                        variant="flat"
+                    ></v-pagination>
+                  </v-col>
+                </v-row>
+              </div>
             </v-col>
 
             <!-- RIGHT: Selected -->
@@ -654,7 +688,8 @@ export default {
       ftDatasets: [],
       itemsMapsetSelected: [],
       currentPage: 1,
-      pageSize: 20,
+      pageSize: 10,
+      pageSizes: [10, 15, 20],
       totalPaginationPages: 0,
       totalItems: 0,
       isActiveDeepSearch: false,
@@ -677,9 +712,20 @@ export default {
     ftDatasetsFiltered() {
       return this.ftDatasets;
     },
-
-
-
+  },
+  watch: {
+    currentPage(newPage) {
+      if (newPage) {
+        this.runExtendedFilter();
+      }
+    },
+    pageSize() {
+      const refreshData = this.currentPage === 1;
+      this.currentPage = 1;
+      if (refreshData) {
+        this.runExtendedFilter();
+      }
+    },
   },
   methods: {
     // Public API for parent

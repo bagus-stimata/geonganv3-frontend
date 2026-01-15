@@ -109,6 +109,15 @@
         <div class="text-caption font-weight-light" v-if="item.kode1">
           *{{ item.kode1 }}
         </div>
+        <div v-if="item.showOnHome">
+          <v-chip
+              size="x-small"
+              color="indigo"
+              variant="flat"
+          >
+            Konten Populer
+          </v-chip>
+        </div>
       </template>
 
       <template v-slot:[`item.avatarImage`]="{ item }">
@@ -136,7 +145,7 @@
       <template v-slot:[`item.hasGeojson`]="{ item }">
         <v-chip
             size="x-small"
-            :color="item.hasGeojson ? 'green' : 'grey'"
+            :color="item.hasGeojson ? 'teal' : 'grey'"
             variant="flat"
         >
           {{ item.hasGeojson ? "Ada GeoJSON" : "Belum Ada" }}

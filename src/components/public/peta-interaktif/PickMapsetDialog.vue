@@ -104,6 +104,29 @@
                   </v-col>
                 </v-row>
               </v-card>
+              <div class="py-2">
+                <v-row class="mt-3" justify="center" align="center">
+                  <v-col class="justify-start" cols="4" md="4" sm="4">
+                    <v-select
+                        v-model="pageSize"
+                        :items="pageSizes"
+                        variant="outlined"
+                        density="compact"
+                        hide-details
+                    ></v-select>
+                  </v-col>
+                  <v-col cols="8" md="8" sm="8" class="d-flex flex-row justify-end">
+                    <v-pagination
+                        v-model="currentPage"
+                        :length="totalPaginationPages"
+                        total-visible="1"
+                        active-color="orange-darken-4"
+                        size="x-small"
+                        variant="flat"
+                    ></v-pagination>
+                  </v-col>
+                </v-row>
+              </div>
             </v-col>
             <v-col cols="12" sm="12" md="7" class="order-1 order-md-2" :style="$vuetify.display.smAndDown? '':'height: 96% !important;'">
               <v-card elevation="0" class="border-thin pa-3" :style="$vuetify.display.smAndDown? '':'height: 96% !important;'">
@@ -179,8 +202,9 @@ export default {
       currentPage: 1,
       totalTablePages: 1,
       totalPaginationPages: 1,
-      pageSize: 1000,
+      pageSize: 10,
       totalItems: 0,
+      pageSizes: [10, 15, 20],
       search: "",
       isActiveDeepSearch:false,
       isCheckBoxActivated: false,
@@ -204,6 +228,20 @@ export default {
   computed: {
     ftDatasetsFiltered() {
       return this.ftDatasets;
+    },
+  },
+  watch: {
+    currentPage(newPage) {
+      if (newPage) {
+        this.runExtendedFilter();
+      }
+    },
+    pageSize() {
+      const refreshData = this.currentPage === 1;
+      this.currentPage = 1;
+      if (refreshData) {
+        this.runExtendedFilter();
+      }
     },
   },
   methods: {

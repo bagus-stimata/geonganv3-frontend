@@ -154,8 +154,8 @@
                       ></v-text-field>
                     </v-col>
                   </v-row>
-                  <v-row no-gutters>
-                    <v-col cols="12" sm="12" md="12">
+                  <v-row no-gutters class="ga-4">
+                    <v-col cols="12" sm="12" md="6">
                       <v-autocomplete
                           v-model="itemModified.fdivisionBean"
                           :items="itemsFDivision"
@@ -172,9 +172,16 @@
                           density="compact"
                       ></v-autocomplete>
                     </v-col>
-
+                    <v-col cols="12" sm="12" md="5">
+                      <v-switch
+                          v-model="itemModified.showOnHome"
+                          label="Tandai Sebagai Konten Popular"
+                          density="compact"
+                          hide-details
+                          color="primary"
+                      ></v-switch>
+                    </v-col>
                   </v-row>
-
                 </v-col>
               </v-row>
             </v-container>
@@ -258,16 +265,6 @@
                   color="primary"
               ></v-switch>
             </v-col>
-            <v-col cols="12" sm="12" md="6">
-              <v-switch
-                  v-model="itemModified.showOnHome"
-                  :label="itemModified.showOnHome? 'Tampilkan Pada Beranda': 'Jangan Tampilkan Pada Beranda'"
-                  density="compact"
-                  hide-details
-                  color="primary"
-              ></v-switch>
-            </v-col>
-
           </v-row>
 
           </v-card-text>

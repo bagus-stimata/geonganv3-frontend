@@ -83,7 +83,7 @@
                     <v-col cols="5">
                       <v-img
                           width="100%"
-                          :height="isMobile ? (isSelected ? '146' : '130') : (isSelected ? '224' : '186')"
+                          :height="isMobile ? (isSelected ? '146' : '130') : (isSelected ? '194' : '156')"
                           cover
                           :src="lookupImageUrlDataset(dataset)"
                           class="rounded-xl"
@@ -127,7 +127,7 @@
                     <v-col cols="5">
                       <v-img
                           width="100%"
-                          :height="isMobile ? (isSelected ? '146' : '130') : (isSelected ? '224' : '186')"
+                          :height="isMobile ? (isSelected ? '146' : '130') : (isSelected ? '194' : '156')"
                           cover
                           :src="lookupImageUrlTematik(tematik)"
                           class="rounded-xl"
@@ -356,13 +356,13 @@ export default {
 
 .sg-card{
   width: min(560px, 80vw);
-  height: 200px;
+  height: 170px;
   transition: width 220ms ease, height 220ms ease, transform 220ms ease;
 }
 
 .sg-card--active{
   width: min(720px, 88vw);
-  height: 240px;
+  height: 210px;
   transform: translateZ(0);
 }
 

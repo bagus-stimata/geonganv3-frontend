@@ -235,12 +235,14 @@ export default {
       extendedFilter.order = "DESC";
       extendedFilter.search = this.search;
       let deepSearch = this.isActiveDeepSearch
+
       if(this.isActiveDeepSearch){
         deepSearch = true
       }
       this.loading = true;
       FtDatasetService.getPostAllFtDatasetContainingExtPublic(
           extendedFilter,
+          false,
           deepSearch
       ).then(
           (response) => {

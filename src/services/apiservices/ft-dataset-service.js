@@ -102,11 +102,23 @@ class FtDatasetService {
             { headers: authHeader() }
         );
     }
-    getPostAllFtDatasetContainingExtPublic(item, includeGeojson = false) {
+
+    // getPostAllFtDatasetContainingExtPublic(item, includeGeojson = false, deepSearch = false) {
+    //     return axios.post(
+    //         API_URL + `public/getPostAllFtDatasetContainingExt?includeGeojson=${includeGeojson}&deepSearch=${deepSearch}`,
+    //         item,
+    //         { headers: authHeader() }
+    //     );
+    // }
+
+    getPostAllFtDatasetContainingExtPublic(item, includeGeojson = false, deepSearch = false) {
         return axios.post(
-            API_URL + `public/getPostAllFtDatasetContainingExt?includeGeojson=${includeGeojson}`,
+            `${API_URL}public/getPostAllFtDatasetContainingExt`,
             item,
-            { headers: authHeader() }
+            {
+                headers: authHeader(),
+                params: { includeGeojson, deepSearch }
+            }
         );
     }
 

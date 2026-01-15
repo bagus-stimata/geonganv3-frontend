@@ -152,12 +152,16 @@
                         :selectedMapsets="itemsMapsetSelected"
                         map-min-height="30vh" map-max-height="30vh"
                     ></BaseMapInteraktif>
-                    <v-row class="mt-1">
-                      <v-col cols="12" class="d-flex flex-row align-center">
+                    <v-row class="my-2 ga-2 align-center" no-gutters>
+                      <v-col cols="12" md="3" sm="12">
                         <div class="font-weight-bold text-subtitle-2">Mapset Terpilih</div>
-                        <v-spacer></v-spacer>
-                        <v-btn @click="deleteAllList" variant="flat" color="red" class="font-weight-bold text-caption rounded" density="comfortable" style="text-transform: none;"><v-icon class="mr-1">mdi-delete</v-icon>Hapus semua</v-btn>
-                        <v-btn @click="applyPeta" variant="flat" color="indigo" class="ml-4 font-weight-bold text-caption rounded" density="comfortable" style="text-transform: none;">Tampilkan pada peta utama</v-btn>
+                      </v-col>
+                      <v-spacer></v-spacer>
+                      <v-col cols="12" md="3" sm="12">
+                        <v-btn block @click="deleteAllList" variant="flat" color="red" class="font-weight-bold text-caption rounded" density="comfortable" style="text-transform: none;"><v-icon class="mr-1">mdi-delete</v-icon>Hapus semua</v-btn>
+                      </v-col>
+                      <v-col cols="12" md="5" sm="12">
+                        <v-btn block @click="applyPeta" variant="flat" color="indigo" class="font-weight-bold text-caption rounded" density="comfortable" style="text-transform: none;">Tampilkan pada peta utama</v-btn>
                       </v-col>
                     </v-row>
                     <v-divider class="mt-3 mb-3" thickness="2" color="grey"></v-divider>

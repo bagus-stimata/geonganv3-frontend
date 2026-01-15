@@ -8,7 +8,6 @@
         @update:zoom="zoomUpdated"
         @update:center="centerUpdated"
         :options="{ scrollWheelZoom: false, preferCanvas: true, zoomControl: false }"
-        @ready="initializeFullscreen"
         :style="{ zIndex: 0, minHeight: mapMinHeight, maxHeight: mapMaxHeight, width: '100%', position: 'relative' }"
         @click="setSingleMarker"
     >
@@ -665,28 +664,6 @@ export default {
         );
       } else {
         alert("Browser tidak support Geolocation!");
-      }
-    },
-
-    initializeFullscreen() {
-      // const map = this.$refs.map.mapObject;
-      let map = this.$refs.map?.leafletObject || this.$refs.map?.mapObject;
-      if (map) {
-        // Fullscreen button moved to bottom-right (will stack with zoom control)
-        if (!this._fsControl) {
-          this._fsControl = L.control.fullscreen({ position: 'bottomright' });
-          this._fsControl.addTo(map);
-        }
-
-        // Sync state saat popup ditutup otomatis (mis. klik marker lain / autoClose)
-        // supaya popup marker utama tidak "nyangkut" dan menghalangi klik marker lain.
-        this._onPopupClose = () => {
-          if (this.markerPopupVisible) this.markerPopupVisible = false;
-        };
-        map.off('popupclose', this._onPopupClose);
-        map.on('popupclose', this._onPopupClose);
-      } else {
-        console.error("Map object not initialized yet.");
       }
     },
     handleFullscreenChange() {

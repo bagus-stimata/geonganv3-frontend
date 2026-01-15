@@ -82,10 +82,10 @@
                       <div class="black-glass-overlay pa-md-8 pa-4">
                         <div class="text-white">
                           <div class="text-md-h4 text-subtitle-2 font-weight-black">{{ item.title }}</div>
-                          <div class="mt-2">
-                            <span class="text-md-subtitle-2 text-caption" v-html="item.contentBody"></span>...
+                          <div class="mt-2" v-if="item.contentBody">
+                            <span class="text-md-subtitle-2 text-caption" v-html="item.contentBody"></span>
                           </div>
-                          <div class="d-flex flex-row mb-4">
+                          <div class="d-flex flex-row mb-md-4 mb-2">
                             <div class="text-subtitle-2 me-2"><v-icon class="me-2" :size="$vuetify.display.smAndDown?'x-small':'small'">mdi-calendar-range</v-icon>{{computedDateFormattedDatefns(item.publishTime)}}</div>
                             <v-divider v-if="item.editorial" vertical thickness="2" class="mx-2" color="white"></v-divider>
                             <div v-if="item.editorial" class="text-subtitle-2"><v-icon class="me-2" :size="$vuetify.display.smAndDown?'x-small':'small'">mdi-fountain-pen-tip</v-icon>
@@ -124,9 +124,9 @@
                         <div class="mt-2 px-3">
                           <div>{{ item.title }}...</div>
                           <div>
-                            <span class="text-caption" v-html="item.contentBody"></span>...
+                            <span class="text-caption" v-html="item.contentBody"></span>
                           </div>
-                          <div class="d-flex flex-row mb-4">
+                          <div class="d-flex flex-row mb-4 mt-3">
                             <div class="text-subtitle-2 me-2 text-grey"><v-icon class="me-2" color="indigo" :size="$vuetify.display.smAndDown?'x-small':'small'">mdi-calendar-range</v-icon>{{computedDateFormattedDatefns(item.publishTime)}}</div>
                             <v-divider v-if="item.editorial" vertical thickness="2" class="mx-2" color="grey"></v-divider>
                             <div v-if="item.editorial" class="text-subtitle-2 text-grey"><v-icon color="indigo" class="me-2" :size="$vuetify.display.smAndDown?'x-small':'small'">mdi-fountain-pen-tip</v-icon>
@@ -277,9 +277,8 @@ export default {
       for (let i = 0; i < this.fBeritas.length; i++) {
         let itemBerita = this.fBeritas[i];
         if (itemBerita.contentBody !== undefined) {
-          if (itemBerita.contentBody.length > 180) {
-            itemBerita.contentBody =
-                itemBerita.contentBody.substr(0, 179) + "...";
+          if (itemBerita.contentBody.length > 100) {
+            itemBerita.contentBody = `${itemBerita.contentBody.substr(0, 99)}`
           }
         }
         beritasModified.push(itemBerita);
@@ -365,7 +364,7 @@ export default {
   transform: scale(1.2);
 }
 .black-glass-overlay {
-  height: 60%;
+  height: 65%;
   position: absolute;
   bottom: 0;
   left: 0;

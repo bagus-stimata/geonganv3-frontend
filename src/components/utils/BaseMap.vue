@@ -663,10 +663,6 @@ export default {
       let map = this.$refs.map?.leafletObject || this.$refs.map?.mapObject;
       if (map) {
         // Fullscreen button moved to bottom-right (will stack with zoom control)
-        if (!this._fsControl) {
-          this._fsControl = L.control.fullscreen({ position: 'bottomright' });
-          this._fsControl.addTo(map);
-        }
 
         // Sync state saat popup ditutup otomatis (mis. klik marker lain / autoClose)
         // supaya popup marker utama tidak "nyangkut" dan menghalangi klik marker lain.
@@ -1327,7 +1323,7 @@ export default {
 .chev-rotate--open {
   transform: rotate(-90deg);         /* jadi down */
 }
-:deep(.leaflet-bottom.leaflet-right .leaflet-control-zoom) {
+:deep(.leaflet-top.leaflet-right .leaflet-control-zoom) {
   margin-right: 16px !important;
 }
 :deep(.leaflet-bottom.leaflet-right .leaflet-control-fullscreen) {

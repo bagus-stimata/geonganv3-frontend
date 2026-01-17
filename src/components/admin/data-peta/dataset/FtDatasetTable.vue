@@ -88,6 +88,32 @@
               icon="mdi-delete"
           ></v-btn>
           <v-spacer></v-spacer>
+          <v-menu offset-y style="align-items: start">
+            <template v-slot:activator="{ props }">
+              <v-btn
+                  class="mx-1"
+                  icon="mdi-view-grid"
+                  size="x-small"
+                  color="blue"
+                  v-bind="props"
+              ></v-btn>
+            </template>
+            <v-list color="grey lighten-4" class="mr">
+              <v-list-item>
+                <v-btn
+                    class="mx-1 font-weight-bold"
+                    variant="plain"
+                    elevation="0"
+                    color="gray-darken-1"
+                    size="small"
+                    @click="importDialogShow"
+                >
+                  <v-icon color="blue">mdi-upload</v-icon>
+                  Import Data Peta Tabular
+                </v-btn>
+              </v-list-item>
+            </v-list>
+          </v-menu>
           <v-btn
               color="green"
               size="x-small"
@@ -201,6 +227,7 @@
         v-model:formMode="formMode"
         :itemsFDivision="itemsFDivision"
         ref="refFormDialog"
+        @fetchDataset="fetchFtDataset"
         @eventFromFormDialogNew="saveDataNew"
         @eventFromFormDialogEdit="saveDataEdit"
     ></FtDatasetDialog>
@@ -235,6 +262,7 @@
         </v-btn>
       </template>
     </v-snackbar>
+    <FtDatasetImportDataTabularDialog ref="refImportDataTabular"></FtDatasetImportDataTabularDialog>
   </v-card>
 </template>
 
@@ -247,9 +275,12 @@ import FormMode from "@/models/form-mode";
 import FtDataset from "@/models/ft-dataset";
 import FileService from "@/services/apiservices/file-service";
 import DataFilter from "@/models/payload/data-filter";
+import FtDatasetImportDataTabularDialog
+  from "@/components/admin/data-peta/dataset/FtDatasetImportDataTabularDialog.vue";
 
 export default {
   components: {
+    FtDatasetImportDataTabularDialog,
     FtDatasetDialog: FtDatasetDialog,
     DeleteConfirmDialog,
   },
@@ -323,6 +354,10 @@ export default {
     },
   },
   methods: {
+    importDialogShow() {
+      this.$refs.refImportDataTabular.showDialog();
+      // console.log("hello bos")
+    },
     showFilterDialog() {
       this.showFilter = !this.showFilter;
     },

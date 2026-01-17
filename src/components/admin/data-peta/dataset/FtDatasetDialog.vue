@@ -1393,6 +1393,7 @@ export default {
           this.itemModified.fileType = "geojson-gzip";
           this.selectedIndex = -1;
           this.itemModified.propertiesShow = "[]"
+          this.propertyMetaRows = []
 
           this.featureColumns = [];
           this.featureRows = [];
@@ -1651,6 +1652,7 @@ export default {
           "Tetap tutup dan reset perubahan?"
         );
       }
+      this.$emit('fetchDataset')
     },
     passingEventFromCloseConfirm(value) {
       if (value === "OKE") this.dialogShow = false;

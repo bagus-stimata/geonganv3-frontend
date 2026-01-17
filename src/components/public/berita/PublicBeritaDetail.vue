@@ -61,8 +61,9 @@
             </v-card>
           </v-hover>
           <div class="mt-4 text-justify">
-            <div class="text-subtitle-2 font-weight-bold px-4">{{itemModified.contentMeta}}</div>
+            <div class="text-subtitle-1 font-weight-bold px-4">{{itemModified.contentMeta}}</div>
             <quill-editor
+                class="text-subtitle-2"
                 v-model:value="itemModified.contentBody"
                 :options="editorOptions"
                 disabled

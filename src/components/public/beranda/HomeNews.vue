@@ -9,43 +9,51 @@
           <div class="text-center mt-2 my-6">No available news</div>
         </v-col>
       </v-row>
-      <v-row v-else justify="center" class="wrap">
+      <v-row
+          v-else
+          no-gutters
+          class="mt-2 wrap"
+          justify="center"
+      >
         <v-col
-            class="d-flex justify-center"
-            v-for="(item, i) in fnewsFiltered"
-            :key="i"
+            v-for="item in fnewsFiltered"
+            :key="item.id"
+            sm="6"
+            md="4"
+            cols="12"
+            xl="2"
+            class="d-flex justify-center mb-2 pa-2"
         >
-          <v-card
-              min-width="320"
-              max-width="400"
-              class="my-2"
-          >
-            <v-img
-                min-width="320"
-                max-width="400"
-                height="220"
-                lazy
-                cover
-                :src="lookupImageUrl(item)"
-            ></v-img>
-
-            <v-card-text class="text-subtitle-1 mt-1 font-weight-bold">
-              <div>{{item.title }}...</div>
-            </v-card-text>
-
-            <v-card-text>
-              <div v-if="false" class="my-2 font-weight-light">
-                {{ item.contentMeta }}
-              </div>
-
-              <div>
-                <span v-html="item.contentBody"></span>...
-              </div>
-              <div class="mt-2">
-                <v-btn @click="toDetail(item)" block variant="outlined" class="font-weight-bold" color="deep-orange darken-2">Selengkapnya</v-btn>
-              </div>
-            </v-card-text>
-          </v-card>
+          <v-hover v-slot="{ isHovering, props }">
+            <v-card
+                v-bind="props"
+                width="100%"
+                :style="isHovering ? 'box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3) !important;' : 'box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.2) !important;'"
+                class="rounded-lg d-flex flex-column h-100"
+            >
+              <v-img
+                  width="100%"
+                  height="200"
+                  cover
+                  :src="lookupImageUrl(item)"
+                  class="rounded-lg"
+              />
+              <v-card-text>
+                <div class="text-subtitle-1 font-weight-black">
+                  {{ item.title }}
+                </div>
+                <div class="text-caption mt-2" v-if="item.contentBody">
+                  <span v-html="item.contentBody"></span>
+                </div>
+              </v-card-text>
+              <v-spacer />
+              <v-card-actions class="text-center bg-orange-lighten-1">
+                <v-spacer />
+                <v-btn @click="toDetail(item)" variant="text" class="font-weight-bold text-subtitle-1 text-white">Baca Selengkapnya</v-btn>
+                <v-spacer />
+              </v-card-actions>
+            </v-card>
+          </v-hover>
         </v-col>
       </v-row>
     </v-container>

@@ -195,7 +195,6 @@
           </v-card-title>
 
           <v-divider />
-
           <!-- DETAIL: FtTematikDataset -->
           <v-card-text>
             <div class="d-flex align-center">
@@ -764,6 +763,7 @@ export default {
             incoming.categ ?? "",
             incoming.fdivisionBean ?? 0,
             incoming.statusActive ?? true,
+            incoming.showOnHome ?? false,
             incoming.created ? new Date(incoming.created) : new Date(),
             incoming.modified ? new Date(incoming.modified) : new Date(),
             incoming.modifiedBy ?? ""
@@ -790,6 +790,7 @@ export default {
             "Tetap tutup dan reset perubahan?"
         );
       }
+      this.$emit('fetchTematik')
     },
     closeDialogPickDataset() {
         this.dialogPickupMapsetShow = false;
@@ -838,8 +839,6 @@ export default {
           return newIt
         });
 
-        console.log(JSON.stringify(newListFtTematikDataset));
-
 
         if (this.formMode === FormMode.EDIT_FORM && payload.id > 0) {
           await FtTematikService.updateFtTematik(payload, false);
@@ -873,6 +872,7 @@ export default {
       await this.applyChanges();
       if (this.isItemModified === false) {
         this.dialogShow = false;
+        this.$emit("fetchTematik");
         this.$emit("eventFromFormDialog1", this.itemModified);
       }
     },
@@ -887,6 +887,7 @@ export default {
         categ: this.itemModified.categ || "",
         fdivisionBean: this.itemModified.fdivisionBean || 0,
         statusActive: this.itemModified.statusActive !== false,
+        showOnHome: this.itemModified.showOnHome !== false,
         created: this.itemModified.created || new Date(),
         modified: new Date(),
         modifiedBy: this.itemModified.modifiedBy || "",

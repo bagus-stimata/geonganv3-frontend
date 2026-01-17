@@ -205,6 +205,7 @@
         v-model:formMode="formMode"
         :itemsFDivision="itemsFDivision"
         ref="refFormDialog"
+        @fetchTematik="fetchFtTematik"
         @eventFromFormDialogNew="saveDataNew"
         @eventFromFormDialogEdit="saveDataEdit"
     ></FtTematikDialog>
@@ -473,7 +474,6 @@ export default {
     closeDialog() {
       this.formMode = "";
       this.$refs.refDeleteConfirmDialog.setDialogState(false);
-      this.$refs.refFormDialog.setDialogState(false);
 
       this.$nextTick(() => {
         this.itemSelected = Object.assign({}, new FtTematik());

@@ -269,17 +269,33 @@ export default {
             //       this.currentUser.roles.includes(x)
             //   ) && this.currentUser.organizationLevel !== EOrganizationLevel.DIV,
             // },
+            // {
+            //   title: "Wilayah",
+            //   route: "/admin-wilayah",
+            //   icon: "",
+            //   visible: [ERole.ROLE_ADMIN].some((x) =>
+            //       this.currentUser.roles.includes(x)
+            //   ) && this.currentUser.organizationLevel !== EOrganizationLevel.DIV,
+            // },
             {
-              title: "Wilayah",
-              route: "/admin-wilayah",
+              title: "Carousel Image",
+              route: "/admin-din-carousel",
               icon: "",
               visible: [ERole.ROLE_ADMIN].some((x) =>
                   this.currentUser.roles.includes(x)
               ) && this.currentUser.organizationLevel !== EOrganizationLevel.DIV,
             },
+          ],
+        },
+        {
+          title: "Laporan",
+          icon: "mdi-note-text",
+          active: false,
+          visible: [ERole.ROLE_ADMIN].some((x) => this.currentUser.roles.includes(x)),
+          items: [
             {
-              title: "Carousel Image",
-              route: "/admin-din-carousel",
+              title: "Dataset Downloaded",
+              route: "/admin-geo-download",
               icon: "",
               visible: [ERole.ROLE_ADMIN].some((x) =>
                   this.currentUser.roles.includes(x)

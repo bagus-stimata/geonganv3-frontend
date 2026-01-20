@@ -95,6 +95,11 @@ const routes = [
         name: 'AdminSatuan',
         component: () => import('@/views/admin/data-peta/SatuanView.vue')
     },
+    {
+        path: '/admin-geo-download',
+        name: 'AdminGeoDownload',
+        component: () => import('@/views/admin/geo-download/GeoDownloadView.vue')
+    },
 
     {
         path: '/admin-sistem',

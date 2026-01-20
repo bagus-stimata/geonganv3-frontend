@@ -55,7 +55,7 @@
             </v-expand-transition>
           </v-card-title>
           <v-expand-transition v-show="showMapsetController === true">
-            <v-card class="bg-white mt-2 py-4 rounded-lg" min-height="370px" style="overflow-y: auto;">
+            <v-card class="bg-white mt-2 py-2 rounded-lg" height="420px" style="overflow-y: auto;">
               <v-card-text>
                 <div class="text-subtitle-1 mb-1 font-weight-bold d-flex flex-row align-center">
                   <div>Mapset Selected</div>
@@ -64,44 +64,70 @@
                   <v-btn @click="deleteAllList" v-if="itemsMapsetSelected.length > 0 && isApply" icon density="comfortable" variant="text" color="red"><v-icon>mdi-delete</v-icon></v-btn>
                 </div>
                 <v-divider></v-divider>
-                <v-card v-if="itemsMapsetSelected.length > 0" elevation="0" class="mt-2" >
-                  <v-row no-gutters class="ga-2">
-                    <v-col cols="12" v-for="(itemSelected) in itemsMapsetSelected" :key="itemSelected.id">
-                      <v-card elevation="0" class="d-flex rounded-lg flex-row align-center pa-1 border-opacity-25 border-thin">
-                        <v-icon size="small" class="mx-1" color="grey">mdi-dots-vertical</v-icon>
-                        <div class="ml-2 text-caption font-weight-bold text-black">{{itemSelected.description}}</div>
-                        <v-spacer></v-spacer>
-                        <v-btn
-                            @click.stop="toggleMapsetVisibility(itemSelected)"
-                            icon
-                            density="comfortable"
-                            variant="text"
-                            :color="itemSelected.hasGeojson === false ? 'grey' : 'black'"
-                            :title="itemSelected.hasGeojson === false ? 'Tampilkan di peta' : 'Sembunyikan dari peta'"
-                        >
-                          <v-icon>{{ itemSelected.hasGeojson === false ? 'mdi-eye-off' : 'mdi-eye' }}</v-icon>
-                        </v-btn>
-                      </v-card>
-                    </v-col>
-                  </v-row>
-                </v-card>
-
-                <v-card elevation="0" class="d-flex flex-row justify-center align-center bg-grey-lighten-5 mt-2">
-                  <v-card-text class="text-center">
-                    <v-btn v-if="itemsMapsetSelected.length === 0"   readonly color="grey" class="mb-6" icon variant="flat" size="small"><v-icon class="text-white">mdi-map</v-icon></v-btn>
-                    <div v-if="itemsMapsetSelected.length === 0"   class="font-weight-black text-subtitle-2 text-center">Belum ada mapset yang dipilih</div>
-                    <div v-if="itemsMapsetSelected.length === 0"   class="text-caption font-weight-light text-grey-darken-2 text-center">Silahkan pilih terlebih dahulu mapset untuk melihat data secara detail</div>
-                    <v-btn @click="showDialogPickMapset" color="indigo" class="text-white text-subtitle-2 rounded-lg mt-6 font-weight-bold" density="comfortable" variant="elevated">Pilih Mapset</v-btn>
+                <v-card v-if="itemsMapsetSelected.length > 0 && isApply" elevation="0" class="mt-2">
+                  <v-card elevation="0" class="overflow-y-auto ma-0 pa-0" height="260px">
+                    <v-card-text class="ma-0 pa-0">
+                      <v-row no-gutters class="ga-2">
+                        <v-col cols="12" v-for="(itemSelected) in itemsMapsetSelected" :key="itemSelected.id">
+                          <v-card elevation="0" class="d-flex rounded-lg flex-row align-center pa-1 border-opacity-25 border-thin">
+                            <v-icon size="small" class="mx-1" color="grey">mdi-dots-vertical</v-icon>
+                            <div class="ml-2 text-caption font-weight-bold text-black">{{itemSelected.description}}</div>
+                            <v-spacer></v-spacer>
+                            <v-btn
+                                @click.stop="toggleMapsetVisibility(itemSelected)"
+                                icon
+                                density="comfortable"
+                                variant="text"
+                                :color="itemSelected.hasGeojson === false ? 'grey' : 'black'"
+                                :title="itemSelected.hasGeojson === false ? 'Tampilkan di peta' : 'Sembunyikan dari peta'"
+                            >
+                              <v-icon>{{ itemSelected.hasGeojson === false ? 'mdi-eye-off' : 'mdi-eye' }}</v-icon>
+                            </v-btn>
+                          </v-card>
+                        </v-col>
+                      </v-row>
+                    </v-card-text>
+                  </v-card>
+                  <v-card-text class="text-center ma-0 py-1">
+                    <v-btn @click="showDialogPickMapset" color="green" class="text-white text-subtitle-2 mt-6 rounded-lg font-weight-bold" density="comfortable" variant="elevated">Tambah Mapset</v-btn>
                   </v-card-text>
                 </v-card>
-
+                <v-card v-else elevation="0" class="mt-2">
+                  <v-card elevation="0"  class="mt-2 overflow-y-auto d-flex flex-row justify-center align-center bg-grey-lighten-5" height="320px">
+                    <v-card-text class="text-center">
+                      <v-btn readonly color="grey" class="mb-6" icon variant="flat" size="small"><v-icon class="text-white">mdi-map</v-icon></v-btn>
+                      <div class="font-weight-black text-subtitle-2 text-center">Belum ada mapset yang dipilih</div>
+                      <div class="text-caption font-weight-light text-grey-darken-2 text-center">Silahkan pilih terlebih dahulu mapset untuk melihat data secara detail</div>
+                      <v-btn @click="showDialogPickMapset" color="indigo" class="text-white text-subtitle-2 rounded-lg mt-6 font-weight-bold" density="comfortable" variant="elevated">Pilih Mapset</v-btn>
+                    </v-card-text>
+                  </v-card>
+                </v-card>
               </v-card-text>
             </v-card>
           </v-expand-transition>
 
           <v-expand-transition v-show="showMapsetController === true">
             <v-card-text class="bg-white mt-3 py-4 rounded-lg">
-              <div class="text-subtitle-1 mb-2 font-weight-bold">Alat Peta</div>
+              <div class="text-subtitle-1 mb-1 font-weight-bold d-flex flex-row align-center">
+                <div>Alat Peta</div>
+                <v-spacer></v-spacer>
+                <v-btn
+                    v-if="uploadedGeojson"
+                    @click="showUploadedGeojson"
+                    icon
+                    density="comfortable"
+                    variant="text"
+                    :color="uploadedGeojsonVisible ? 'blue' : 'grey'"
+                >
+                  <v-icon>{{ uploadedGeojsonVisible ? 'mdi-map-check' : 'mdi-map' }}</v-icon>
+                  <v-tooltip
+                      class="text-caption"
+                      activator="parent"
+                      location="top"
+                  >Peta Terupload</v-tooltip>
+                </v-btn>
+              </div>
+              <div class="text-subtitle-1 mb-2 font-weight-bold"></div>
               <v-row no-gutters>
                 <v-col cols="4" md="4" class="px-1">
                   <v-hover v-slot="{ isHovering, props }">
@@ -139,6 +165,7 @@
                 <v-col cols="4" md="4" class="px-1">
                   <v-hover v-slot="{ isHovering, props }">
                     <v-btn
+                        @click="downloadOrFilledFormGeojson"
                         v-bind="props"
                         block
                         :variant="isHovering ? 'flat' : 'outlined'"
@@ -153,7 +180,7 @@
                   </v-hover>
                 </v-col>
               </v-row>
-              <v-btn density="comfortable" block variant="elevated" class="mx-1 mt-2 text-subtitle-2 font-weight-bold" color="blue-darken-1">Upload Peta</v-btn>
+              <v-btn @click="showUploadGeojsonDialog" density="comfortable" block variant="elevated" class="mx-1 mt-2 text-subtitle-2 font-weight-bold" color="blue-darken-1">Upload Peta</v-btn>
             </v-card-text>
           </v-expand-transition>
         </v-card>
@@ -252,6 +279,12 @@
           :options-style="styleFunction"
       >
       </l-geo-json>
+      <l-geo-json
+          v-if="uploadedGeojson && uploadedGeojsonVisible"
+          :geojson="uploadedGeojson"
+          :options="options"
+          :options-style="styleFunction"
+      />
     </l-map>
 
       <GooglePlacesDialog
@@ -267,7 +300,23 @@
       <span class="snackbar-center">{{ snackbar.text }}</span>
     </v-snackbar>
     <PickMapsetDialog @applyPeta="applyPeta" ref="refPickMapsetDialog"></PickMapsetDialog>
-
+    <DownloadFormDialog :itemsFDivision="itemsFDivision" @downloadGeojsonZip="downloadGeojsonZip" ref="refDownloadFormDialog"></DownloadFormDialog>
+    <UploadGeojsonDialog
+        ref="refUploadGeojsonDialog"
+        @geojsonUploaded="onGeojsonUploaded"
+    />
+    <v-dialog v-model="loadingSync" persistent width="300">
+      <v-card color="primary" dark>
+        <v-card-text>
+          Please wait
+          <v-progress-linear
+              indeterminate
+              color="white"
+              class="mb-0"
+          ></v-progress-linear>
+        </v-card-text>
+      </v-card>
+    </v-dialog>
     <v-card
         v-if="ftTematik"
         class="rounded ma-2 overflow-hidden"
@@ -316,6 +365,11 @@ import FtDatasetService from "@/services/apiservices/ft-dataset-service";
 import FtTematikDatasetService from "@/services/apiservices/ft-tematik-dataset-service";
 import {lookupImageUrl} from "@/helpers/lookup-file-helper";
 import FileService from "@/services/apiservices/file-service";
+import DownloadFormDialog from "@/components/public/peta-interaktif/DownloadFormDialog.vue";
+import FGeoDownload from "@/models/f-geo-download";
+import FDivisionService from "@/services/apiservices/f-division-service";
+import FGeoDownloadService from "@/services/apiservices/f-geo-download-service";
+import UploadGeojsonDialog from "@/components/public/peta-interaktif/UploadGeojsonDialog.vue";
 
 delete Icon.Default.prototype.Default;
 // Icon.Default.mergeOptions({
@@ -332,6 +386,8 @@ Icon.Default.mergeOptions({
 export default {
   name: "PetaInteraktif",
   components: {
+    UploadGeojsonDialog,
+    DownloadFormDialog,
     PickMapsetDialog,
     GooglePlacesDialog: GooglePlacesAutoCompleteDialog,
     LMap,
@@ -366,7 +422,7 @@ export default {
   data()  {
     return {
       ftTematik: undefined,
-
+      loadingSync:false,
       mapToolTipOn: false,
 
       isApply: false,
@@ -471,9 +527,11 @@ export default {
 
       geojson: null,
       itemsDatasetGeojson: [],
+      uploadedGeojson: null,
+      uploadedGeojsonVisible: true,
 
       colorMap: {},
-
+      itemsFDivision : [],
       showSearchMenu: false,
       searchText: '',
       featureIndex: new Map(),   // id -> layer
@@ -529,6 +587,7 @@ export default {
           .filter(x => x && x.id != null && x.hasGeojson !== false)
           .map(x => x.id)
       );
+      // console.log(this.itemsDatasetGeojson)
       const cache = Array.isArray(this.itemsDatasetGeojson) ? this.itemsDatasetGeojson : [];
       return cache.filter(ds => ds && ds.id != null && visibleIds.has(ds.id));
     },
@@ -619,7 +678,213 @@ export default {
   },
   methods: {
     lookupImageUrl,
+    showUploadGeojsonDialog() {
+      if (this.$refs.refUploadGeojsonDialog) {
+        this.$refs.refUploadGeojsonDialog.showDialog();
+      }
+    },
+    onGeojsonUploaded(geo) {
+      try {
+        if (!geo || geo.type !== 'FeatureCollection') {
+          this.snackbar = {
+            show: true,
+            color: 'error',
+            text: 'GeoJSON tidak valid',
+            timeout: 1800,
+          };
+          return;
+        }
+        this.uploadedGeojson = geo;
+        this.uploadedGeojsonVisible = true;
+        this.snackbar = {
+          show: true,
+          color: 'primary',
+          text: 'Peta GeoJSON upload berhasil ditampilkan',
+          timeout: 1800,
+        };
+      } catch (e) {
+        console.error('onGeojsonUploaded error', e);
+        this.snackbar = {
+          show: true,
+          color: 'error',
+          text: 'Gagal menampilkan GeoJSON upload',
+          timeout: 2000,
+        };
+      }
+    },
+    showUploadedGeojson() {
+      if (!this.uploadedGeojson) {
+        this.snackbar = {
+          show: true,
+          color: 'warning',
+          text: 'Belum ada GeoJSON hasil upload',
+          timeout: 1500,
+        };
+        return;
+      }
 
+      this.uploadedGeojsonVisible = !this.uploadedGeojsonVisible;
+
+      this.snackbar = {
+        show: true,
+        color: this.uploadedGeojsonVisible ? 'primary' : 'info',
+        text: this.uploadedGeojsonVisible
+            ? 'Layer GeoJSON upload ditampilkan'
+            : 'Layer GeoJSON upload disembunyikan',
+        timeout: 1500,
+      };
+    },
+    showDialogDownloadGeojson(){
+      const ids = Array.isArray(this.itemsMapsetSelected)
+          ? this.itemsMapsetSelected.map(x => x && x.id).filter(v => Number.isFinite(v))
+          : [];
+      if (ids.length === 0) {
+        this.snackbar = {
+          show: true,
+          color: "warning",
+          text: "Belum ada dataset yang dipilih",
+          timeout: 1500,
+        };
+        return;
+      }
+      this.$refs.refDownloadFormDialog.showDialog(this.itemsMapsetSelected)
+    },
+    downloadOrFilledFormGeojson() {
+      // Pastikan ada dataset yang dipilih dulu
+      const ids = Array.isArray(this.itemsMapsetSelected)
+          ? this.itemsMapsetSelected.map(x => x && x.id).filter(v => Number.isFinite(v))
+          : [];
+      if (ids.length === 0) {
+        this.snackbar = {
+          show: true,
+          color: "warning",
+          text: "Belum ada dataset yang dipilih",
+          timeout: 1500,
+        };
+        return;
+      }
+
+      // Baca currentDownloader dari localStorage
+      const raw = localStorage.getItem("currentDownloader");
+      let currentDownloader = null;
+
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          // Kalau salah satu wajib kosong, anggap belum lengkap → buka form
+          if (
+              !parsed ||
+              !parsed.description ||
+              !parsed.email ||
+              !parsed.instansi
+          ) {
+            this.showDialogDownloadGeojson();
+            return;
+          }
+          currentDownloader = parsed;
+        } catch (e) {
+          console.error("Gagal parse currentDownloader:", e);
+          localStorage.removeItem("currentDownloader");
+          this.showDialogDownloadGeojson();
+          return;
+        }
+      } else {
+        // Tidak ada currentDownloader sama sekali → buka form
+        this.showDialogDownloadGeojson();
+        return;
+      }
+        // Isi fdivisionBean default (KOMINFO) jika ketemu
+        const fdivision = this.itemsFDivision.filter(
+            (x) => x.description && x.description.toUpperCase().includes("DISKOMINFO")
+        );
+        if (fdivision.length > 0) {
+          currentDownloader.fdivisionBean = fdivision[0].id;
+        }
+
+        // Build payload FGeoDownload per dataset terpilih
+        const payload = (this.itemsMapsetSelected || []).map((item) => {
+          const entry = new FGeoDownload();
+          entry.description = currentDownloader.description;
+          entry.email = currentDownloader.email;
+          entry.instansi = currentDownloader.instansi;
+          entry.notes = item && item.description ? item.description : "";
+          entry.ftDatasetBean = item && item.id ? item.id : 0;
+          entry.fdivisionBean = currentDownloader.fdivisionBean;
+          entry.statusActive = true;
+          return entry;
+        });
+
+        if (payload.length === 0) {
+          this.snackbar = {
+            show: true,
+            color: "warning",
+            text: "Belum ada dataset yang valid untuk di-download",
+            timeout: 1500,
+          };
+          return;
+        }
+
+        // Kirim log download dulu, lalu jalankan export ZIP
+        FGeoDownloadService.createFGeoDownloadMultiple(payload)
+            .then(() => {
+              this.downloadGeojsonZip();
+            })
+            .catch((err) => {
+              console.error("createFGeoDownloadMultiple error", err);
+              this.snackbar = {
+                show: true,
+                color: "error",
+                text: "Gagal menyimpan info download",
+                timeout: 2000,
+              };
+            });
+    },
+    downloadGeojsonZip() {
+      const ids = Array.isArray(this.itemsMapsetSelected)
+          ? this.itemsMapsetSelected.map(x => x && x.id).filter(v => Number.isFinite(v))
+          : [];
+      if (ids.length === 0) {
+        this.snackbar = {
+          show: true,
+          color: "warning",
+          text: "Belum ada dataset yang dipilih",
+          timeout: 1500,
+        };
+        return;
+      }
+
+      this.loadingSync = true
+      FtDatasetService.exportGeojsonFtDatasetZip(ids)
+          .then((res) => {
+            const blob = new Blob([res.data], {type: "application/zip"});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "datasets_geojson.zip";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            this.loadingSync = false
+            this.snackbar = {
+              show: true,
+              color: "primary",
+              text: "Download dimulai",
+              timeout: 1500,
+            };
+          })
+          .catch((e) => {
+            console.error("downloadGeojsonZip error", e);
+            this.loadingSync = false
+            this.snackbar = {
+              show: true,
+              color: "error",
+              text: "Gagal membuat file ZIP",
+              timeout: 1800,
+            };
+          });
+    },
     setMapToolTip() {
       this.mapToolTipOn = !this.mapToolTipOn;
 
@@ -632,6 +897,13 @@ export default {
         text: this.mapToolTipOn ? 'Tooltip peta diaktifkan' : 'Tooltip peta dimatikan',
         timeout: 1500,
       };
+    },
+    fetchParent(){
+      FDivisionService.getAllFDivisionPublic().then(
+          (response) => {
+            this.itemsFDivision = response.data
+          }
+      )
     },
     updateLayerTooltips() {
       try {
@@ -1506,6 +1778,7 @@ export default {
   },
   async mounted() {
 
+    this.fetchParent()
     /**
      * Jika mendapatkan parameter yang berisi Array Id Dataset maka
      * ambil nilai array tersebut

@@ -35,6 +35,16 @@ class FtDatasetService {
             { headers: authHeader() }
         );
     }
+    exportGeojsonFtDatasetZip(datasetIds) {
+        return axios.post(
+            API_URL + `public/exportMultipleGeojsonFtDataset`,
+            datasetIds,
+            {
+                headers: authHeader(),
+                responseType: "blob",
+            }
+        );
+    }
 
 
     /**

@@ -116,7 +116,25 @@ export default {
   },
   mounted() {
     this.initIcon();
+    // Hapus currentDownloader jika sudah lebih dari 1 hari
+    const cdRaw = localStorage.getItem("currentDownloader");
+    if (cdRaw) {
+      try {
+        const cd = JSON.parse(cdRaw);
+        if (cd.dateFilled) {
+          const filledTime = new Date(cd.dateFilled).getTime();
+          const now = Date.now();
+          const oneDayMs = 24 * 60 * 60 * 1000;
 
+          if (now - filledTime > oneDayMs) {
+            localStorage.removeItem("currentDownloader");
+          }
+        }
+      } catch (e) {
+        console.error("Error parsing currentDownloader:", e);
+        localStorage.removeItem("currentDownloader");
+      }
+    }
     if (!this.currentUser) {
       //Kita tidak akan pernah push apapun jika belum login
       // this.$router.push('/login');

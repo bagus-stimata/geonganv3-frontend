@@ -189,7 +189,7 @@
     </v-dialog>
   </div>
 </template>
-  
+
   <script>
 
 import BaseMapInteraktif from "@/components/public/peta-interaktif/BaseMapInteraktif.vue";

@@ -14,6 +14,7 @@ export default class FtDataset {
         tahun = 0,
         fsatuanBean = 0,
         datasetType = 'GEOJSON',
+        tipePeta = 0,
         geojson = '{}',
         propertyKeys = '[]',
         propertiesMeta = '{}',
@@ -51,6 +52,7 @@ export default class FtDataset {
         this.datasetType = datasetType;       // EnumDataSpaType.GEOJSON
 
         // GeoJSON & properti
+        this.tipePeta = tipePeta
         this.geojson = geojson;
         this.propertyKeys = propertyKeys;
         this.propertiesMeta = propertiesMeta;

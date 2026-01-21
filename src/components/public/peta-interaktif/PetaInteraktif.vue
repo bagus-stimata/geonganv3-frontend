@@ -370,6 +370,7 @@ import FGeoDownload from "@/models/f-geo-download";
 import FDivisionService from "@/services/apiservices/f-division-service";
 import FGeoDownloadService from "@/services/apiservices/f-geo-download-service";
 import UploadGeojsonDialog from "@/components/public/peta-interaktif/UploadGeojsonDialog.vue";
+import ETipePeta from "@/models/e-tipe-peta";
 
 delete Icon.Default.prototype.Default;
 // Icon.Default.mergeOptions({
@@ -421,6 +422,7 @@ export default {
   },
   data()  {
     return {
+      markerIconCache: new Map(),
       ftTematik: undefined,
       loadingSync:false,
       mapToolTipOn: false,
@@ -609,6 +611,18 @@ export default {
     options() {
       return {
         onEachFeature: this.onEachFeatureFunction,
+        pointToLayer: this.pointToLayerFunction,
+      };
+    },
+    pointToLayerFunction() {
+      return (feature, latlng) => {
+        try {
+          const icon = this.getMarkerIconForFeature(feature);
+          return icon ? L.marker(latlng, { icon }) : L.marker(latlng);
+        } catch (e) {
+          console.warn('[PetaInteraktif][pointToLayer] fallback default marker', e);
+          return L.marker(latlng);
+        }
       };
     },
     onEachFeatureFunction() {
@@ -677,6 +691,54 @@ export default {
     },
   },
   methods: {
+    isPointTipePeta(tipePeta) {
+      return tipePeta === ETipePeta.POINT
+    },
+
+    resolveMarkerImageUrl(markerImage) {
+      const v = (markerImage == null) ? '' : String(markerImage).trim();
+      if (!v) return '';
+      if (/^https?:\/\//i.test(v)) return v;
+
+      try {
+        // kalau markerImage itu key/filename dari backend
+        return FileService.image_url_medium(v);
+      } catch (e) {
+        console.warn('[PetaInteraktif][resolveMarkerImageUrl] fallback raw value', e);
+        return v;
+      }
+    },
+
+    getMarkerIconForFeature(feature) {
+      const props = feature?.properties || {};
+      const dsid = props.__dsid;
+      if (dsid == null) return null;
+
+      const list = Array.isArray(this.itemsMapsetSelected) ? this.itemsMapsetSelected : [];
+      const ds = list.find(x => x && x.id === dsid);
+      if (!ds) return null;
+      // only POINT dataset + markerImage not empty
+      if (!this.isPointTipePeta(ds.tipePeta)) return null;
+
+      const url = this.resolveMarkerImageUrl(ds.markerImage);
+      if (!url) return null;
+
+      // cache icon biar gak recreate terus
+      if (!this._markerIconCache) this._markerIconCache = new Map();
+      const key = `${dsid}::${url}`;
+      if (this._markerIconCache.has(key)) return this._markerIconCache.get(key);
+
+      const icon = L.icon({
+        iconUrl: url,
+        iconSize: [34, 34],
+        iconAnchor: [17, 34],
+        popupAnchor: [0, -28],
+        shadowUrl: undefined,
+      });
+
+      this._markerIconCache.set(key, icon);
+      return icon;
+    },
     lookupImageUrl,
     showUploadGeojsonDialog() {
       if (this.$refs.refUploadGeojsonDialog) {
@@ -970,11 +1032,13 @@ export default {
 
     deleteAllList(){
       this.itemsMapsetSelected = []
+      if (this.markerIconCache && this.markerIconCache.clear) this.markerIconCache.clear();
     },
 
     async applyPeta(itemsMapsetSelected) {
       this.itemsMapsetSelected = Array.isArray(itemsMapsetSelected) ? itemsMapsetSelected : [];
       this.isApply = true;
+      if (this.markerIconCache && this.markerIconCache.clear) this.markerIconCache.clear();
 
       // Load only missing datasets that are marked visible (hasGeojson !== false)
       const cacheIds = new Set(

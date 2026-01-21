@@ -88,7 +88,7 @@
               icon="mdi-delete"
           ></v-btn>
           <v-spacer></v-spacer>
-          <v-menu offset-y style="align-items: start">
+          <v-menu v-if="false" offset-y style="align-items: start">
             <template v-slot:activator="{ props }">
               <v-btn
                   class="mx-1"

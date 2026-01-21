@@ -35,27 +35,26 @@
           </v-toolbar>
 
           <v-card-title>
-            <v-container class="pa-4">
-              <v-row>
-
+            <v-container>
+              <v-row class="align-center">
                 <v-col cols="12" sm="12" md="5">
-                  <v-container class="pa-2 text-center">
-                    <v-row align="center" justify="center">
+                  <v-row no-gutters align="end" justify="center" class="ga-4">
                       <v-hover>
                         <template v-slot:default="{ isHovering, props }">
-                          <v-card
-                              v-bind="props"
-                              class="align-self-center"
-                              :elevation="isHovering ? 10 : 1"
-                              :class="[{ 'on-hover': isHovering }, isHovering?'card-hover-opacity':'card-not-hover-opacity']"
-                          >
-                            <v-img
-                                :lazy-src="lookupImageUrlLazy(itemModified)"
-                                :src="lookupImageUrl(itemModified)"
-                                min-width="320"
-                                min-height="320"
-                                cover
+                          <div class="d-flex flex-column">
+                            <v-card
+                                v-bind="props"
+                                class="align-self-end"
+                                :elevation="isHovering ? 10 : 1"
+                                :class="[{ 'on-hover': isHovering }, isHovering?'card-hover-opacity':'card-not-hover-opacity']"
                             >
+                              <v-img
+                                  :lazy-src="lookupImageUrlLazy(itemModified)"
+                                  :src="lookupImageUrl(itemModified)"
+                                  width="270"
+                                  height="270"
+                                  cover
+                              >
                                 <v-row
                                     class="fill-height flex-column"
                                     justify="space-between"
@@ -81,12 +80,59 @@
                                     </v-btn>
                                   </div>
                                 </v-row>
-                            </v-img>
-                          </v-card>
+                              </v-img>
+                            </v-card>
+                            <div class="text-center font-weight-regular text-grey text-caption mt-2">Cover Dataset</div>
+                          </div>
+                        </template>
+                      </v-hover>
+                      <v-hover v-if="isMapTypePoint(itemModified.tipePeta)">
+                        <template v-slot:default="{ isHovering, props }">
+                          <div class="d-flex flex-column">
+                            <v-card
+                                v-bind="props"
+                                class="align-self-end"
+                                :elevation="isHovering ? 10 : 1"
+                                :class="[{ 'on-hover': isHovering }, isHovering?'card-hover-opacity':'card-not-hover-opacity']"
+                            >
+                              <v-img
+                                  :src="lookupImageMarkerUrl(itemModified.markerImage)"
+                                  width="140"
+                                  height="140"
+                                  cover
+                              >
+                                <v-row
+                                    class="fill-height flex-column"
+                                    justify="space-between"
+                                >
+                                  <v-spacer/>
+                                  <div class="align-self-center">
+                                    <v-btn
+                                        :class="{ 'show-btns': isHovering }"
+                                        :color="transparent"
+                                        icon
+                                        size="large"
+                                        dark
+                                        variant="outlined"
+                                        @click="showDialogUploadMarker1"
+                                    >
+                                      <v-icon
+                                          :class="{ 'show-btns': isHovering }"
+                                          :color="transparent"
+                                          size="large"
+                                      >
+                                        mdi-upload
+                                      </v-icon>
+                                    </v-btn>
+                                  </div>
+                                </v-row>
+                              </v-img>
+                            </v-card>
+                            <div class="text-center font-weight-regular text-grey text-caption mt-2">Gambar Marker</div>
+                          </div>
                         </template>
                       </v-hover>
                     </v-row>
-                  </v-container>
                 </v-col>
 
                 <v-col cols="12" sm="12" md="7">
@@ -187,31 +233,45 @@
             </v-container>
           </v-card-title>
 
-          <v-card-text>
+          <v-card-text class="mt-0">
             <!-- Mode: pilih file baru (belum ada geojson tersimpan ATAU user sudah pilih file baru) -->
             <v-row v-if="!hasStoredGeojson || geojsonFileName">
-              <v-col cols="12" sm="8" md="6">
+              <v-col cols="12" sm="8" md="8">
                 <v-file-input
                     v-model="geojsonFile"
-                    label="Pilih File GeoJSON (.geojson)"
-                    accept=".geojson,.json"
+                    label="Pilih File GeoJSON (.geojson) atau Excell (.xlsx)"
+                    accept=".geojson,.json,.xlsx,.xls"
                     variant="outlined"
                     density="compact"
                     prepend-inner-icon="mdi-file-upload"
                     @change="onGeojsonFileSelected"
                     hide-details
                 ></v-file-input>
-              </v-col>
-              <v-col cols="12" sm="4" md="6" v-if="geojsonFileName">
-                <div class="text-caption mt-2">
+                <div class="text-caption mt-2"  v-if="geojsonFileName">
                   File terpilih:
                   <strong>{{ geojsonFileName }}</strong>
                 </div>
               </v-col>
+              <v-col cols="12" sm="12" md="4">
+                <v-autocomplete
+                    v-model="itemModified.tipePeta"
+                    :items="itemsTipePeta"
+                    item-value="id"
+                    item-title="description"
+                    auto-select-first
+                    variant="outlined"
+                    density="compact"
+                    small-chips
+                    deletable-chips
+                    color="blue-grey lighten-2"
+                    label="Tipe Peta"
+                    hide-details
+                ></v-autocomplete>
+              </v-col>
             </v-row>
             <!-- Mode: sudah ada GeoJSON tersimpan dari backend, tampilkan tombol download & hapus -->
             <v-row v-else>
-              <v-col cols="12" sm="4" md="6" class="d-flex align-center">
+              <v-col cols="12" sm="4" md="4" class="d-flex align-center">
                 <v-btn
                     color="primary"
                     variant="flat"
@@ -229,45 +289,48 @@
                   Hapus GeoJSON
                 </v-btn>
               </v-col>
+              <v-col cols="12" sm="12" md="4">
+                <v-autocomplete
+                    v-model="itemModified.tipePeta"
+                    :items="itemsTipePeta"
+                    item-value="id"
+                    item-title="description"
+                    auto-select-first
+                    variant="outlined"
+                    density="compact"
+                    small-chips
+                    deletable-chips
+                    color="blue-grey lighten-2"
+                    label="Tipe Peta"
+                    hide-details
+                ></v-autocomplete>
+              </v-col>
             </v-row>
-
           </v-card-text>
 
-
-          <v-card-text>
-
+          <v-card-text >
             <v-row>
-            <v-col cols="12" sm="12" md="5">
-              <v-autocomplete
-                  v-model="itemModified.datasetType"
-                  :items="itemsDatasetType"
-                  :rules="rulesNotEmpty"
-                  item-value="code"
-                  item-title="description"
-                  auto-select-first
-                  variant="outlined"
-                  density="compact"
-                  small-chips
-                  deletable-chips
-                  color="blue-grey lighten-2"
-                  label="Jenis Data Spasial"
-                  hide-details
-              ></v-autocomplete>
-            </v-col>
+              <v-col cols="12" sm="12" md="6" v-if="false">
+                <v-autocomplete
+                    v-model="itemModified.datasetType"
+                    :items="itemsDatasetType"
+                    :rules="rulesNotEmpty"
+                    item-value="code"
+                    item-title="description"
+                    auto-select-first
+                    variant="outlined"
+                    density="compact"
+                    small-chips
+                    deletable-chips
+                    color="blue-grey lighten-2"
+                    label="Jenis Data Spasial"
+                    hide-details
+                ></v-autocomplete>
+              </v-col>
 
-            <v-col cols="12" sm="6" md="5" v-if="false">
-              <v-switch
-                  v-model="itemModified.showToPublic"
-                  :label="itemModified.showToPublic? 'Tampilkan pada Halaman Public': 'Jangan Tampilkan pada Halaman Public'"
-                  class="pa-3"
-                  density="compact"
-                  hide-details
-                  color="primary"
-              ></v-switch>
-            </v-col>
-          </v-row>
-
+            </v-row>
           </v-card-text>
+
 
           <v-divider></v-divider>
 
@@ -567,12 +630,10 @@
 
       </v-dialog>
 
-      <UploadImageOriDialog
+      <UploadImageDialog
           ref="refUploadDialogMerker1"
-          :parent-id="itemModified.id || 0"
           @eventUploadSuccess="completeUploadSuccessMarker1"
-      >
-      </UploadImageOriDialog>
+      ></UploadImageDialog>
 
       <v-snackbar v-model="snackbar">
         {{ snackBarMessage }}
@@ -646,12 +707,11 @@ import FtDataset from "@/models/ft-dataset";
 import FileService from "@/services/apiservices/file-service";
 import UploadImageDialog from "@/components/utils/UploadImageDialog";
 import FtDatasetMap from "@/components/admin/data-peta/dataset/FtDatasetMap.vue";
-import UploadImageOriDialog from "@/components/utils/UploadImageOriDialog.vue";
 import {EnumDataSpaTypeList} from "@/models/e-data-spa-type";
-
+import ETipePeta, {ETipePetas} from "@/models/e-tipe-peta";
+import * as XLSX from "xlsx";
 export default {
   components: {
-    UploadImageOriDialog,
     FtDatasetMap,
     CloseConfirmDialog,
     UploadImageDialog,
@@ -705,6 +765,7 @@ export default {
       geojsonFileName: "",
 
       itemsDatasetType: EnumDataSpaTypeList,
+      itemsTipePeta: ETipePetas,
 
       // Baris-baris metadata atribut GeoJSON (nama field, tipe, alias tampilan)
       propertyMetaRows: [],
@@ -829,6 +890,9 @@ export default {
   },
 
   methods: {
+    isMapTypePoint(item){
+      return item === ETipePeta.POINT
+    },
     getMapOnlyColumns() {
       // Ambil dari propertiesShow (hasil dialog “Kolom Yang ditampilkan pada Peta”)
       const selected = this.parsePropertiesShowFromItem(this.itemModified);
@@ -1078,7 +1142,6 @@ export default {
         this.saveUpdateOnly()
       }
     },
-
     async ensureGeojsonLoaded() {
       // Kalau dataset sudah ditandai punya GeoJSON di server tetapi konten belum dimuat,
       // baru panggil backend untuk load GeoJSON berat.
@@ -1329,7 +1392,7 @@ export default {
       }
     },
 
-    onGeojsonFileSelected() {
+    onGeojsonFileSelectedXX() {
       const file = Array.isArray(this.geojsonFile) ? this.geojsonFile[0] : this.geojsonFile;
 
       if (!file) {
@@ -1378,6 +1441,140 @@ export default {
       reader.readAsText(file);
     },
 
+    toNumberSafe(val) {
+      if (val === null || val === undefined) return null;
+      if (typeof val === "number" && Number.isFinite(val)) return val;
+      const s = String(val).trim().replace(",", ".");
+      const n = Number(s);
+      return Number.isFinite(n) ? n : null;
+    },
+
+    findHeaderKey(headers, candidates) {
+      const lower = (headers || []).map((h) => String(h).toLowerCase());
+
+      // exact match
+      for (const c of candidates) {
+        const idx = lower.indexOf(String(c).toLowerCase());
+        if (idx >= 0) return headers[idx];
+      }
+
+      // contains match (mis: "koordinat_lat")
+      for (const c of candidates) {
+        const cc = String(c).toLowerCase();
+        const idx = lower.findIndex((h) => h.includes(cc));
+        if (idx >= 0) return headers[idx];
+      }
+
+      return "";
+    },
+
+    async convertExcelToGeojsonText(blob) {
+      const buffer = await blob.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: "array" });
+
+      const sheetName = wb.SheetNames && wb.SheetNames.length ? wb.SheetNames[0] : null;
+      if (!sheetName) throw new Error("Sheet tidak ditemukan di file Excel");
+
+      const ws = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: "", raw: true });
+
+      if (!rows || !rows.length) {
+        throw new Error("Data Excel kosong. Pastikan ada header dan minimal 1 baris data");
+      }
+
+      const headers = Object.keys(rows[0] || {}).filter(Boolean);
+
+      // auto-detect lat/lon
+      const latKey = this.findHeaderKey(headers, ["lat", "latitude", "y", "y_lat", "ycoord"]);
+      const lonKey = this.findHeaderKey(headers, ["lon", "lng", "longitude", "x", "x_lon", "xcoord"]);
+
+      if (!latKey || !lonKey) {
+        throw new Error(
+            "Kolom Latitude/Longitude tidak ditemukan. Rename kolom jadi lat/lon (atau latitude/longitude) lalu upload ulang."
+        );
+      }
+
+      const features = [];
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i] || {};
+        const lat = this.toNumberSafe(row[latKey]);
+        const lon = this.toNumberSafe(row[lonKey]);
+
+        // skip invalid
+        if (lat === null || lon === null) continue;
+        if (lat < -90 || lat > 90 || lon < -180 || lon > 180) continue;
+
+        const props = {};
+        Object.entries(row).forEach(([k, v]) => {
+          if (k === latKey || k === lonKey) return;
+          props[k] = v; // keep apa adanya
+        });
+
+        features.push({
+          type: "Feature",
+          properties: props,
+          geometry: { type: "Point", coordinates: [lon, lat] },
+        });
+      }
+
+      if (!features.length) {
+        throw new Error("Tidak ada point valid terbentuk dari Excel. Pastikan lat/lon numeric dan dalam range.");
+      }
+
+      return JSON.stringify({ type: "FeatureCollection", features });
+    },
+    async onGeojsonFileSelected() {
+      const file = Array.isArray(this.geojsonFile) ? this.geojsonFile[0] : this.geojsonFile;
+
+      if (!file) {
+        this.geojsonFile = null;
+        this.geojsonFileName = "";
+        if (this.itemModified && Object.prototype.hasOwnProperty.call(this.itemModified, "geojson")) {
+          this.itemModified.geojson = "{}";
+        }
+        return;
+      }
+
+      if (!(file instanceof Blob)) {
+        console.error("File yang dipilih bukan Blob/File:", file);
+        this.snackBarMessage = "Format file tidak dikenali browser sebagai File";
+        this.snackbar = true;
+        return;
+      }
+
+      this.geojsonFileName = file.name || "";
+      const nameLower = (this.geojsonFileName || "").toLowerCase();
+
+      try {
+        let text;
+
+        // ✅ Excel: convert dulu ke GeoJSON
+        if (nameLower.endsWith(".xlsx") || nameLower.endsWith(".xls")) {
+          text = await this.convertExcelToGeojsonText(file);
+        } else {
+          // ✅ GeoJSON/JSON: tetap seperti sebelumnya
+          text = await file.text();
+        }
+
+        const safeText = (text || "").toString();
+
+        if (this.itemModified) {
+          this.itemModified.geojson = safeText;
+          this.itemModified.fileNameLow = this.geojsonFileName;
+          this.itemModified.withGeojson = true;
+
+          // Belum tersimpan di server; hasGeojson akan diset oleh backend
+          this.itemModified.hasGeojson = false;
+
+          // tetap tidak refreshPropertyMetaFromItem / refreshFeatureRowsFromGeojson di sini (sesuai logic kamu)
+        }
+      } catch (err) {
+        console.error(err);
+        this.snackBarMessage = "Gagal membaca/konversi file (GeoJSON/Excel)";
+        this.snackbar = true;
+      }
+    },
 
 
 
@@ -1763,7 +1960,7 @@ export default {
         this.itemModified.kode1 !== "" &&
         this.itemModified.description !== "" &&
         this.itemModified.fdivisionBean !== 0 &&
-        this.itemModified.datasetType !== ""
+        this.itemModified.tipePeta !== 0
       ) {
         if (this.itemModified.id === 0) {
           // this.$emit('eventSaveItemWithoutClose', false)
@@ -1772,7 +1969,7 @@ export default {
         this.$refs.refUploadDialogMerker1.showDialog();
       } else {
         this.snackBarMessage =
-          "Kode, Deskripsi, Divisi dan Jenis Data Spasial harus diisi dahulu";
+          "Kode, Deskripsi, Divisi dan Jenis Peta harus diisi dahulu";
         this.snackbar = true;
       }
     },
@@ -1785,8 +1982,8 @@ export default {
           this.itemModified.markerImage !== ""
       ) {
         FileService.deleteFile(this.itemModified.markerImage).then(
-            (response) => {
-              console.log(response.data);
+            () => {
+              // console.log(response.data);
             },
             (error) => {
               console.log(error.response);

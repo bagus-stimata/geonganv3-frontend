@@ -176,6 +176,7 @@
         >
           {{ item.hasGeojson ? "Ada GeoJSON" : "Belum Ada" }}
         </v-chip>
+        <div class="text-caption mt-1 font-weight-regular">{{lookupTipePeta(item.tipePeta).description}}</div>
       </template>
 
       <template v-slot:[`item.actions`]="{ item }">
@@ -277,6 +278,7 @@ import FileService from "@/services/apiservices/file-service";
 import DataFilter from "@/models/payload/data-filter";
 import FtDatasetImportDataTabularDialog
   from "@/components/admin/data-peta/dataset/FtDatasetImportDataTabularDialog.vue";
+import {ETipePetas} from "@/models/e-tipe-peta";
 
 export default {
   components: {
@@ -305,6 +307,7 @@ export default {
 
       showFilter: false,
       filterFdivisions: [],
+      itemsTipePeta: ETipePetas,
 
       search: "",
       headers: [
@@ -317,7 +320,7 @@ export default {
         { title: "", key: "avatarImage", width: "14%" },
         { title: "Deskripsi", key: "description", width: "20%" },
         { title: "Tahun", key: "tahun" },
-        { title: "GeoJSON", key: "hasGeojson", width: "12%" },
+        { title: "GeoJSON", key: "hasGeojson", width: "12%", align: "center" },
         { title: "Produsen Data", key: "fdivisionBean" },
         { title: "Actions", key: "actions", sortable: false },
       ],
@@ -501,7 +504,14 @@ export default {
         );
       }
     },
-
+    lookupTipePeta(id) {
+      const str = this.itemsTipePeta.filter((x) => x.id === id);
+      if (str.length > 0) {
+        return str[0];
+      } else {
+        return "-";
+      }
+    },
     closeDialog() {
       this.formMode = "";
       this.$refs.refDeleteConfirmDialog.setDialogState(false);

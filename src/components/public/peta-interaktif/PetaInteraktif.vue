@@ -119,7 +119,7 @@
                     variant="text"
                     :color="uploadedGeojsonVisible ? 'blue' : 'grey'"
                 >
-                  <v-icon>{{ uploadedGeojsonVisible ? 'mdi-map-check' : 'mdi-map' }}</v-icon>
+                  <v-icon>{{ uploadedGeojsonVisible ? 'mdi-eye' : 'mdi-eye-off' }}</v-icon>
                   <v-tooltip
                       class="text-caption"
                       activator="parent"

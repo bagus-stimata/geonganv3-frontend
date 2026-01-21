@@ -460,7 +460,7 @@ export default {
 
       enableTooltip: true,
       zoom: 11,
-      maxZoom: 18, // cap global; providers will overzoom above their native (OSM 19)
+      maxZoom: 19, // cap global; providers will overzoom above their native (OSM 19)
       currentMarker: {
         id: 0,
         coordinates: this.$store.state.potensi.centerMap.coordinates,

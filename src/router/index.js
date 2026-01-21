@@ -127,6 +127,13 @@ const routes = [
         name: 'AdminArsip',
         component: () => import('../views/admin/e-library/ArticleView.vue')
     },
+
+    {
+        path: '/test-peta-postgis',
+        name: 'PetaPostgisView',
+        component: () => import('../views/test/PetaPostgisView.vue')
+    },
+
     {
         path: '/test-google-maps',
         name: 'TestTabSectionView',

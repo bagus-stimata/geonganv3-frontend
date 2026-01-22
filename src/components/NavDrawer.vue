@@ -236,6 +236,16 @@ export default {
               ) && this.currentUser.organizationLevel !== EOrganizationLevel.DIV,
             },
 
+
+            {
+              title: "Test Dataset",
+              route: "/test-admin-data-peta-dataset",
+              icon: "",
+              visible: [ERole.ROLE_ADMIN].some((x) =>
+                  this.currentUser.roles.includes(x)
+              ) && this.currentUser.organizationLevel !== EOrganizationLevel.DIV,
+            },
+
           ],
         },
 

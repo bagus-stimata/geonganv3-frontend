@@ -89,7 +89,6 @@ const routes = [
     },
 
 
-
     {
         path: '/admin-satuan',
         name: 'AdminSatuan',
@@ -132,6 +131,11 @@ const routes = [
         path: '/test-peta-postgis',
         name: 'PetaPostgisView',
         component: () => import('../views/test/PetaPostgisView.vue')
+    },
+    {
+        path: '/test-admin-data-peta-dataset',
+        name: 'TestDataPetaDatasetView',
+        component: () => import('../views/admin/data-peta/TestDataPetaDatasetView.vue')
     },
 
     {

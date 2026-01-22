@@ -279,6 +279,7 @@ import DataFilter from "@/models/payload/data-filter";
 import FtDatasetImportDataTabularDialog
   from "@/components/admin/data-peta/dataset/FtDatasetImportDataTabularDialog.vue";
 import {ETipePetas} from "@/models/e-tipe-peta";
+import FtDatasetExtService from "@/services/apiservices/ft-dataset-ext-service";
 
 export default {
   components: {
@@ -375,7 +376,7 @@ export default {
       extendedFilter.search = this.search;
       extendedFilter.city = "";
 
-      FtDatasetService.getPostAllFtDatasetContainingExt(
+      FtDatasetExtService.getPostAllFtDatasetContainingExt(
           extendedFilter,
           false
       ).then(

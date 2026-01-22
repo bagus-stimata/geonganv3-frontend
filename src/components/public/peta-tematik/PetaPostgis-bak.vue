@@ -1,8 +1,8 @@
 <template>
-  <div ref="wrapperRef" class="map-wrapper" :style="wrapperStyle">
+  <div class="map-wrapper">
     <LMap
         ref="mapRef"
-        :style="{ height: '100%', width: '100%' }"
+        style="height: 100%; width: 100%;"
         :zoom="zoom"
         :center="center"
         @moveend="onMapUpdate"
@@ -92,7 +92,7 @@
 
     </LMap>
 
-    <div class="basemap-toolbar" v-if="false">
+    <div class="basemap-toolbar" v-if="true">
       <button
           v-for="bm in basemapList"
           :key="bm.id"
@@ -114,40 +114,13 @@
         {{ zoomInfoMessage }}
       </div>
     </transition>
-
-    <!-- Global snackbar (so errors/info are visible) -->
-    <v-snackbar
-      v-model="snackbar.show"
-      :timeout="snackbar.timeout"
-      :color="snackbar.color"
-      location="bottom"
-      rounded="lg"
-    >
-      {{ snackbar.text }}
-    </v-snackbar>
   </div>
 </template>
 
 <script setup>
-/* global defineProps */
-import { ref, onMounted, nextTick, onBeforeUnmount, computed, watch } from 'vue'
+import { ref, onMounted, nextTick } from 'vue'
 import { LMap, LTileLayer, LGeoJson, LControl, LControlZoom as LControlZoomComp, LControlLayers } from '@vue-leaflet/vue-leaflet'
 import axios from 'axios'
-
-// ---- component sizing (container-based, reusable across pages) ----
-const props = defineProps({
-  height: { type: String, default: '60vh' },
-  minHeight: { type: String, default: '420px' },
-  width: { type: String, default: '100%' }
-})
-
-const wrapperRef = ref(null)
-
-const wrapperStyle = computed(() => ({
-  width: props.width || '100%',
-  height: props.height || '60vh',
-  minHeight: props.minHeight || '420px'
-}))
 
 const googleSatellite = {
   id: 'googleSatellite',
@@ -183,16 +156,9 @@ const googleTerrain = {
 
 // state peta
 const mapRef = ref(null)
-
-// Leaflet needs invalidateSize() when its container changes (dialog/tab/sidebar/resize)
-let resizeObserver = null
-
-function invalidateMapSize() {
-  const map = mapRef.value?.leafletObject
-  if (map && typeof map.invalidateSize === 'function') {
-    map.invalidateSize(true)
-  }
-}
+const zoom = ref(20)
+const center = ref([-7.46, 112.23]) // [lat, lon]
+const userLocation = ref(null)
 
 // basemap options
 const basemaps = {
@@ -215,10 +181,6 @@ const basemaps = {
   googleRoadmap,
   googleTerrain
 }
-
-const zoom = ref(20)
-const center = ref([-7.46, 112.23]) // [lat, lon]
-const userLocation = ref(null)
 
 const activeBasemapId = ref('googleHybrid')
 const basemapList = Object.values(basemaps)
@@ -434,84 +396,28 @@ function toggleFullscreen() {
 }
 
 function centerToUser() {
-  // vue-leaflet versions expose the Leaflet map as either `leafletObject` or `mapObject`
-  const map = mapRef.value?.leafletObject || mapRef.value?.mapObject
+  const map = mapRef.value?.leafletObject
 
-  // If we already have a location cached, just center instantly
   if (userLocation.value && map) {
-    const z = Number.isFinite(Number(zoom.value)) ? Number(zoom.value) : 19
-    map.setView(userLocation.value, z)
+    map.setView(userLocation.value, zoom.value || 19)
     return
-  }
-
-  if (!('geolocation' in navigator)) {
-    snackbar.value = {
-      show: true,
-      color: 'warning',
-      text: 'Geolocation tidak tersedia di browser ini',
-      timeout: 1800
-    }
-    return
-  }
-
-  // Give quick feedback so user knows the button is working
-  snackbar.value = {
-    show: true,
-    color: 'info',
-    text: 'Mencari lokasi GPS...',
-    timeout: 1200
   }
 
   navigator.geolocation.getCurrentPosition(
-    (pos) => {
-      const lat = pos.coords.latitude
-      const lon = pos.coords.longitude
-      const loc = [lat, lon]
-
-      userLocation.value = loc
-      center.value = loc
-      zoom.value = 19
-
-      const m = mapRef.value?.leafletObject || mapRef.value?.mapObject
-      if (m && typeof m.setView === 'function') {
-        m.setView(loc, 19)
+      (pos) => {
+        const lat = pos.coords.latitude
+        const lon = pos.coords.longitude
+        const loc = [lat, lon]
+        userLocation.value = loc
+        center.value = loc
+        zoom.value = 19
+        if (mapRef.value?.leafletObject) {
+          mapRef.value.leafletObject.setView(loc, zoom.value)
+        }
+      },
+      (err) => {
+        console.warn('Geolocation error (centerToUser):', err)
       }
-
-      snackbar.value = {
-        show: true,
-        color: 'primary',
-        text: 'Lokasi ditemukan — peta di-center',
-        timeout: 1400
-      }
-    },
-    (err) => {
-      console.warn('Geolocation error (centerToUser):', err)
-
-      // Extra hint for iOS/macOS/Safari/Chrome when location services are disabled
-      // NOTE: browser may still return code=2 for multiple root causes.
-
-      // Common cases: permission denied / unavailable / timeout
-      let msg = 'Gagal mengambil lokasi.'
-      if (err?.code === 1) {
-        msg = 'Izin lokasi ditolak. Aktifkan Location Permission di browser.'
-      } else if (err?.code === 2) {
-        msg = 'Lokasi tidak tersedia (Location Services off / GPS tidak aktif / tidak ada fix). Coba nyalakan Location Services & GPS, lalu refresh.'
-      } else if (err?.code === 3) {
-        msg = 'Timeout ambil lokasi. Coba lagi.'
-      }
-
-      snackbar.value = {
-        show: true,
-        color: 'warning',
-        text: msg,
-        timeout: 2600
-      }
-    },
-    {
-      enableHighAccuracy: true,
-      timeout: 8000,
-      maximumAge: 15_000
-    }
   )
 }
 
@@ -525,47 +431,30 @@ function goHome() {
 // optional: trigger sekali ketika map sudah render pertama kali
 onMounted(async () => {
   await nextTick()
-
-  // invalidate once on first paint
-  invalidateMapSize()
-
-  // observe wrapper size changes (flexible layout)
-  if (wrapperRef.value && typeof ResizeObserver !== 'undefined') {
-    resizeObserver = new ResizeObserver(() => {
-      // avoid spamming; let layout settle
-      requestAnimationFrame(() => invalidateMapSize())
-    })
-    resizeObserver.observe(wrapperRef.value)
-  }
-
   // kadang @moveend/@zoomend nggak kepanggil di load awal, jadi kita panggil manual
   onMapUpdate()
 })
 
-onBeforeUnmount(() => {
-  if (resizeObserver) {
-    resizeObserver.disconnect()
-    resizeObserver = null
-  }
-})
-
-// if parent changes size via props, reflow the map
-watch(
-  () => [props.height, props.minHeight, props.width],
-  async () => {
-    await nextTick()
-    invalidateMapSize()
+navigator.geolocation.getCurrentPosition(
+  (pos) => {
+    const lat = pos.coords.latitude
+    const lon = pos.coords.longitude
+    const loc = [lat, lon]
+    userLocation.value = loc
+    center.value = loc
+    zoom.value = 19
+  },
+  (err) => {
+    console.warn('Geolocation error:', err)
   }
 )
-
-
 </script>
 
 <style scoped>
 .map-wrapper {
   position: relative;
-  width: 100%;
-  height: 100%;
+  height: 100vh;
+  width: 100vw;
 }
 
 .center-button {

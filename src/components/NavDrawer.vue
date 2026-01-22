@@ -246,6 +246,16 @@ export default {
               ) && this.currentUser.organizationLevel !== EOrganizationLevel.DIV,
             },
 
+            {
+              title: "Test PETA",
+              route: "/test-peta-postgis",
+              icon: "",
+              visible: [ERole.ROLE_ADMIN].some((x) =>
+                  this.currentUser.roles.includes(x)
+              ) && this.currentUser.organizationLevel !== EOrganizationLevel.DIV,
+            },
+
+
           ],
         },
 

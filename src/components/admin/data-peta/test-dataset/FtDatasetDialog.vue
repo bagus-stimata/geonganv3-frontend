@@ -271,7 +271,7 @@
             </v-row>
             <!-- Mode: sudah ada GeoJSON tersimpan dari backend, tampilkan tombol download & hapus -->
             <v-row v-else>
-              <v-col cols="12" sm="4" md="4" class="d-flex align-center">
+              <v-col cols="12" sm="4" md="6" class="d-flex align-center">
                 <v-btn
                     color="primary"
                     variant="flat"
@@ -289,7 +289,7 @@
                   Hapus GeoJSON
                 </v-btn>
               </v-col>
-              <v-col cols="12" sm="12" md="4">
+              <v-col cols="12" sm="12" md="6">
                 <v-autocomplete
                     v-model="itemModified.tipePeta"
                     :items="itemsTipePeta"
@@ -432,12 +432,12 @@
           </v-card-text>
 
 
-          <!-- Load Peta GeoJSON -->
-          <v-card-text v-if="hasGeojsonForPreview && togglePetaDanEditMode==='LOAD_PETA_GEOJSON'">
-            <FtDatasetMap
-                ref="refDatasetMap"
-            >
-            </FtDatasetMap>
+
+          <v-card-text v-if="togglePetaDanEditMode==='LOAD_PETA_GEOJSON'">
+              <PetaPostgis
+                  ref="refDatasetMap"
+              >
+              </PetaPostgis>
           </v-card-text>
 
           <!-- Load & Edit Data -->
@@ -706,14 +706,14 @@ import FormMode from "@/models/form-mode";
 import FtDataset from "@/models/ft-dataset";
 import FileService from "@/services/apiservices/file-service";
 import UploadImageDialog from "@/components/utils/UploadImageDialog";
-import FtDatasetMap from "./FtDatasetMap.vue";
 import {EnumDataSpaTypeList} from "@/models/e-data-spa-type";
 import ETipePeta, {ETipePetas} from "@/models/e-tipe-peta";
 import * as XLSX from "xlsx";
+import PetaPostgis from "@/components/public/peta-tematik/PetaPostgis.vue";
 
 export default {
   components: {
-    FtDatasetMap,
+    PetaPostgis,
     CloseConfirmDialog,
     UploadImageDialog,
   },
@@ -1147,15 +1147,15 @@ export default {
       // Kalau dataset sudah ditandai punya GeoJSON di server tetapi konten belum dimuat,
       // baru panggil backend untuk load GeoJSON berat.
       if (this.hasStoredGeojson && !this.hasGeojsonLoaded) {
-        await this.loadGeojsonFromServer();
+        await this.loadGeojsonForTableFromServer();
       }
     },
 
     async loadTampilanPeta(){
       try {
-        await this.ensureGeojsonLoaded();
+        // await this.ensureGeojsonLoaded();
 
-        await this.$refs.refDatasetMap.tampilkanPeta(this.itemModified)
+        // await this.$refs.refDatasetMap.tampilkanPeta(this.itemModified)
 
         console.log("Done Load Tampilan Peta");
       } catch (e) {
@@ -1164,6 +1164,7 @@ export default {
         this.snackbar = true;
       }
     },
+
     async loadDataEdit(){
       try {
         this.dialogLoading = true;
@@ -1179,7 +1180,7 @@ export default {
       }
     },
 
-    async loadGeojsonFromServer() {
+    async loadGeojsonForTableFromServer() {
       if (!this.itemModified || !this.itemModified.id) return;
 
       try {
@@ -1212,8 +1213,10 @@ export default {
           this.itemModified.fileNameLow = incoming.fileNameLow;
         }
 
-        // Backend bisa kirim geojson sebagai String ATAU sebagai object/JsonNode.
-        // Di sini kita normalisasi ke String supaya konsisten di frontend.
+        /**
+         * - kebutuhan saat ini hanya untuk tabel, sebelum dibuatkan paging dari Backend
+         * - Peta tetap menggunakan View Port saja
+         */
         let incomingGeo = incoming.geojson;
         let hasGeoContent = false;
 

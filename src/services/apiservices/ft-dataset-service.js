@@ -9,26 +9,7 @@ class FtDatasetService {
         return API_URL;
     }
 
-    /**
-     * Ambil semua dataset (sesuai role user).
-     * @param {boolean} includeGeojson - kalau true, backend kirim field `geojson`
-     */
-    getAllFtDataset(includeGeojson = false) {
-        return axios.get(
-            API_URL + `getAllFtDataset?includeGeojson=${includeGeojson}`,
-            { headers: authHeader() }
-        );
-    }
 
-    /**
-     * Versi public: semua dataset yang boleh diakses publik.
-     */
-    getAllFtDatasetPublic(includeGeojson = false) {
-        return axios.get(
-            API_URL + `public/getAllFtDataset?includeGeojson=${includeGeojson}`,
-            { headers: authHeader() }
-        );
-    }
     getAllFtDatasetShowOnHomeOnlyPublic(includeGeojson = false) {
         return axios.get(
             API_URL + `public/getAllFtDatasetShowOnHomeOnly?includeGeojson=${includeGeojson}`,
@@ -42,92 +23,6 @@ class FtDatasetService {
             {
                 headers: authHeader(),
                 responseType: "blob",
-            }
-        );
-    }
-
-
-    /**
-     * Pencarian + paging untuk dataset (sesuai role user).
-     */
-    getAllFtDatasetContaining(
-        page,
-        pageSize,
-        sortBy,
-        order,
-        search,
-        includeGeojson = false
-    ) {
-        const qSearch = encodeURIComponent(search ?? "");
-        const qSortBy = encodeURIComponent(sortBy ?? "");
-        const qOrder = encodeURIComponent(order ?? "");
-
-        return axios.get(
-            API_URL +
-            `getAllFtDatasetContaining` +
-            `?page=${page}` +
-            `&pageSize=${pageSize}` +
-            `&sortBy=${qSortBy}` +
-            `&order=${qOrder}` +
-            `&search=${qSearch}` +
-            `&includeGeojson=${includeGeojson}`,
-            { headers: authHeader() }
-        );
-    }
-
-    getAllFtDatasetContainingPublic(
-        page,
-        pageSize,
-        sortBy,
-        order,
-        search,
-        includeGeojson = false
-    ) {
-        const qSearch = encodeURIComponent(search ?? "");
-        const qSortBy = encodeURIComponent(sortBy ?? "");
-        const qOrder = encodeURIComponent(order ?? "");
-
-        return axios.get(
-            API_URL +
-            `public/getAllFtDatasetContaining` +
-            `?page=${page}` +
-            `&pageSize=${pageSize}` +
-            `&sortBy=${qSortBy}` +
-            `&order=${qOrder}` +
-            `&search=${qSearch}` +
-            `&includeGeojson=${includeGeojson}`,
-            { headers: authHeader() }
-        );
-    }
-
-    /**
-     *
-     * Versi POST dengan filter lebih kompleks (FIndikatorFilter).
-     * `includeGeojson` tetap lewat query param.
-     */
-    getPostAllFtDatasetContainingExt(item, includeGeojson = false) {
-        return axios.post(
-            API_URL + `getPostAllFtDatasetContainingExt?includeGeojson=${includeGeojson}`,
-            item,
-            { headers: authHeader() }
-        );
-    }
-
-    // getPostAllFtDatasetContainingExtPublic(item, includeGeojson = false, deepSearch = false) {
-    //     return axios.post(
-    //         API_URL + `public/getPostAllFtDatasetContainingExt?includeGeojson=${includeGeojson}&deepSearch=${deepSearch}`,
-    //         item,
-    //         { headers: authHeader() }
-    //     );
-    // }
-
-    getPostAllFtDatasetContainingExtPublic(item, includeGeojson = false, deepSearch = false) {
-        return axios.post(
-            `${API_URL}public/getPostAllFtDatasetContainingExt`,
-            item,
-            {
-                headers: authHeader(),
-                params: { includeGeojson, deepSearch }
             }
         );
     }

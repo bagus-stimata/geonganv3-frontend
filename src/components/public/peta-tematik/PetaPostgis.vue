@@ -7,6 +7,7 @@
         :center="center"
         @moveend="onMapUpdate"
         @zoomend="onMapUpdate"
+        style="z-index: 7"
         :options="{ scrollWheelZoom: false, preferCanvas: true, zoomControl: false }"
     >
       <!-- basemaps registered as base layers for LControlLayers -->
@@ -572,7 +573,7 @@ watch(
   position: absolute;
   right: 16px;
   bottom: 16px;
-  z-index: 1000;
+  z-index: 8;
   padding: 6px 10px;
   border-radius: 4px;
   border: none;
@@ -590,7 +591,7 @@ watch(
   position: absolute;
   right: 16px;
   top: 16px;
-  z-index: 1000;
+  z-index: 8;
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
@@ -616,7 +617,7 @@ watch(
   position: absolute;
   bottom: 80px;
   right: 16px;
-  z-index: 1100;
+  z-index: 8;
   background: rgba(0, 0, 0, 0.8);
   color: #fff;
   padding: 6px 10px;

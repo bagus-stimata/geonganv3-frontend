@@ -1,6 +1,6 @@
 <template>
   <!-- z-index harus diatas Sticky Object yaitu 9 dan dibawah Dialog yaitu 200 -->
-  <nav style="z-index: 10;">
+  <nav style="z-index: 20;">
     <v-toolbar :flat="currentUser === null" elevation="0">
       <v-app-bar-nav-icon
         @click="drawer = !drawer"

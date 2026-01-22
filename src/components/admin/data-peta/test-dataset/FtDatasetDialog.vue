@@ -791,6 +791,9 @@ export default {
       featureColWidths: {},
       featureResizeCtx: null,
       togglePetaDanEditMode: null,
+
+      //Untuk Peta Posgis
+      datasetIds: [],
     };
   },
   computed: {
@@ -1156,8 +1159,7 @@ export default {
     async loadTampilanPeta(){
       try {
         // await this.ensureGeojsonLoaded();
-
-        // await this.$refs.refDatasetMap.tampilkanPeta(this.itemModified)
+        this.datasetIds = [this.itemModified.id];
 
         console.log("Done Load Tampilan Peta");
       } catch (e) {

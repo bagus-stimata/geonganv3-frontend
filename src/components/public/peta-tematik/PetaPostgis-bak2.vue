@@ -222,8 +222,8 @@ const basemaps = {
   googleTerrain
 }
 
-const zoom = ref(15)
-const center = ref([-7.6024, 111.9011]) // [lat, lon]
+const zoom = ref(20)
+const center = ref([-7.46, 112.23]) // [lat, lon]
 const userLocation = ref(null)
 
 const activeBasemapId = ref('googleHybrid')
@@ -275,7 +275,7 @@ const zoomInfoMessage = ref('')
 // buat debounce biar nggak kebanyakan request
 // buat debounce biar nggak kebanyakan request
 let debounceTimer = null
-const DEBOUNCE_DELAY = 50 // ms
+const DEBOUNCE_DELAY = 300 // ms
 
 const isMapReady = ref(false)
 const pendingRefresh = ref(false)
@@ -313,10 +313,9 @@ function onMapUpdate() {
     lastZoom.value = z
     showZoomInfo.value = true
 
-    // setTimeout(() => {
-    //   showZoomInfo.value = false
-    // }, 800)
-
+    setTimeout(() => {
+      showZoomInfo.value = false
+    }, 800)
   }
 
   // Debounce fetch agar tidak spam API

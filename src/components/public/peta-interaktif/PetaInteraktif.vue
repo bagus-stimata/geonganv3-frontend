@@ -7,7 +7,14 @@
         ref="map"
         @update:zoom="zoomUpdated"
         @update:center="centerUpdated"
-        :options="{ scrollWheelZoom: false, preferCanvas: true, zoomControl: false }"
+        :options="{
+          scrollWheelZoom: false,
+          preferCanvas: true,
+          zoomControl: false,
+          zoomAnimation: false,
+          markerZoomAnimation: false,
+          fadeAnimation: false
+        }"
         @ready="initializeFullscreen"
         :style="{ zIndex: 0, minHeight: mapMinHeight, maxHeight: mapMaxHeight, width: '100%', position: 'relative' }"
         @click="setSingleMarker"
@@ -151,14 +158,15 @@
                     <v-btn
                         v-bind="props"
                         block
-                        :variant="isHovering ? 'flat' : 'outlined'"
-                        :class="{ 'color-bg-primary': isHovering }"
+                        @click="toggleDrawTools"
+                        :variant="drawToolsOn ? 'flat' : (isHovering ? 'flat' : 'outlined')"
+                        :class="{ 'color-bg-primary': isHovering || drawToolsOn }"
                     >
                       <v-tooltip
                           activator="parent"
                           location="bottom"
                       >Menggambar pada Peta</v-tooltip>
-                      <v-icon size="large" :class="{ 'text-white': isHovering }">mdi-vector-polygon</v-icon>
+                      <v-icon size="large" :class="{ 'text-white': isHovering || drawToolsOn }">mdi-vector-polygon</v-icon>
                     </v-btn>
                   </v-hover>
                 </v-col>
@@ -354,7 +362,8 @@ import "leaflet/dist/leaflet.css";
 import L, {Icon} from 'leaflet';
 import 'leaflet-fullscreen';
 import 'leaflet-fullscreen/dist/leaflet.fullscreen.css';
-
+import 'leaflet-draw';
+import 'leaflet-draw/dist/leaflet.draw.css';
 import zonaMapper from '@/helpers/zona-color-mapper';
 import GooglePlacesAutoCompleteDialog from "@/components/util-ext/GooglePlacesAutoCompleteDialog.vue";
 
@@ -422,6 +431,10 @@ export default {
   },
   data()  {
     return {
+      drawToolsOn: false,
+      drawnItems: null,
+      drawControl: null,
+      lastDrawnGeojson: null,
       markerIconCache: new Map(),
       ftTematik: undefined,
       loadingSync:false,
@@ -448,6 +461,7 @@ export default {
 
       isFullScreen: false,
       showCenterMarker: false,
+      drawHandlers: { created: null, edited: null, deleted: null },
       singleMarker: {
         coords: this.$store.state.potensi.centerMap.coordinates,
       },
@@ -691,6 +705,190 @@ export default {
     },
   },
   methods: {
+    formatHectares(valueHa) {
+      if (!Number.isFinite(valueHa)) return '';
+      // 4 decimals is usually enough for map drawing
+      return Number(valueHa.toFixed(4));
+    },
+
+    setDrawnAreaTooltip(layer) {
+      try {
+        if (!layer) return;
+
+        // Only show area tooltip for shapes that have area: Polygon/Rectangle/Circle
+        let areaM2 = null;
+
+        if (layer instanceof L.Circle && typeof layer.getRadius === 'function') {
+          const r = layer.getRadius();
+          if (Number.isFinite(r)) areaM2 = Math.PI * r * r;
+        } else if (typeof layer.toGeoJSON === 'function') {
+          const gj = layer.toGeoJSON();
+          const t = gj && gj.geometry ? gj.geometry.type : '';
+          if (t === 'Polygon' || t === 'MultiPolygon') {
+            areaM2 = turf.area(gj);
+          }
+        }
+
+        if (!Number.isFinite(areaM2)) return;
+        const areaHa = areaM2 / 10000;
+        const haText = this.formatHectares(areaHa);
+        if (haText === '') return;
+
+        const html = `<div style='font-weight:700'>Luas: ${haText} ha</div>`;
+
+        // Re-bind to keep tooltip updated
+        if (typeof layer.unbindTooltip === 'function') {
+          layer.unbindTooltip();
+        }
+        if (typeof layer.bindTooltip === 'function') {
+          layer.bindTooltip(html, {
+            permanent: false,
+            sticky: true,
+            direction: 'top',
+            opacity: 0.95,
+          });
+        }
+      } catch (e) {
+        console.warn('[PetaInteraktif][setDrawnAreaTooltip] error', e);
+      }
+    },
+    initDrawTools(map) {
+      try {
+        if (!map) return;
+        if (this.drawnItems) return; // already init
+
+        this.drawnItems = new L.FeatureGroup();
+        map.addLayer(this.drawnItems);
+
+        this.drawControl = new L.Control.Draw({
+          position: 'bottomright',
+          edit: {
+            featureGroup: this.drawnItems,
+            remove: true,
+          },
+          draw: {
+            polygon: true,
+            polyline: true,
+            rectangle: true,
+            circle: true,
+            marker: true,
+            circlemarker: false,
+          }
+        });
+
+        if (!this.drawHandlers.created) this.drawHandlers.created = (ev) => this.onDrawCreated(ev);
+        if (!this.drawHandlers.edited) this.drawHandlers.edited = (ev) => this.onDrawEdited(ev);
+        if (!this.drawHandlers.deleted) this.drawHandlers.deleted = (ev) => this.onDrawDeleted(ev);
+
+        map.on(L.Draw.Event.CREATED, this.drawHandlers.created);
+        map.on(L.Draw.Event.EDITED, this.drawHandlers.edited);
+        map.on(L.Draw.Event.DELETED, this.drawHandlers.deleted);
+      } catch (e) {
+        console.error('[PetaInteraktif][initDrawTools] error', e);
+      }
+    },
+
+    toggleDrawTools() {
+      const map = this.$refs.map?.leafletObject || this.$refs.map?.mapObject;
+      if (!map) {
+        this.snackbar = { show: true, color: 'warning', text: 'Map belum siap', timeout: 1500 };
+        return;
+      }
+
+      this.initDrawTools(map);
+
+      this.drawToolsOn = !this.drawToolsOn;
+
+      try {
+        if (this.drawToolsOn) {
+          if (this.drawControl) map.addControl(this.drawControl);
+          this.snackbar = { show: true, color: 'teal', text: 'Mode gambar aktif disebelah kanan', timeout: 1500 };
+        } else {
+          if (this.drawControl) map.removeControl(this.drawControl);
+
+          // Auto-clear semua shape ketika mode gambar dimatikan
+          if (this.drawnItems && typeof this.drawnItems.clearLayers === 'function') {
+            this.drawnItems.clearLayers();
+          }
+          this.lastDrawnGeojson = null;
+          // Optional: inform parent that shapes are cleared
+          this.$emit('shapesDeleted', this.exportDrawnGeojson());
+
+          this.snackbar = { show: true, color: 'info', text: 'Mode gambar dimatikan (shape dibersihkan)', timeout: 1500 };
+        }
+      } catch (e) {
+        console.warn('[PetaInteraktif][toggleDrawTools] error', e);
+      }
+    },
+
+    onDrawCreated(e) {
+      try {
+        const layer = e?.layer;
+        if (!layer) return;
+
+        if (this.drawnItems && this.drawnItems.addLayer) {
+          this.drawnItems.addLayer(layer);
+        }
+        // Tooltip luas (ha) untuk shape yang punya area
+        this.setDrawnAreaTooltip(layer);
+
+        const gj = layer.toGeoJSON ? layer.toGeoJSON() : null;
+
+        // circle: simpen radius biar kepake
+        if (gj) {
+          if (!gj.properties) gj.properties = {};
+          if (layer instanceof L.Circle && typeof layer.getRadius === 'function') {
+            gj.properties.radiusMeters = layer.getRadius();
+          }
+          this.lastDrawnGeojson = gj;
+
+          // optional: emit ke parent
+          this.$emit('shapeDrawn', gj);
+        }
+
+        this.snackbar = { show: true, color: 'success', text: 'Shape berhasil digambar', timeout: 1500 };
+      } catch (err) {
+        console.error('[PetaInteraktif][onDrawCreated] error', err);
+        this.snackbar = { show: true, color: 'error', text: 'Gagal menggambar shape', timeout: 1800 };
+      }
+    },
+
+    onDrawEdited(e) {
+      try {
+        const layers = e && e.layers && typeof e.layers.eachLayer === 'function' ? e.layers : null;
+        if (layers) {
+          layers.eachLayer((layer) => {
+            this.setDrawnAreaTooltip(layer);
+          });
+        }
+
+        this.$emit('shapesEdited', this.exportDrawnGeojson());
+        this.snackbar = { show: true, color: 'info', text: 'Shape diperbarui', timeout: 1200 };
+      } catch (err) {
+        console.warn('[PetaInteraktif][onDrawEdited] error', err);
+      }
+    },
+
+    onDrawDeleted() {
+      try {
+        this.$emit('shapesDeleted', this.exportDrawnGeojson());
+        this.snackbar = { show: true, color: 'info', text: 'Shape dihapus', timeout: 1200 };
+      } catch (err) {
+        console.warn('[PetaInteraktif][onDrawDeleted] error', err);
+      }
+    },
+
+    exportDrawnGeojson() {
+      try {
+        if (!this.drawnItems) return { type: 'FeatureCollection', features: [] };
+        const fc = this.drawnItems.toGeoJSON ? this.drawnItems.toGeoJSON() : null;
+        if (fc && fc.type === 'FeatureCollection') return fc;
+        return { type: 'FeatureCollection', features: [] };
+      } catch (e) {
+        console.warn('[PetaInteraktif][exportDrawnGeojson] error', e);
+        return { type: 'FeatureCollection', features: [] };
+      }
+    },
     isPointTipePeta(tipePeta) {
       return tipePeta === ETipePeta.POINT
     },
@@ -1400,7 +1598,7 @@ export default {
           this._fsControl = L.control.fullscreen({ position: 'bottomright' });
           this._fsControl.addTo(map);
         }
-
+        this.initDrawTools(map);
         // Sync state saat popup ditutup otomatis (mis. klik marker lain / autoClose)
         // supaya popup marker utama tidak "nyangkut" dan menghalangi klik marker lain.
         this._onPopupClose = () => {
@@ -1418,6 +1616,7 @@ export default {
     },
 
     setSingleMarker(event) {
+      if (this.drawToolsOn) return;
       const { lat, lng } = event.latlng;
 
       // Tutup popup yang sedang terbuka dulu, biar klik marker lain tidak ketahan overlay popup
@@ -1446,6 +1645,7 @@ export default {
     },
 
     singleMarkerClick() {
+      if (this.drawToolsOn) return;
       // Pastikan popup lain tertutup dulu
       this.closeAllLeafletPopups();
 
@@ -2098,4 +2298,45 @@ export default {
     :deep(.leaflet-bottom.leaflet-right .leaflet-control-fullscreen) {
       margin-right: 16px !important;
     }
+    :deep(.leaflet-bottom.leaflet-right .leaflet-draw) {
+      margin-right: 16px !important;
+    }
+    /* Leaflet Draw toolbar: make it not plain white */
+    :deep(.leaflet-bottom.leaflet-right .leaflet-draw-toolbar) {
+      background: #3F51B5; /* dark glass */
+      border-radius: 12px;
+      padding: 2px;
+      box-shadow: 0 10px 22px rgba(0,0,0,0.18);
+      border: 1px solid rgba(255,255,255,0.12);
+      backdrop-filter: saturate(1.2) blur(10px);
+      -webkit-backdrop-filter: saturate(1.2) blur(10px);
+    }
+    :deep(.leaflet-bottom.leaflet-right .leaflet-draw-toolbar a) {
+      /* keep sprite background-image intact; only style the button container */
+      background-color: transparent !important;
+      border: 1px solid rgba(0,0,0) !important;
+      border-radius: 10px !important;
+      margin: 4px !important;
+      width: 32px !important;
+      height: 32px !important;
+      box-shadow: none !important;
+      transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+
+      /* recolor the sprite to look WHITE on dark toolbar */
+      filter: invert(1) brightness(1.15) contrast(1.05);
+    }
+
+    :deep(.leaflet-bottom.leaflet-right .leaflet-draw-toolbar a:hover) {
+      border-color: rgba(0,0,0) !important;
+      transform: translateY(-1px);
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.12) inset;
+    }
+
+    /* Enabled/active draw button */
+    :deep(.leaflet-bottom.leaflet-right .leaflet-draw-toolbar a.leaflet-draw-toolbar-button-enabled) {
+      border-color: rgba(255,255,255,0.75) !important;
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.18) inset;
+    }
+
+
 </style>

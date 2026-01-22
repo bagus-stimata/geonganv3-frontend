@@ -194,9 +194,9 @@
 
 import BaseMapInteraktif from "@/components/public/peta-interaktif/BaseMapInteraktif.vue";
 import DataFilter from "@/models/payload/f-dayadukung-filter";
-import FtDatasetService from "@/services/apiservices/ft-dataset-service";
 import FtDataset from "@/models/ft-dataset";
 import FileService from "@/services/apiservices/file-service";
+import FtDatasetExtService from "@/services/apiservices/ft-dataset-ext-service";
 
 export default {
   name: "PickMapsetDialog",
@@ -273,7 +273,7 @@ export default {
       if(this.isActiveDeepSearch){
         deepSearch = true
       }
-      FtDatasetService.getPostAllFtDatasetContainingExtPublic(
+      FtDatasetExtService.getPostAllFtDatasetContainingExtPublic(
           extendedFilter,
           deepSearch
       ).then(

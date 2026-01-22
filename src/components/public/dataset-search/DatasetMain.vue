@@ -168,9 +168,9 @@
 
 <script>
 
-import FtDatasetService from "@/services/apiservices/ft-dataset-service";
 import DataFilter from "@/models/payload/f-dayadukung-filter";
 import FileService from "@/services/apiservices/file-service";
+import FtDatasetExtService from "@/services/apiservices/ft-dataset-ext-service";
 
 export default {
   name: "DatasetMain",
@@ -240,9 +240,8 @@ export default {
         deepSearch = true
       }
       this.loading = true;
-      FtDatasetService.getPostAllFtDatasetContainingExtPublic(
+      FtDatasetExtService.getPostAllFtDatasetContainingExtPublic(
           extendedFilter,
-          false,
           deepSearch
       ).then(
           (response) => {

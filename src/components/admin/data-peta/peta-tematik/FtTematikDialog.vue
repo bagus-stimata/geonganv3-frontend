@@ -637,7 +637,7 @@ import FormMode from "@/models/form-mode";
 import FtTematik from "@/models/ft-tematik";
 import FtTematikDataset from "@/models/ft-tematik-dataset";
 import DataFilter from "@/models/payload/f-dayadukung-filter";
-import FtDatasetService from "@/services/apiservices/ft-dataset-service";
+import FtDatasetExtService from "@/services/apiservices/ft-dataset-ext-service";
 
 export default {
   components: {
@@ -965,9 +965,8 @@ export default {
       extendedFilter.sortBy = "id";
       extendedFilter.order = "DESC";
       extendedFilter.search = this.search;
-      FtDatasetService.getPostAllFtDatasetContainingExtPublic(
+      FtDatasetExtService.getPostAllFtDatasetContainingExtPublic(
           extendedFilter,
-          false,
           false
       ).then(
           (response) => {

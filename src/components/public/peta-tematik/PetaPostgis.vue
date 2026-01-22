@@ -5,6 +5,7 @@
         :style="{ height: '100%', width: '100%' }"
         :zoom="zoom"
         :center="center"
+        @ready="onMapReady"
         @moveend="onMapUpdate"
         @zoomend="onMapUpdate"
         style="z-index: 7"
@@ -139,7 +140,10 @@ import axios from 'axios'
 const props = defineProps({
   height: { type: String, default: '60vh' },
   minHeight: { type: String, default: '420px' },
-  width: { type: String, default: '100%' }
+  width: { type: String, default: '100%' },
+
+  // IDs dataset yang mau ditampilkan (di-drive dari parent)
+  datasetIds: { type: Array, default: () => [] }
 })
 
 const wrapperRef = ref(null)
@@ -244,8 +248,18 @@ function setBasemap(id) {
 }
 // GeoJSON dari backend
 const geojsonData = ref([])
-// daftar dataset yang ingin ditampilkan (isi dari UI / parent / route). Wajib untuk request viewport.
-const datasetIds = ref([])
+
+// Global snackbar (biar error/info selalu kelihatan)
+const snackbar = ref({ show: false, color: '', text: '', timeout: 1500 })
+
+// Props -> normalized IDs (source of truth)
+const datasetIdsNorm = computed(() => {
+  if (!Array.isArray(props.datasetIds)) return []
+  return props.datasetIds
+    .map(v => Number(v))
+    .filter(v => Number.isFinite(v))
+    .map(v => Math.trunc(v))
+})
 
 const lastZoom = ref(zoom.value)
 const showZoomInfo = ref(false)
@@ -255,11 +269,29 @@ const zoomInfoMessage = ref('')
 let debounceTimer = null
 const DEBOUNCE_DELAY = 300 // ms
 
+const isMapReady = ref(false)
+const pendingRefresh = ref(false)
+
+function onMapReady() {
+  isMapReady.value = true
+
+  // reflow biar ukuran leaflet bener (flex layout / dialog)
+  requestAnimationFrame(() => invalidateMapSize())
+
+  // kalau sebelumnya ada request refresh tapi map belum siap, jalanin sekarang
+  if (pendingRefresh.value) {
+    pendingRefresh.value = false
+    triggerViewportFetch('pending-refresh', { debounce: false })
+  } else {
+    // initial fetch ketika map baru ready
+    triggerViewportFetch('map-ready', { debounce: false })
+  }
+}
+
 function onMapUpdate() {
   const map = mapRef.value?.leafletObject
   if (!map) return
 
-  const bounds = map.getBounds()
   const z = map.getZoom()
 
   // Zoom info overlay logic
@@ -267,32 +299,80 @@ function onMapUpdate() {
     const delta = z - lastZoom.value
     const direction = delta > 0 ? 'Perbesar' : 'Perkecil'
     const steps = Math.abs(delta)
-    // faktor skala 2^delta (Leaflet default)
     const factor = Math.pow(2, delta).toFixed(2)
+
     zoomInfoMessage.value = `${direction} zoom: level ${z} (${delta > 0 ? '+' : '-'}${steps} step, faktor ${factor}x)`
     lastZoom.value = z
     showZoomInfo.value = true
 
-    // auto-hide setelah 800ms
     setTimeout(() => {
       showZoomInfo.value = false
     }, 800)
   }
 
-  const minX = bounds.getWest()   // lon kiri
-  const minY = bounds.getSouth()  // lat bawah
-  const maxX = bounds.getEast()   // lon kanan
-  const maxY = bounds.getNorth()  // lat atas
+  // Debounce fetch agar tidak spam API
+  triggerViewportFetch('map-update', { debounce: true })
+}
 
-  console.log('[Leaflet bbox]', { minX, minY, maxX, maxY, z })
 
-  // debounce panggilan API
+// auto-refresh when parent changes datasetIds
+watch(
+  () => datasetIdsNorm.value.join(','),
+  async () => {
+    await nextTick()
+    triggerViewportFetch('datasetIds-change', { debounce: false })
+  },
+  { immediate: true }
+)
+
+function getViewportFromMap() {
+  const map = mapRef.value?.leafletObject
+  if (!map) return null
+
+  const bounds = map.getBounds()
+  const z = map.getZoom()
+
+  return {
+    minX: bounds.getWest(),
+    minY: bounds.getSouth(),
+    maxX: bounds.getEast(),
+    maxY: bounds.getNorth(),
+    z
+  }
+}
+
+function triggerViewportFetch(reason = 'unknown', { debounce = false } = {}) {
+  // kalau belum ada dataset dipilih, jangan request
+  if (!datasetIdsNorm.value.length) {
+    geojsonData.value = []
+    return
+  }
+
+  const vp = getViewportFromMap()
+  if (!vp) {
+    pendingRefresh.value = true
+    return
+  }
+
+  const doFetch = () => {
+    fetchViewportData({
+      minX: vp.minX,
+      minY: vp.minY,
+      maxX: vp.maxX,
+      maxY: vp.maxY,
+      z: vp.z,
+      reason
+    })
+  }
+
+  if (!debounce) {
+    clearTimeout(debounceTimer)
+    doFetch()
+    return
+  }
+
   clearTimeout(debounceTimer)
-  debounceTimer = setTimeout(() => {
-    console.log(`${minX}x${minY}y dan ${maxX}x${maxY}y di zoom ${z} - fetching data...`)
-
-    fetchViewportData({ minX, minY, maxX, maxY, z })
-  }, DEBOUNCE_DELAY)
+  debounceTimer = setTimeout(doFetch, DEBOUNCE_DELAY)
 }
 
 function safeParseGeojson(v, idForLog) {
@@ -307,14 +387,14 @@ function safeParseGeojson(v, idForLog) {
   }
 }
 
-async function fetchViewportData({ minX, minY, maxX, maxY, z }) {
+async function fetchViewportData({ minX, minY, maxX, maxY, z, reason }) {
   // kalau belum ada dataset dipilih, jangan spam request
-  if (!Array.isArray(datasetIds.value) || datasetIds.value.length === 0) {
+  if (!datasetIdsNorm.value.length) {
     geojsonData.value = []
     return
   }
-
   try {
+    console.log('[viewport] fetch', { reason, minX, minY, maxX, maxY, z, ids: datasetIdsNorm.value })
     const res = await axios.get('/api/geoportal/public/getViewportClipped', {
       params: {
         minLon: minX,
@@ -322,7 +402,7 @@ async function fetchViewportData({ minX, minY, maxX, maxY, z }) {
         maxLon: maxX,
         maxLat: maxY,
         zoom: z,
-        ids: datasetIds.value
+        ids: datasetIdsNorm.value
       }
     })
 
@@ -334,10 +414,15 @@ async function fetchViewportData({ minX, minY, maxX, maxY, z }) {
       .filter(Boolean)
   } catch (err) {
     console.error('Error fetch viewport data:', err)
+    snackbar.value = {
+      show: true,
+      color: 'error',
+      text: 'Gagal memuat data peta (viewport). Cek API/Network & parameter ids.',
+      timeout: 2500
+    }
   }
 }
 
-const snackbar = ref({ show: false, color: '', text: '', timeout: 1500 })
 
 const ssPhotoDownload = async () => {
   try {

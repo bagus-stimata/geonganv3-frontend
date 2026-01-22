@@ -1156,12 +1156,32 @@ export default {
       }
     },
 
-    async loadTampilanPeta(){
+    async loadTampilanPeta() {
       try {
-        // await this.ensureGeojsonLoaded();
-        this.datasetIds = [this.itemModified.id];
+        // 1) pastiin komponen peta ter-render
+        this.togglePetaDanEditMode = "LOAD_PETA_GEOJSON";
 
-        console.log("Done Load Tampilan Peta");
+        const id = this.itemModified?.id ? Number(this.itemModified.id) : 0;
+        if (!id) {
+          this.snackBarMessage = "Dataset belum punya ID";
+          this.snackbar = true;
+          return;
+        }
+
+        // 2) update props
+        this.datasetIds = [id];
+
+        // 3) tunggu render
+        await this.$nextTick();
+
+        // 4) optional: paksa reload sekarang juga (biar responsif)
+        const petaComp = this.$refs.refDatasetMap;
+        if (petaComp && typeof petaComp.refreshDataForViewPort === "function") {
+          await petaComp.refreshDataForViewPort();
+        }
+
+        // console.log("Done Load Tampilan Peta");
+
       } catch (e) {
         console.error(e);
         this.snackBarMessage = "Gagal menampilkan peta";

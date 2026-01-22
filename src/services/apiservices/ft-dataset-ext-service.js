@@ -9,6 +9,22 @@ class FtDatasetExtService {
         return API_URL;
     }
 
+    getViewportClippedPublic(minLon, minLat, maxLon, maxLat, zoom, ids = []) {
+        return axios.get(
+            API_URL + `ext/public/getViewportClipped`,
+            {
+                headers: authHeader(),
+                params: {
+                    minLon,
+                    minLat,
+                    maxLon,
+                    maxLat,
+                    zoom,
+                    ids,
+                },
+            }
+        );
+    }
 
     getFtDatasetById(id, includeGeojson = false) {
         return axios.get(

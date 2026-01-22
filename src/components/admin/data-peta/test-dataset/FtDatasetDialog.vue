@@ -436,6 +436,8 @@
           <v-card-text v-if="togglePetaDanEditMode==='LOAD_PETA_GEOJSON'">
               <PetaPostgis
                   ref="refDatasetMap"
+                  class="pl-10"
+                  :datasetIds="datasetIds"
               >
               </PetaPostgis>
           </v-card-text>

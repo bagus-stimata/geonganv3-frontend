@@ -19,18 +19,66 @@
         </v-toolbar>
         <v-divider class="mx-4"></v-divider>
         <v-card-text class="justify-center px-4">
-          <v-file-upload
-              clearable
-              v-model="currentFile"
-              density="compact"
-              accept=".zip,application/zip,application/x-zip-compressed"
-          />
+          <v-row>
+            <v-col cols="12" md="6">
+              <div class="text-caption text-black mb-1">File .shp</div>
+              <v-file-input
+                clearable
+                class="bg-blue-lighten-5"
+                variant="outlined"
+                v-model="fileShp"
+                density="compact"
+                accept=".shp"
+                hide-details
+                show-size
+              />
+            </v-col>
+            <v-col cols="12" md="6">
+              <div class="text-caption text-black mb-1">File .shx</div>
+              <v-file-input
+                clearable
+                class="bg-blue-lighten-5"
+                variant="outlined"
+                v-model="fileShx"
+                density="compact"
+                accept=".shx"
+                hide-details
+                show-size
+              />
+            </v-col>
+            <v-col cols="12" md="6" class="pt-0">
+              <div class="text-caption text-black mb-1">File .dbf</div>
+              <v-file-input
+                clearable
+                class="bg-blue-lighten-5"
+                variant="outlined"
+                v-model="fileDbf"
+                density="compact"
+                accept=".dbf"
+                hide-details
+                show-size
+              />
+            </v-col>
+            <v-col cols="12" md="6" class="pt-0">
+              <div class="text-caption text-black mb-1">File .prj</div>
+              <v-file-input
+                clearable
+                class="bg-blue-lighten-5"
+                variant="outlined"
+                v-model="filePrj"
+                density="compact"
+                accept=".prj"
+                hide-details
+                show-size
+              />
+            </v-col>
+          </v-row>
           <div class="text-caption text-grey mt-2">
-            File harus <strong>.zip</strong> dan berisi minimal 4 file: <strong>.shp</strong>, <strong>.shx</strong>, <strong>.dbf</strong>, <strong>.prj</strong>.
+            Wajib upload 4 file: <strong>.shp</strong>, <strong>.shx</strong>, <strong>.dbf</strong>, <strong>.prj</strong> (dari shapefile yang sama).
           </div>
           <v-row justify="center" align="center" class="mt-2">
             <v-col cols="4">
-              <v-btn block color="success" size="small" variant="flat" @click="startUpload" :disabled="!currentFile">
+              <v-btn block color="success" size="small" variant="flat" @click="startUpload" :disabled="!fileShp || !fileShx || !fileDbf || !filePrj">
                 Upload
                 <v-icon right dark>mdi-cloud-upload</v-icon>
               </v-btn>
@@ -72,16 +120,13 @@
 </template>
 
 <script>
-import { VFileUpload } from 'vuetify/labs/VFileUpload'
 import axios from "axios";
 export default {
   name: "UploadShpToGeojsonDialog",
   props: {
     parentId: Number,
   },
-  components: {
-    VFileUpload
-  },
+  components: {},
   data() {
     return {
       toolBarTitle: "Upload SHP",
@@ -94,11 +139,14 @@ export default {
         message2: "",
         errorMessage: "",
         color: "grey lighten-3",
-        width: 500,
+        width: 700,
         zIndex: 250,
         noconfirm: false,
       },
-      currentFile: undefined,
+      fileShp: undefined,
+      fileShx: undefined,
+      fileDbf: undefined,
+      filePrj: undefined,
       previewImage: undefined,
 
       progress: 0,
@@ -113,20 +161,21 @@ export default {
   },
   methods: {
     async startUpload() {
-      if (!this.currentFile) {
-        this.message = "Please select a .zip file";
+      const toSingleFile = (v) => (Array.isArray(v) ? v[0] : v);
+
+      const shp = toSingleFile(this.fileShp);
+      const shx = toSingleFile(this.fileShx);
+      const dbf = toSingleFile(this.fileDbf);
+      const prj = toSingleFile(this.filePrj);
+
+      if (!shp || !shx || !dbf || !prj) {
+        this.message = "Wajib pilih 4 file: .shp, .shx, .dbf, .prj";
         return;
       }
 
-      const file = Array.isArray(this.currentFile) ? this.currentFile[0] : this.currentFile;
-      if (!file) {
-        this.message = "Please select a .zip file";
-        return;
-      }
-
-      const nameLower = String(file.name || "").toLowerCase();
-      if (!nameLower.endsWith(".zip")) {
-        this.message = "File harus .zip";
+      const endsWith = (f, ext) => String(f.name || "").toLowerCase().endsWith(ext);
+      if (!endsWith(shp, ".shp") || !endsWith(shx, ".shx") || !endsWith(dbf, ".dbf") || !endsWith(prj, ".prj")) {
+        this.message = "Extensi file harus sesuai: .shp, .shx, .dbf, .prj";
         return;
       }
 
@@ -136,7 +185,10 @@ export default {
         this.message = "";
 
         const formData = new FormData();
-        formData.append("fileZIP", file);
+        formData.append("fileSHP", shp);
+        formData.append("fileSHX", shx);
+        formData.append("fileDBF", dbf);
+        formData.append("filePRJ", prj);
 
         // Endpoint convert: server returns geojson.zip as blob
         const resp = await axios.post(
@@ -162,10 +214,10 @@ export default {
           resp.headers &&
           (resp.headers["content-disposition"] || resp.headers["Content-Disposition"]);
 
-        let outName = (file.name || "dataset").replace(/\.zip$/i, "") + ".geojson.zip";
+        let outName = (shp.name || "dataset").replace(/\.shp$/i, "") + ".geojson.zip";
         if (disposition && String(disposition).includes("filename=")) {
           const disp = String(disposition);
-          const match = disp.match(/filename\*?=(?:UTF-8''|" )?([^";]+)"?/);
+          const match = disp.match(/filename\*?=(?:UTF-8''|")?([^";]+)"?/);
           if (match && match[1]) {
             const rawName = match[1].trim();
             try {
@@ -191,7 +243,10 @@ export default {
     },
     showDialog() {
       this.dialogShow = true;
-      this.currentFile = undefined;
+      this.fileShp = undefined;
+      this.fileShx = undefined;
+      this.fileDbf = undefined;
+      this.filePrj = undefined;
       this.previewImage = undefined;
       this.progress = 0;
       this.message = "";
@@ -206,5 +261,3 @@ export default {
 <style scoped>
 
 </style>
-
-import axios from "axios";

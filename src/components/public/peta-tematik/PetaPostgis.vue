@@ -28,6 +28,8 @@
           v-for="(g, idx) in geojsonData"
           :key="g?.properties?.id ?? idx"
           :geojson="g"
+          :options="options"
+          :options-style="styleOption"
       />
 
       <LControl position="topleft">
@@ -134,8 +136,10 @@
 /* global defineProps */
 import { ref, onMounted, nextTick, onBeforeUnmount, computed, watch } from 'vue'
 import { LMap, LTileLayer, LGeoJson, LControl, LControlZoom as LControlZoomComp, LControlLayers } from '@vue-leaflet/vue-leaflet'
+import L from 'leaflet'
 
 import FtDatasetExtService from "@/services/apiservices/ft-dataset-ext-service";
+import ZonaColorMapper from "@/helpers/zona-color-mapper";
 
 // ---- component sizing (container-based, reusable across pages) ----
 const props = defineProps({
@@ -222,7 +226,7 @@ const basemaps = {
   googleTerrain
 }
 
-const zoom = ref(15)
+const zoom = ref(11)
 const center = ref([-7.6024, 111.9011]) // [lat, lon]
 const userLocation = ref(null)
 
@@ -250,6 +254,82 @@ function setBasemap(id) {
 // GeoJSON dari backend
 const geojsonData = ref([])
 
+// --- GeoJSON styling (match PetaInteraktif styleFunction) ---
+// NOTE: vue-leaflet `LGeoJson` supports `:options-style` which can be a function(feature) => style
+
+// keep canonical->hex mapping (optional, useful for legend / debugging)
+const colorMap = {}
+
+function styleOption(feature) {
+  let weight = 1.2
+  let fillOpacity = 0.35
+
+  const props = feature?.properties || {}
+  const geomType = feature?.geometry?.type || ''
+
+  // lines: thicker stroke, no fill
+  if (geomType === 'MultiLineString' || geomType === 'LineString') {
+    weight = 4.5
+    fillOpacity = 0
+  }
+
+  const desc = ZonaColorMapper.getDescCandidate(props)
+  const { canonical, hex } = ZonaColorMapper.findZoneHexByIncludes(desc)
+
+  if (canonical && !colorMap[canonical]) {
+    colorMap[canonical] = hex
+  }
+
+  return {
+    color: hex,
+    weight,
+    opacity: 0.9,
+    fillColor: hex,
+    fillOpacity
+  }
+}
+// --- GeoJSON options (match PetaInteraktif: onEachFeature + pointToLayer) ---
+// dipakai untuk click/popup & render point features
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
+function pointToLayerOption(feature, latlng) {
+  // Points: pakai circleMarker biar consistent & ringan (canvas-friendly)
+  return L.circleMarker(latlng, {
+    radius: 6,
+    weight: 1.2,
+    opacity: 0.9,
+    fillOpacity: 0.85
+  })
+}
+
+function onEachFeatureOption(feature, layer) {
+  try {
+    const props = feature?.properties || {}
+    // ringan & aman: render JSON props dalam <pre>
+    const pretty = JSON.stringify(props, null, 2)
+    const html = `<pre style="max-height:260px; overflow:auto; min-width:260px; white-space:pre-wrap; margin:0">${escapeHtml(pretty)}</pre>`
+    if (layer && typeof layer.bindPopup === 'function') {
+      layer.bindPopup(html)
+    }
+  } catch (e) {
+    console.warn('[PetaPostgis][onEachFeatureOption] failed', e)
+  }
+}
+
+// vue-leaflet LGeoJson: :options expects { onEachFeature, pointToLayer }
+const options = {
+  onEachFeature: onEachFeatureOption,
+  pointToLayer: pointToLayerOption
+}
+// --- end GeoJSON options ---
+
 // Global snackbar (biar error/info selalu kelihatan)
 const snackbar = ref({ show: false, color: '', text: '', timeout: 1500 })
 
@@ -275,7 +355,7 @@ const zoomInfoMessage = ref('')
 // buat debounce biar nggak kebanyakan request
 // buat debounce biar nggak kebanyakan request
 let debounceTimer = null
-const DEBOUNCE_DELAY = 50 // ms
+const DEBOUNCE_DELAY = 150 // ms
 
 const isMapReady = ref(false)
 const pendingRefresh = ref(false)
@@ -306,16 +386,17 @@ function onMapUpdate() {
   if (z !== lastZoom.value) {
     const delta = z - lastZoom.value
     const direction = delta > 0 ? 'Perbesar' : 'Perkecil'
-    const steps = Math.abs(delta)
-    const factor = Math.pow(2, delta).toFixed(2)
+    // const steps = Math.abs(delta)
+    // const factor = Math.pow(2, delta).toFixed(2)
 
-    zoomInfoMessage.value = `${direction} zoom: level ${z} (${delta > 0 ? '+' : '-'}${steps} step, faktor ${factor}x)`
+    // zoomInfoMessage.value = `${direction} zoom: level ${z} (${delta > 0 ? '+' : '-'}${steps} step, faktor ${factor}x)`
+    zoomInfoMessage.value = `${direction} zoom: ${z}`
     lastZoom.value = z
     showZoomInfo.value = true
 
-    // setTimeout(() => {
-    //   showZoomInfo.value = false
-    // }, 800)
+    setTimeout(() => {
+      showZoomInfo.value = false
+    }, 800)
 
   }
 
@@ -347,6 +428,7 @@ watch(
   { immediate: true }
 )
 
+
 function getViewportFromMap() {
   const map = mapRef.value?.leafletObject
   if (!map) return null
@@ -363,10 +445,36 @@ function getViewportFromMap() {
   }
 }
 
+// --- Helper: formatBytes and safeByteSizeOf ---
+function formatBytes(bytes = 0) {
+  const b = Number(bytes)
+  if (!Number.isFinite(b) || b <= 0) return '0 B'
+  const units = ['B', 'KB', 'MB', 'GB']
+  const i = Math.min(Math.floor(Math.log(b) / Math.log(1024)), units.length - 1)
+  const v = b / Math.pow(1024, i)
+  return `${v.toFixed(i === 0 ? 0 : 2)} ${units[i]}`
+}
+
+function safeByteSizeOf(v) {
+  try {
+    if (v == null) return 0
+    if (typeof v === 'string') return new Blob([v]).size
+    // object/array -> stringify to estimate payload size
+    return new Blob([JSON.stringify(v)]).size
+  } catch (e) {
+    // fallback rough estimate
+    try {
+      return String(v).length
+    } catch (_) {
+      return 0
+    }
+  }
+}
+
 function triggerViewportFetch(reason = 'unknown', { debounce = false } = {}) {
   // kalau belum ada dataset dipilih, jangan request
   if (!datasetIdsNorm.value.length) {
-    geojsonData.value = []
+    // keep last render to avoid flicker; clear only on explicit parent reset if needed
     return
   }
 
@@ -377,13 +485,18 @@ function triggerViewportFetch(reason = 'unknown', { debounce = false } = {}) {
   }
 
   const doFetch = () => {
+    const startedAt = (typeof performance !== 'undefined' && typeof performance.now === 'function')
+      ? performance.now()
+      : Date.now()
+
     fetchViewportData({
       minX: vp.minX,
       minY: vp.minY,
       maxX: vp.maxX,
       maxY: vp.maxY,
       z: vp.z,
-      reason
+      reason,
+      startedAt
     })
   }
 
@@ -409,36 +522,105 @@ function safeParseGeojson(v, idForLog) {
   }
 }
 
-async function fetchViewportData({ minX, minY, maxX, maxY, z, reason }) {
+async function fetchViewportData({ minX, minY, maxX, maxY, z, reason, startedAt }) {
   // kalau belum ada dataset dipilih, jangan spam request
   if (!datasetIdsNorm.value.length) {
     geojsonData.value = []
     return
   }
   try {
-    console.log(datasetIdsNorm.value)
+    // console.log('[viewport] fetch', { reason, minX, minY, maxX, maxY, z, ids: datasetIdsNorm.value })
 
-    console.log('[viewport] fetch', { reason, minX, minY, maxX, maxY, z, ids: datasetIdsNorm.value })
-
-    // const ids = datasetIdsNorm.value.join(',')
     const reqViewport = {
       minLon: minX,
       minLat: minY,
       maxLon: maxX,
       maxLat: maxY,
       zoom: z,
-      ids: [42]
+      ids: datasetIdsNorm.value
     }
     const res = await FtDatasetExtService.getPostViewportClippedPublic(reqViewport)
 
-    console.log('[Backend viewport response]', res.data)
+    // --- Metrics: measure response time and size ---
+    const endedAt = (typeof performance !== 'undefined' && typeof performance.now === 'function')
+      ? performance.now()
+      : Date.now()
 
-    // backend mengembalikan list item dengan field `geojsonForMap` (Feature/FeatureCollection as string)
-    geojsonData.value = (res.data || [])
-      .map(item => safeParseGeojson(item?.geojsonForMap, item?.id))
-      .filter(Boolean)
+    const elapsedMs = (Number.isFinite(Number(endedAt)) && Number.isFinite(Number(startedAt)))
+      ? (endedAt - startedAt)
+      : null
+
+    const rawSizeBytes = safeByteSizeOf(res?.data)
+
+    console.log('[viewport] response metrics', {
+      reason,
+      z,
+      elapsedMs: elapsedMs != null ? Number(elapsedMs.toFixed(1)) : null,
+      size: formatBytes(rawSizeBytes),
+      sizeBytes: rawSizeBytes
+    })
+    // --- End metrics ---
+
+    // Backend bisa return: Array<row> (punya geojsonForMap), atau langsung GeoJSON (Feature/FeatureCollection)
+    // Jadi kita normalisasi dulu biar `.map` tidak meledak.
+    let payload = res?.data
+
+    // kalau string JSON, parse dulu
+    if (typeof payload === 'string') {
+      const parsed = safeParseGeojson(payload, 'res.data')
+      payload = parsed ?? payload
+    }
+
+    // CASE A: sudah array of rows
+    if (Array.isArray(payload)) {
+      geojsonData.value = payload
+        .map(item => safeParseGeojson(item?.geojsonForMap, item?.id))
+        .filter(Boolean)
+      return
+    }
+
+    // CASE B: backend balikin object wrapper (mis. { items: [...] } atau { data: [...] })
+    const maybeArr = payload?.items || payload?.data
+    if (Array.isArray(maybeArr)) {
+      geojsonData.value = maybeArr
+        .map(item => safeParseGeojson(item?.geojsonForMap, item?.id))
+        .filter(Boolean)
+      return
+    }
+
+    // CASE C: backend balikin GeoJSON langsung (FeatureCollection/Feature)
+    if (payload && typeof payload === 'object') {
+      const t = payload.type
+      if (t === 'FeatureCollection' || t === 'Feature') {
+        geojsonData.value = [payload]
+        return
+      }
+    }
+
+    // kalau sampai sini, payload bentuknya nggak sesuai ekspektasi
+    console.warn('[viewport] unexpected response shape', {
+      reason,
+      type: typeof payload,
+      keys: payload && typeof payload === 'object' ? Object.keys(payload) : null,
+      sample: typeof res?.data === 'string' ? res.data.slice(0, 160) : null
+    })
+    geojsonData.value = []
+
+  // console.log(JSON.stringify(res.data))
+
   } catch (err) {
-    console.error('Error fetch viewport data:', err)
+    const endedAt = (typeof performance !== 'undefined' && typeof performance.now === 'function')
+      ? performance.now()
+      : Date.now()
+    const elapsedMs = (Number.isFinite(Number(endedAt)) && Number.isFinite(Number(startedAt)))
+      ? (endedAt - startedAt)
+      : null
+
+    console.error('Error fetch viewport data:', err, {
+      reason,
+      elapsedMs: elapsedMs != null ? Number(elapsedMs.toFixed(1)) : null,
+      ids: datasetIdsNorm.value
+    })
     snackbar.value = {
       show: true,
       color: 'error',

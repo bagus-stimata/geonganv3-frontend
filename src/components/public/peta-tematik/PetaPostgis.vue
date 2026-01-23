@@ -32,7 +32,7 @@
           :options-style="styleOption"
       />
 
-      <LControl position="topleft">
+      <LControl position="topleft" v-if="showZoomButton">
         <v-btn
             variant="elevated"
             class="rounded-lg text-white ma-1 color-bg-second"
@@ -149,7 +149,8 @@ const props = defineProps({
   width: { type: String, default: '100%' },
 
   // IDs dataset yang mau ditampilkan (di-drive dari parent)
-  datasetIds: { type: Array, default: () => [] }
+  datasetIds: { type: Array, default: () => [] },
+  showZoomButton: { type: Boolean, default: true }
 })
 
 const wrapperRef = ref(null)
@@ -591,10 +592,16 @@ async function fetchViewportData({ minX, minY, maxX, maxY, z, reason, startedAt 
      * Jika res sama dengan responseBefore.. maka return saja
      */
 
+
     // normalize raw-text untuk compare stabil
     const rawText = (typeof res?.data === 'string')
       ? res.data
       : JSON.stringify(res?.data ?? null)
+
+    /**
+     * Properti ini untuk mengatur apa yang terlihat di Popup
+     */
+    console.log(JSON.stringify(res?.data.propertiesShow))
 
     const rawSizeBytes = safeByteSizeOf(rawText)
     const rawHash = hashStringFNV1a(rawText)

@@ -236,7 +236,7 @@
           <v-card-text class="mt-0">
             <!-- Mode: pilih file baru (belum ada geojson tersimpan ATAU user sudah pilih file baru) -->
             <v-row v-if="!hasStoredGeojson || geojsonFileName">
-              <v-col cols="12" sm="8" md="8">
+              <v-col cols="12" sm="12" md="5">
                 <v-file-input
                     v-model="geojsonFile"
                     label="Pilih File GeoJSON (.geojson) atau Excell (.xlsx)"
@@ -267,6 +267,17 @@
                     label="Tipe Peta"
                     hide-details
                 ></v-autocomplete>
+              </v-col>
+              <v-col cols="12" sm="12" md="3">
+                <v-btn
+                    block
+                    color="green"
+                    variant="flat"
+                    class="mr-2 rounded-lg"
+                    @click="showDialogUploadShpToGeojson"
+                >
+                  Upload SHP
+                </v-btn>
               </v-col>
             </v-row>
             <!-- Mode: sudah ada GeoJSON tersimpan dari backend, tampilkan tombol download & hapus -->
@@ -634,6 +645,10 @@
           ref="refUploadDialogMerker1"
           @eventUploadSuccess="completeUploadSuccessMarker1"
       ></UploadImageDialog>
+      <UploadShpToGeojsonDialog
+        ref="refShpToGeojsonDialog"
+        @eventGeojsonZipReady="onGeojsonZipReady"
+      ></UploadShpToGeojsonDialog>
 
       <v-snackbar v-model="snackbar">
         {{ snackBarMessage }}
@@ -710,8 +725,10 @@ import FtDatasetMap from "@/components/admin/data-peta/dataset/FtDatasetMap.vue"
 import {EnumDataSpaTypeList} from "@/models/e-data-spa-type";
 import ETipePeta, {ETipePetas} from "@/models/e-tipe-peta";
 import * as XLSX from "xlsx";
+import UploadShpToGeojsonDialog from "@/components/admin/data-peta/dataset/UploadShpToGeojsonDialog.vue";
 export default {
   components: {
+    UploadShpToGeojsonDialog,
     FtDatasetMap,
     CloseConfirmDialog,
     UploadImageDialog,
@@ -791,7 +808,6 @@ export default {
     };
   },
   computed: {
-
     isItemModified() {
       const defaultItem = JSON.stringify(this.itemDefault);
       const modifiedItem = JSON.stringify(this.itemModified);
@@ -890,6 +906,35 @@ export default {
   },
 
   methods: {
+    showDialogUploadShpToGeojson() {
+      if (this.$refs.refShpToGeojsonDialog && typeof this.$refs.refShpToGeojsonDialog.showDialog === "function") {
+        this.$refs.refShpToGeojsonDialog.showDialog();
+      }
+    },
+
+    onGeojsonZipReady(val) {
+      // val: { fileName, fileBlob }
+      const fileName = val && val.fileName ? String(val.fileName) : "";
+      if (!fileName) {
+        this.snackBarMessage = "Convert SHP gagal: nama file kosong";
+        this.snackbar = true;
+        return;
+      }
+
+      // Simpan sesuai permintaan: itemModified.geojson berisi nama file geojson.zip
+      if (this.itemModified) {
+        this.itemModified.geojson = fileName;
+        // Jangan kirim field geojson sebagai konten pada Apply/Save
+        this.itemModified.withGeojson = false;
+        this.itemModified.hasGeojson = false;
+      }
+
+      // Update UI label file terpilih
+      this.geojsonFileName = fileName;
+
+      this.snackBarMessage = "SHP berhasil dikonversi: " + fileName;
+      this.snackbar = true;
+    },
     isMapTypePoint(item){
       return item === ETipePeta.POINT
     },
@@ -2246,3 +2291,4 @@ export default {
   user-select: text;
 }
 </style>
+

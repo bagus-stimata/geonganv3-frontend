@@ -357,6 +357,9 @@ const zoomInfoMessage = ref('')
 let debounceTimer = null
 const DEBOUNCE_DELAY = 150 // ms
 
+let vpRetryCount = 0
+const MAX_VP_RETRY = 6
+
 const isMapReady = ref(false)
 const pendingRefresh = ref(false)
 
@@ -366,14 +369,19 @@ function onMapReady() {
   // reflow biar ukuran leaflet bener (flex layout / dialog)
   requestAnimationFrame(() => invalidateMapSize())
 
-  // kalau sebelumnya ada request refresh tapi map belum siap, jalanin sekarang
-  if (pendingRefresh.value) {
-    pendingRefresh.value = false
-    triggerViewportFetch('pending-refresh', { debounce: false })
-  } else {
-    // initial fetch ketika map baru ready
-    triggerViewportFetch('map-ready', { debounce: false })
-  }
+  // Leaflet ref/bounds kadang belum siap tepat di event `ready` (terutama setelah setView/center/resize).
+  // Jadi fetch viewport kita delay 1 tick + 1 frame biar `mapRef.value.leafletObject` dan bounds sudah valid.
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      if (pendingRefresh.value) {
+        pendingRefresh.value = false
+        triggerViewportFetch('pending-refresh', { debounce: false })
+      } else {
+        // initial fetch ketika map baru ready
+        triggerViewportFetch('map-ready', { debounce: false })
+      }
+    })
+  })
 }
 
 function onMapUpdate() {
@@ -481,8 +489,22 @@ function triggerViewportFetch(reason = 'unknown', { debounce = false } = {}) {
   const vp = getViewportFromMap()
   if (!vp) {
     pendingRefresh.value = true
+
+    // Kadang map sudah ready tapi bounds belum kebentuk (container baru selesai resize / map baru di-setView).
+    // Kita retry beberapa kali supaya tidak stuck di pendingRefresh.
+    if (isMapReady.value && vpRetryCount < MAX_VP_RETRY) {
+      vpRetryCount++
+      clearTimeout(debounceTimer)
+      debounceTimer = setTimeout(() => {
+        triggerViewportFetch(`${reason}-retry-${vpRetryCount}`, { debounce: false })
+      }, 60)
+    }
+
     return
   }
+
+  // reset retry counter once we have a valid viewport
+  vpRetryCount = 0
 
   const doFetch = () => {
     const startedAt = (typeof performance !== 'undefined' && typeof performance.now === 'function')
@@ -522,6 +544,22 @@ function safeParseGeojson(v, idForLog) {
   }
 }
 
+// cache response viewport terakhir (raw-text) biar bisa compare
+const responseBefore = ref({
+  hash: null,
+  sizeBytes: 0
+})
+
+function hashStringFNV1a(str) {
+  const s = typeof str === 'string' ? str : String(str ?? '')
+  let h = 0x811c9dc5
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i)
+    h = (h + (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24)) >>> 0
+  }
+  return h.toString(16)
+}
+
 async function fetchViewportData({ minX, minY, maxX, maxY, z, reason, startedAt }) {
   // kalau belum ada dataset dipilih, jangan spam request
   if (!datasetIdsNorm.value.length) {
@@ -540,6 +578,32 @@ async function fetchViewportData({ minX, minY, maxX, maxY, z, reason, startedAt 
       ids: datasetIdsNorm.value
     }
     const res = await FtDatasetExtService.getPostViewportClippedPublic(reqViewport)
+    /**
+     * Jika res adalah data yang sama dengan sebelumnya, kita bisa skip update geojsonData.value
+     * untuk menghindari re-rendering yang tidak perlu
+     * Jika res sama dengan responseBefore.. maka return saja
+     */
+
+    // normalize raw-text untuk compare stabil
+    const rawText = (typeof res?.data === 'string')
+      ? res.data
+      : JSON.stringify(res?.data ?? null)
+
+    const rawSizeBytes = safeByteSizeOf(rawText)
+    const rawHash = hashStringFNV1a(rawText)
+
+    if (responseBefore.value.hash === rawHash && responseBefore.value.sizeBytes === rawSizeBytes) {
+      console.log('[viewport] same response, skip update', {
+        reason,
+        z,
+        size: formatBytes(rawSizeBytes),
+        sizeBytes: rawSizeBytes,
+        hash: rawHash
+      })
+      return
+    }
+
+    responseBefore.value = { hash: rawHash, sizeBytes: rawSizeBytes }
 
     // --- Metrics: measure response time and size ---
     const endedAt = (typeof performance !== 'undefined' && typeof performance.now === 'function')
@@ -550,7 +614,7 @@ async function fetchViewportData({ minX, minY, maxX, maxY, z, reason, startedAt 
       ? (endedAt - startedAt)
       : null
 
-    const rawSizeBytes = safeByteSizeOf(res?.data)
+
 
     console.log('[viewport] response metrics', {
       reason,

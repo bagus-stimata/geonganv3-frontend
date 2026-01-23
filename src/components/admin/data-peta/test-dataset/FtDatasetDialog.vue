@@ -2127,7 +2127,8 @@ export default {
 
       try {
         if (this.$refs.refDatasetMap) {
-          this.$refs.refDatasetMap.resetTampilanPeta();
+          // this.$refs.refDatasetMap.resetTampilanPeta();
+          this.$refs.refDatasetMap.geojsonData = []
         }
       } catch (e) {
         console.error(e);
@@ -2173,7 +2174,8 @@ export default {
       this.itemDefault = JSON.parse(JSON.stringify(this.itemModified));
 
       try {
-        this.$refs.refDatasetMap?.resetTampilanPeta();
+        // this.$refs.refDatasetMap?.resetTampilanPeta();
+        this.$refs.refDatasetMap.geojsonData = []
       } catch (e) {
         console.warn(e);
       }

@@ -140,7 +140,6 @@ import L from 'leaflet'
 
 import FtDatasetExtService from "@/services/apiservices/ft-dataset-ext-service";
 import ZonaColorMapper from "@/helpers/zona-color-mapper";
-import router from "@/router";
 
 // ---- component sizing (container-based, reusable across pages) ----
 const props = defineProps({
@@ -314,9 +313,8 @@ function onEachFeatureOption(feature, layer) {
   try {
     const props = feature?.properties || {}
     // ringan & aman: render JSON props dalam <pre>
-    // const pretty = JSON.stringify(props, null, 2)
-    // const html = `<pre style="max-height:260px; overflow:auto; min-width:260px; white-space:pre-wrap; margin:0">${escapeHtml(pretty)}</pre>`
-    const html = `<div style="max-height:260px; overflow:auto;">${popupHtmlForProps(props)}</div>`
+    const pretty = JSON.stringify(props, null, 2)
+    const html = `<pre style="max-height:260px; overflow:auto; min-width:260px; white-space:pre-wrap; margin:0">${escapeHtml(pretty)}</pre>`
     if (layer && typeof layer.bindPopup === 'function') {
       layer.bindPopup(html, {
         autoPan: false, // <- ini biang geser
@@ -880,59 +878,10 @@ function centerToUser() {
 }
 
 function goHome() {
-  // const map = mapRef.value?.leafletObject
-  // if (map) {
-  //   map.setView(center.value, zoom.value)
-  // }
-  router.push("/")
-}
-
-function jsonToHtmlTable_Mobile(jsonValue) {
-  const myObj = jsonValue || {}
-
-  let text = "<table style='width: 220px; font-size:12px'>"
-
-  for (const meta in myObj) {
-    if (!Object.prototype.hasOwnProperty.call(myObj, meta)) continue
-
-    // mirip versi Mas-Win (OBJ + DESC)
-    if (/^(OBJ|desc|DESC)/.test(meta)) {
-      const v = myObj[meta]
-      if (v === undefined || v === null) continue
-      text += "<tr><td style='padding:4px 0; word-break:break-word'>" + escapeHtml(v) + "</td></tr>"
-    }
+  const map = mapRef.value?.leafletObject
+  if (map) {
+    map.setView(center.value, zoom.value)
   }
-
-  text += "</table>"
-  return text
-}
-
-function jsonToHtmlTable(jsonValue) {
-  const myObj = jsonValue || {}
-
-  let rows = ""
-  for (const meta in myObj) {
-    if (!Object.prototype.hasOwnProperty.call(myObj, meta)) continue
-    const val = myObj[meta]
-    if (val === undefined || val === null) continue
-
-    rows += `
-      <tr>
-        <td style="font-weight:600; padding:2px 6px 2px 0; vertical-align:top;">${escapeHtml(meta)}</td>
-        <td style="padding:2px 6px; vertical-align:top;">:</td>
-        <td style="padding:2px 0; word-break:break-word;">${escapeHtml(val)}</td>
-      </tr>`
-  }
-
-  return `<table style="min-width:240px; max-width:340px; font-size:12px;"><tbody>${rows}</tbody></table>`
-}
-
-function popupHtmlForProps(props) {
-  const isMobile = typeof window !== 'undefined'
-      && window.matchMedia
-      && window.matchMedia('(max-width: 480px)').matches
-
-  return isMobile ? jsonToHtmlTable_Mobile(props) : jsonToHtmlTable(props)
 }
 
 // optional: trigger sekali ketika map sudah render pertama kali

@@ -1195,6 +1195,10 @@ export default {
     },
 
     async loadDataAndEditTable(){
+      /**
+       * 1. Cek apakah geojsonForTableLocal sudah ada isinya?
+       * 2. Jika belum, load dari server (pastikan itemModified.geojson (data ori) ada isinya)
+       */
       try {
         this.dialogLoading = true;
         await this.ensureGeojsonLoaded();

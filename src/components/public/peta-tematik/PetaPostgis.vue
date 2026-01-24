@@ -32,7 +32,7 @@
           :options-style="styleOption"
       />
 
-      <LControl position="topleft" v-if="showZoomButton">
+      <LControl position="topleft" v-if="showZoomButton && !isFullscreen">
         <v-btn
             variant="elevated"
             class="rounded-lg text-white ma-1 color-bg-second"
@@ -152,6 +152,12 @@ const props = defineProps({
   datasetIds: { type: Array, default: () => [] },
   showZoomButton: { type: Boolean, default: true }
 })
+
+const isFullscreen = ref(false)
+const onFsChange = () => {
+  isFullscreen.value = !!document.fullscreenElement
+  requestAnimationFrame(() => invalidateMapSize())
+}
 
 const wrapperRef = ref(null)
 
@@ -601,7 +607,7 @@ async function fetchViewportData({ minX, minY, maxX, maxY, z, reason, startedAt 
     /**
      * Properti ini untuk mengatur apa yang terlihat di Popup
      */
-    console.log(JSON.stringify(res?.data.propertiesShow))
+    // console.log(JSON.stringify(res?.data.propertiesShow))
 
     const rawSizeBytes = safeByteSizeOf(rawText)
     const rawHash = hashStringFNV1a(rawText)
@@ -778,11 +784,13 @@ function toggleFullscreen() {
     // 1) Coba pakai plugin leaflet-fullscreen jika tersedia
     if (mapInstance && typeof mapInstance.toggleFullscreen === 'function') {
       mapInstance.toggleFullscreen()
+      // status fullscreen akan di-handle oleh event listener fullscreenchange
       return
     }
 
     // 2) Fallback ke Fullscreen API standar browser
     if (container && container.requestFullscreen) {
+      // requestFullscreen async; status diupdate via fullscreenchange
       container.requestFullscreen()
       return
     }
@@ -960,9 +968,13 @@ onMounted(async () => {
 
   // kadang @moveend/@zoomend nggak kepanggil di load awal, jadi kita panggil manual
   onMapUpdate()
+
+  document.addEventListener('fullscreenchange', onFsChange)
 })
 
 onBeforeUnmount(() => {
+  document.removeEventListener('fullscreenchange', onFsChange)
+
   if (resizeObserver) {
     resizeObserver.disconnect()
     resizeObserver = null

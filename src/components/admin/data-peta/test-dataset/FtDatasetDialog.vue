@@ -369,7 +369,6 @@
           <v-card-text v-if="propertyMetaRows && propertyMetaRows.length">
             <div class="d-flex align-center mb-1">
               <v-btn
-                  v-if="propertyMetaRows && propertyMetaRows.length"
                   small
                   variant="elevated"
                   color="primary"
@@ -1892,6 +1891,8 @@ export default {
           (response) => {
             // Ambil data ringan dari server
             this.itemModified = response.data || {};
+
+            // console.log(JSON.stringify(this.itemModified));
 
             // Normalisasi datasetType: pastikan selalu string (enum code)
             if (

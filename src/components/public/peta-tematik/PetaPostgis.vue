@@ -93,6 +93,13 @@
       </l-control>
 
 
+      <!-- Drawn shapes layer for Leaflet.Draw (mounted always; enabled via props) -->
+      <LFeatureGroup ref="drawGroupRef" />
+
+      <!-- Bottom-left host to force Leaflet.Draw toolbar to be horizontal and aligned with attribution -->
+      <l-control position="bottomleft" class="draw-host">
+        <div ref="drawHostRef" class="draw-host-inner"></div>
+      </l-control>
 
     </LMap>
 
@@ -135,12 +142,16 @@
 <script setup>
 /* global defineProps */
 import { ref, onMounted, nextTick, onBeforeUnmount, computed, watch } from 'vue'
-import { LMap, LTileLayer, LGeoJson, LControl, LControlZoom as LControlZoomComp, LControlLayers } from '@vue-leaflet/vue-leaflet'
+import { LMap, LTileLayer, LGeoJson, LControl, LControlZoom as LControlZoomComp, LControlLayers, LFeatureGroup } from '@vue-leaflet/vue-leaflet'
 import L from 'leaflet'
 
 import FtDatasetExtService from "@/services/apiservices/ft-dataset-ext-service";
 import ZonaColorMapper from "@/helpers/zona-color-mapper";
 import router from "@/router";
+
+import 'leaflet/dist/leaflet.css'
+import 'leaflet-draw'
+import 'leaflet-draw/dist/leaflet.draw.css'
 
 // ---- component sizing (container-based, reusable across pages) ----
 const props = defineProps({
@@ -150,7 +161,8 @@ const props = defineProps({
 
   // IDs dataset yang mau ditampilkan (di-drive dari parent)
   datasetIds: { type: Array, default: () => [] },
-  showZoomButton: { type: Boolean, default: true }
+  showZoomButton: { type: Boolean, default: true },
+  drawEnabled: { type: Boolean, default: true }
 })
 
 const isFullscreen = ref(false)
@@ -198,6 +210,14 @@ const googleTerrain = {
   attribution: '&copy; Google',
   maxZoom: 22
 }
+
+const drawGroupRef = ref(null)
+const drawHostRef = ref(null)
+let drawHostObserver = null
+
+let drawControl = null
+let drawnItems = null
+let onDrawCreatedHandler = null
 
 // state peta
 const mapRef = ref(null)
@@ -381,6 +401,26 @@ function onMapReady() {
   // reflow biar ukuran leaflet bener (flex layout / dialog)
   requestAnimationFrame(() => invalidateMapSize())
 
+  // Ensure the draw host exists before init so we can force toolbar placement
+  const map = mapRef.value?.leafletObject
+  requestAnimationFrame(() => {
+    if (map) {
+      rehomeDrawToolbar(map)
+    }
+  })
+
+  // init draw tools once map is ready (so control is guaranteed to appear)
+  nextTick(() => {
+    const map = mapRef.value?.leafletObject
+    if (props.drawEnabled) {
+      initDrawTools(map)
+      // always add control if enabled
+      if (drawControl && !drawControl._map) {
+        try { map.addControl(drawControl) } catch (e) { console.warn('[draw] addControl failed', e) }
+      }
+    }
+  })
+
   // Leaflet ref/bounds kadang belum siap tepat di event `ready` (terutama setelah setView/center/resize).
   // Jadi fetch viewport kita delay 1 tick + 1 frame biar `mapRef.value.leafletObject` dan bounds sudah valid.
   nextTick(() => {
@@ -395,6 +435,45 @@ function onMapReady() {
     })
   })
 }
+function rehomeDrawToolbar(map) {
+  try {
+    const host = drawHostRef.value
+    if (!map || !host) return
+
+    // Leaflet.Draw adds a control container `.leaflet-draw` (or inside `.leaflet-draw-toolbar`)
+    const container = map.getContainer?.()
+    if (!container) return
+
+    const drawEl = container.querySelector('.leaflet-draw')
+    if (!drawEl) return
+
+    // If already in our host, do nothing
+    if (host.contains(drawEl)) return
+
+    // Move draw control DOM into our host
+    host.appendChild(drawEl)
+  } catch (e) {
+    console.warn('[draw] rehomeDrawToolbar failed', e)
+  }
+}
+
+function setupDrawHostObserver(map) {
+  try {
+    if (drawHostObserver) return
+    const container = map?.getContainer?.()
+    if (!container) return
+
+    // Watch for draw toolbar re-render or fullscreen/layout changes
+    drawHostObserver = new MutationObserver(() => {
+      rehomeDrawToolbar(map)
+    })
+
+    drawHostObserver.observe(container, { childList: true, subtree: true })
+  } catch (e) {
+    console.warn('[draw] setupDrawHostObserver failed', e)
+  }
+}
+// ---- Drawing tools (leaflet-draw) ----
 
 function onMapUpdate() {
   const map = mapRef.value?.leafletObject
@@ -950,6 +1029,98 @@ function popupHtmlForProps(props) {
   return isMobile ? jsonToHtmlTable_Mobile(props) : jsonToHtmlTable(props)
 }
 
+
+// ---- Drawing tools (leaflet-draw) ----
+function initDrawTools(map) {
+  if (!map) return
+
+  // (re)resolve FeatureGroup from vue-leaflet
+  const fg = drawGroupRef.value?.leafletObject || drawGroupRef.value?.mapObject
+
+  // If control already exists, just ensure featureGroup is correct
+  if (drawControl && drawnItems) {
+    // ensure layer exists on map
+    if (!map.hasLayer(drawnItems)) {
+      try { map.addLayer(drawnItems) } catch (_) { /* ignore */ }
+    }
+    return
+  }
+
+  // Use vue-leaflet FeatureGroup if available, otherwise create one
+  drawnItems = fg || new L.FeatureGroup()
+
+  // Ensure drawnItems is on map
+  if (!map.hasLayer(drawnItems)) {
+    try { map.addLayer(drawnItems) } catch (e) { console.warn('[draw] addLayer failed', e) }
+  }
+
+  drawControl = new L.Control.Draw({
+    position: 'bottomleft', // Keep as 'bottomleft', layout is overridden by CSS below
+    edit: {
+      featureGroup: drawnItems,
+      remove: true
+    },
+    draw: {
+      polygon: true,
+      polyline: true,
+      rectangle: true,
+      circle: true,
+      marker: true,
+      circlemarker: false
+    }
+  })
+
+  // Force toolbar into our bottom-left host and keep it there
+  setupDrawHostObserver(map)
+  requestAnimationFrame(() => rehomeDrawToolbar(map))
+
+  // Event minimal (biar shape masuk ke layer) - only add handler once
+  if (!onDrawCreatedHandler) {
+    onDrawCreatedHandler = (e) => {
+      const layer = e?.layer
+      if (!layer) return
+      if (drawnItems && typeof drawnItems.addLayer === 'function') {
+        drawnItems.addLayer(layer)
+      }
+    }
+    map.on(L.Draw.Event.CREATED, onDrawCreatedHandler)
+  }
+}
+
+function setDrawEnabled(enabled) {
+  const map = mapRef.value?.leafletObject
+  if (!map) return
+
+  if (!enabled) {
+    // remove control
+    if (drawControl) {
+      try { map.removeControl(drawControl) } catch (_) { /* ignore */ }
+    }
+    // keep layer but hide it to avoid dangling references
+    if (drawnItems && map.hasLayer(drawnItems)) {
+      try { map.removeLayer(drawnItems) } catch (_) { /* ignore */ }
+    }
+    // also clean observer + host placement
+    if (drawHostObserver) {
+      try { drawHostObserver.disconnect() } catch (_) { /* ignore */ }
+      drawHostObserver = null
+    }
+    return
+  }
+
+  // enabled: ensure layer + control exist
+  initDrawTools(map)
+
+  if (drawnItems && !map.hasLayer(drawnItems)) {
+    try { map.addLayer(drawnItems) } catch (_) { /* ignore */ }
+  }
+
+  if (drawControl && !drawControl._map) {
+    try { map.addControl(drawControl) } catch (e) { console.warn('[draw] addControl failed', e) }
+  }
+  requestAnimationFrame(() => rehomeDrawToolbar(map))
+}
+
 // optional: trigger sekali ketika map sudah render pertama kali
 onMounted(async () => {
   await nextTick()
@@ -979,6 +1150,16 @@ onBeforeUnmount(() => {
     resizeObserver.disconnect()
     resizeObserver = null
   }
+  // Cleanup event handler for Leaflet.Draw
+  const map = mapRef.value?.leafletObject
+  if (map && onDrawCreatedHandler) {
+    map.off(L.Draw.Event.CREATED, onDrawCreatedHandler)
+    onDrawCreatedHandler = null
+  }
+  if (drawHostObserver) {
+    try { drawHostObserver.disconnect() } catch (_) { /* ignore */ }
+    drawHostObserver = null
+  }
 })
 
 // if parent changes size via props, reflow the map
@@ -988,6 +1169,22 @@ watch(
     await nextTick()
     invalidateMapSize()
   }
+)
+
+// Watch drawEnabled prop to enable/disable draw controls
+watch(
+  () => props.drawEnabled,
+  async (enabled) => {
+    await nextTick()
+    const map = mapRef.value?.leafletObject
+    if (!map) return
+
+    requestAnimationFrame(() => {
+      invalidateMapSize()
+      setDrawEnabled(!!enabled)
+    })
+  },
+  { immediate: true }
 )
 
 
@@ -1068,5 +1265,48 @@ watch(
 .zoom-info-fade-leave-to {
   opacity: 0;
   transform: translateY(8px);
+}
+/* --- Draw tools host: make Leaflet.Draw toolbar horizontal at bottom-left --- */
+.draw-host :deep(.leaflet-draw) {
+  margin: 0;
+}
+
+.draw-host-inner {
+  display: flex;
+  align-items: center;
+}
+
+/* make the toolbar horizontal */
+.draw-host :deep(.leaflet-draw-toolbar) {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+}
+
+.draw-host :deep(.leaflet-draw-toolbar a) {
+  margin: 0 !important;
+}
+
+/* keep it close to attribution */
+:deep(.leaflet-control-attribution) {
+  margin-left: 6px;
+}
+
+/* ensure bottom-left is a row so attribution + draw sit side-by-side */
+:deep(.leaflet-bottom.leaflet-left) {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+/* remove default margins that cause vertical stacking */
+:deep(.leaflet-bottom.leaflet-left .leaflet-control) {
+  margin: 0 0 6px 10px;
+}
+
+/* do not let draw host add extra padding */
+.draw-host {
+  padding: 0;
 }
 </style>

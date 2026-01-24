@@ -148,10 +148,7 @@
                         <div class="font-weight-bold text-subtitle-2">Preview</div>
                       </v-col>
                     </v-row>
-                    <BaseMapInteraktif
-                        :selectedMapsets="itemsMapsetSelected"
-                        map-min-height="30vh" map-max-height="30vh"
-                    ></BaseMapInteraktif>
+                    <PetaPostgis :draw-enabled="false" :dataset-ids="itemMapsetSelectedIds" min-height="30vh" height="30vh"></PetaPostgis>
                     <v-row class="my-2 ga-2 align-center" no-gutters>
                       <v-col cols="12" md="3" sm="12">
                         <div class="font-weight-bold text-subtitle-2">Mapset Terpilih</div>
@@ -192,15 +189,15 @@
 
   <script>
 
-import BaseMapInteraktif from "@/components/public/peta-interaktif/BaseMapInteraktif.vue";
 import DataFilter from "@/models/payload/f-dayadukung-filter";
 import FtDataset from "@/models/ft-dataset";
 import FileService from "@/services/apiservices/file-service";
 import FtDatasetExtService from "@/services/apiservices/ft-dataset-ext-service";
+import PetaPostgis from "@/components/public/peta-tematik/PetaPostgis.vue";
 
 export default {
   name: "PickMapsetDialog",
-  components: {BaseMapInteraktif},
+  components: {PetaPostgis},
   data() {
     return {
       currentPage: 1,
@@ -222,7 +219,7 @@ export default {
         errorMessage: "",
         color: "grey lighten-3",
         width: 1000,
-        zIndex: 200,
+        zIndex: 250,
         noconfirm: false,
       },
       ftDatasets: [new FtDataset()],
@@ -232,6 +229,13 @@ export default {
   computed: {
     ftDatasetsFiltered() {
       return this.ftDatasets;
+    },
+    itemMapsetSelectedIds() {
+      return Array.isArray(this.itemsMapsetSelected)
+          ? this.itemsMapsetSelected
+              .filter(it => it && it.id != null)
+              .map(it => it.id)
+          : [];
     },
   },
   watch: {
@@ -247,8 +251,10 @@ export default {
         this.runExtendedFilter();
       }
     },
+
   },
   methods: {
+
     deleteItem(item) {
       this.itemsMapsetSelected = this.itemsMapsetSelected.filter(
           it => it.id !== item.id

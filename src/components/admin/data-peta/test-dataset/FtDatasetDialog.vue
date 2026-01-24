@@ -419,7 +419,7 @@
               <v-btn
                   value="EDIT_DATA_GEOJSON"
                   color="orange-darken-1"
-                  @click="loadDataEdit"
+                  @click="loadDataAndEditTable"
                   style="text-transform: none;"
               >
                 <span class="d-flex align-center">
@@ -470,6 +470,7 @@
           </v-card-text>
 
           <!-- Tabel data per feature (editable seperti QGIS attribute table) -->
+          {{featureRows}}
           <v-card-text v-if="featureRows && featureRows.length" class="mt-n4 mb-4">
             <div class="feature-table-scroll">
               <v-table density="compact" class="feature-attr-table">
@@ -775,10 +776,12 @@ export default {
       dialogPropertyGroupShow: false,
       localPropertiesShow: [],
 
+      /**
+       *  Variable untuk Table
+       */
       featureColumns: [],
       featureColumnsView: [],
       featureRows: [],
-      // Batas aman agar tabel edit tidak terlalu berat untuk GeoJSON besar
       maxFeatureTableGeojsonChars: 30 * 1024 * 1024, // ~30 MB (perkiraan dari panjang string)
       maxFeatureTableRows: 8000,
       featureShowOnlyMapColumns: true,
@@ -791,8 +794,17 @@ export default {
       featureResizeCtx: null,
       togglePetaDanEditMode: null,
 
-      //Untuk Peta Posgis
+// ✅ GeoJSON khusus untuk tabel (full). Map tetap pakai viewport dari server.
+      geojsonForTableLocal: null,
+      hasGeojsonForTableLocal: false,
+
+      /**
+       * Untuk peta Map Postgis cuma buatuh ini
+       */
       datasetIds: [],
+
+
+
     };
   },
   computed: {
@@ -818,11 +830,10 @@ export default {
     },
 
     hasGeojsonForPreview() {
-      // Hanya tampilkan tombol & komponen peta kalau:
-      // - dataset sudah punya GeoJSON tersimpan di backend (hasStoredGeojson)
-      // - dan konten GeoJSON sudah benar-benar dimuat ke memory (hasGeojsonLoaded)
-      return this.hasStoredGeojson && this.hasGeojsonLoaded;
+      // Untuk mode EDIT_DATA_GEOJSON, tabel hanya boleh tampil kalau GeoJSON full sudah dimuat ke table-local.
+      return this.hasStoredGeojson && this.hasGeojsonForTableLocal;
     },
+
     hasGeojsonLoaded() {
       return (
           this.itemModified &&
@@ -984,50 +995,46 @@ export default {
       }
       this.featureCurrentPage = 1;
     },
+    setGeojsonForTableLocal(src) {
+      this.geojsonForTableLocal = src;
+      const s = typeof src === "string" ? src.trim() : "";
+      this.hasGeojsonForTableLocal = !!(s && s !== "{}" && s !== "null");
+    },
     async refreshFeatureRowsFromGeojson() {
       this.featureRows = [];
       this.featureColumns = [];
 
-      if (!this.itemModified || !this.itemModified.geojson) {
-        return;
-      }
+      const src = this.geojsonForTableLocal;
+      if (!src) return;
 
-      // Guard 1: batasi berdasarkan ukuran string GeoJSON (batas soft sekitar 10 MB untuk UI tabel)
-      if (typeof this.itemModified.geojson === "string") {
-        const approxMb = this.itemModified.geojson.length / (1024 * 1024);
+      // Guard 1: batasi berdasarkan ukuran string GeoJSON
+      if (typeof src === "string") {
+        const approxMb = src.length / (1024 * 1024);
         if (approxMb > 10) {
-          console.warn(
-            "[FtTematikDialog] skip build feature table: geojson string too large for table view (~" +
-              approxMb.toFixed(1) +
-              " MB)"
-          );
+          console.warn("[FtTematikDialog] skip build feature table: geojson string too large (~" + approxMb.toFixed(1) + " MB)");
           this.snackBarMessage = "GeoJSON terlalu besar untuk ditampilkan sebagai tabel.";
           this.snackbar = true;
           return;
         }
       }
 
-      let geo;
+      let geoObj;
       try {
         if (typeof this.itemModified.geojson === "string") {
           const trimmed = this.itemModified.geojson.trim();
-          if (!trimmed || trimmed === "{}") {
-            return;
-          }
-          geo = JSON.parse(trimmed);
+          if (!trimmed || trimmed === "{}") return;
+          geoObj = JSON.parse(trimmed);
         } else {
-          geo = this.itemModified.geojson;
+          geoObj = this.itemModified.geojson;
         }
       } catch (e) {
-        console.warn("[FtTematikDialog] gagal parse geojson untuk feature table", e);
+        console.warn("[FtTematikDialog] gagal parse geojson saat sync dari feature table", e);
         return;
       }
 
-      if (!geo || !Array.isArray(geo.features) || !geo.features.length) {
-        return;
-      }
+      if (!geoObj || !Array.isArray(geoObj.features) || !geoObj.features.length) return;
 
-      const totalFeatures = geo.features.length;
+      const totalFeatures = geoObj.features.length;
       // Guard 2: batasi jumlah feature yang diizinkan untuk mode edit tabel
       if (this.maxFeatureTableRows && totalFeatures > this.maxFeatureTableRows) {
         console.warn(
@@ -1048,14 +1055,14 @@ export default {
       if (this.propertyMetaRows && this.propertyMetaRows.length) {
         cols = this.propertyMetaRows.map((row) => row.name);
       } else {
-        const firstProps = geo.features[0].properties || {};
+        const firstProps = geoObj.features[0].properties || {};
         cols = Object.keys(firstProps);
       }
 
       this.featureColumns = cols;
       this.ensureFeatureColWidthDefaults();
 
-      this.featureRows = geo.features.map((f) => {
+      this.featureRows = geoObj.features.map((f) => {
         const props = (f && f.properties) ? f.properties : {};
         const row = {};
         cols.forEach((name) => {
@@ -1148,9 +1155,8 @@ export default {
       }
     },
     async ensureGeojsonLoaded() {
-      // Kalau dataset sudah ditandai punya GeoJSON di server tetapi konten belum dimuat,
-      // baru panggil backend untuk load GeoJSON berat.
-      if (this.hasStoredGeojson && !this.hasGeojsonLoaded) {
+      // Untuk tabel: pastikan geojson full ada di geojsonForTableLocal.
+      if (this.hasStoredGeojson && !this.hasGeojsonForTableLocal) {
         await this.loadGeojsonForTableFromServer();
       }
     },
@@ -1188,10 +1194,13 @@ export default {
       }
     },
 
-    async loadDataEdit(){
+    async loadDataAndEditTable(){
       try {
         this.dialogLoading = true;
         await this.ensureGeojsonLoaded();
+        if (!this.hasGeojsonForTableLocal && this.itemModified && typeof this.itemModified.geojson === "string") {
+          this.setGeojsonForTableLocal(this.itemModified.geojson);
+        }
         await this.refreshFeatureRowsFromGeojson();
         // Sinkronkan kolom tabel dengan opsi "Kolom yang Ditampilkan pada Peta Saja"
         this.syncFeatureColumnsView();
@@ -1269,6 +1278,7 @@ export default {
         }
 
         if (hasGeoContent) {
+          this.setGeojsonForTableLocal(this.itemModified.geojson);
           // Load hanya untuk preview/download; jangan otomatis anggap akan di-save ulang
           this.itemModified.withGeojson = false;
         } else {

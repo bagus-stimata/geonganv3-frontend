@@ -27,6 +27,9 @@ class FNewsService {
     getAllFNewsContainingPublicBerita(page, pageSize, sortBy, order, search){
         return axios.get(API_URL + `public/getAllFNewsContainingPublicBerita?page=${page}&pageSize=${pageSize}&sortBy=${sortBy}&order=${order}&search=${search}`, { headers: authHeader() });
     }
+    getPostAllFNewsContainingBeritaExtPublic(item){
+        return axios.post(API_URL + `public/getPostAllFNewsContainingBeritaExt`, item, { headers: authHeader() });
+    }
     getAllFNewsContainingPublicBeritaPemudaDesaOnly(page, pageSize, sortBy, order, search){
         return axios.get(API_URL + `public/getAllFNewsContainingPublicBeritaPemudaDesaOnly?page=${page}&pageSize=${pageSize}&sortBy=${sortBy}&order=${order}&search=${search}`, { headers: authHeader() });
     }

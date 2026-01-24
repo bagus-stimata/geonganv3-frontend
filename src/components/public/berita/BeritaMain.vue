@@ -31,7 +31,7 @@
                 rounded="xl"
                 density="comfortable"
                 class="text-subtitle-2 px-4"
-                @click="selectedCatId = cat.id"
+                @click="changeCateg(cat)"
             >
               {{ cat.description }}
 <!--              <span class="ml-2 font-weight-bold" :class="selectedCatId === cat.id ? 'text-white' : 'text-medium-emphasis'">-->
@@ -224,6 +224,8 @@ import FNewsService from "@/services/apiservices/f-news-service";
 import FileService from "@/services/apiservices/file-service";
 import {format, parseISO} from "date-fns";
 import {EBeritaCategs} from "@/models/e-berita-categ";
+
+import FNewsFilter from "@/models/payload/f-news-filter";
 export default {
   components: {
   },
@@ -288,6 +290,10 @@ export default {
     },
   },
   methods: {
+    changeCateg(item){
+      this.selectedCatId = item.id
+      this.fetchFNews()
+    },
     // addAllToFirst() {
     //   const itemAll = { id: 'All', description: 'All' }
     //   this.itemsBeritaCateg.unshift(itemAll)
@@ -304,16 +310,40 @@ export default {
     },
     fetchParent() {},
     fetchFNews() {
-      FNewsService.getAllFNewsContainingPublicBerita(this.currentPage, this.pageSize, "created", "DESC", this.search).then(
-          (response) => {
-            const { items, totalPages } = response.data;
-            this.fBeritas = items;
-            this.totalPaginationPages = totalPages;
-          },
-          (error) => {
-            console.log(error.response);
-          }
-      );
+      if(this.selectedCatId === 'All'){
+        console.log(this.selectedCatId)
+        FNewsService.getAllFNewsContainingPublicBerita(this.currentPage, this.pageSize, "created", "DESC", this.search).then(
+            (response) => {
+              const { items, totalPages } = response.data;
+              this.fBeritas = items;
+              this.totalPaginationPages = totalPages;
+            },
+            (error) => {
+              console.log(error.response);
+            }
+        );
+      } else {
+        console.log(this.selectedCatId)
+        const extendedFilter = new FNewsFilter();
+        extendedFilter.pageNo = this.currentPage;
+        extendedFilter.pageSize = this.pageSize;
+        extendedFilter.sortBy = "id";
+        extendedFilter.order = "DESC";
+        extendedFilter.search = this.search;
+        extendedFilter.categValues = [this.selectedCatId]
+
+            FNewsService.getPostAllFNewsContainingBeritaExtPublic(extendedFilter).then(
+                (response) => {
+                  const { items, totalPages } = response.data;
+                  this.fBeritas = items;
+                  this.totalPaginationPages = totalPages;
+                },
+                (error) => {
+                  console.log(error.response);
+                }
+            );
+      }
+
     },
     fetchAgenda() {
       FNewsService.getAllFNewsContainingPublicAgenda(1, 10, "created", "DESC", '').then(

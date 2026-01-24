@@ -1,187 +1,311 @@
 <template>
-  <div class="map-wrapper">
-    <PetaPostgis :min-height="`100vh`" :dataset-ids="visibleDatasetGeojsonIds" :height="`100vh`"/>
-    <v-card elevation="0" width="280" class="map-overlay-card bg-transparent ma-md-2 ma-1">
-      <v-card-title class="bg-white py-4 rounded-lg">
-        <div class="d-flex flex-row">
-          <div class="d-flex flex-row align-center justify-center">
-            <v-img
-                lazy
-                height="45"
-                width="45"
-                :src="require('@/assets/logo.webp')"
-            ></v-img>
-            <div>
-              <div class="text-subtitle-1 my-0 py-0 font-weight-black">GEO PORTAL</div>
-              <div class="text-subtitle-2 mt-n1 my-0 py-0 font-weight-light text-grey-darken-2">Kab.Nganjuk</div>
-            </div>
-          </div>
-          <v-spacer></v-spacer>
-          <v-btn @click="showMapsetController = !showMapsetController" variant="text" icon>
-            <v-icon
-                class="chev-rotate"
-                :class="{ 'chev-rotate--open': showMapsetController }"
-            >
-              mdi-chevron-left-box-outline
-            </v-icon>
-          </v-btn>
-        </div>
-        <v-expand-transition v-show="showMapsetController === true">
-          <v-text-field
-              v-model="searchText"
-              @keyup.enter="searchAndHighlight(searchText)"
-              @blur="searchAndHighlight(searchText)"
-              append-inner-icon="mdi-magnify"
-              density="compact"
-              label="Cari pada peta (highlight)"
-              hide-details
-              class="rounded-lg text-caption border-opacity-25 mt-2 mx-2"
-              variant="outlined"
-          ></v-text-field>
-        </v-expand-transition>
-      </v-card-title>
-      <v-expand-transition v-show="showMapsetController === true">
-        <v-card class="bg-white mt-2 py-2 rounded-lg" height="46vh" style="overflow-y: auto;">
-          <v-card-text>
-            <div class="text-subtitle-1 mb-1 font-weight-bold d-flex flex-row align-center">
-              <div>Mapset Selected</div>
-              <span v-if="itemsMapsetSelected.length > 0 && isApply" class="ml-2 bg-orange rounded-lg py-1 px-3 text-caption font-weight-bold text-white">{{itemsMapsetSelected.length}}</span>
+  <div>
+    <l-map
+        :zoom="zoom"
+        :max-zoom="maxZoom"
+        :center="currentMarker.coordinates"
+        ref="map"
+        @update:zoom="zoomUpdated"
+        @update:center="centerUpdated"
+        :options="{
+          scrollWheelZoom: false,
+          preferCanvas: true,
+          zoomControl: false,
+          zoomAnimation: false,
+          markerZoomAnimation: false,
+          fadeAnimation: false
+        }"
+        @ready="initializeFullscreen"
+        :style="{ zIndex: 0, minHeight: mapMinHeight, maxHeight: mapMaxHeight, width: '100%', position: 'relative' }"
+        @click="setSingleMarker"
+    >
+      <l-tile-layer v-if="false" :url="url" :attribution="attribution" :options="{ crossOrigin: true }" />
+      <!-- Zoom +/- control moved to bottom-right -->
+      <l-control position="topleft">
+        <v-card elevation="0" width="280" class="bg-transparent ma-md-2 ma-1">
+          <v-card-title class="bg-white py-4 rounded-lg">
+            <div class="d-flex flex-row">
+              <div class="d-flex flex-row align-center justify-center">
+                <v-img
+                    lazy
+                    height="45"
+                    width="45"
+                    :src="require('@/assets/logo.webp')"
+                ></v-img>
+                <div>
+                  <div class="text-subtitle-1 my-0 py-0 font-weight-black">GEO PORTAL</div>
+                  <div class="text-subtitle-2 mt-n1 my-0 py-0 font-weight-light text-grey-darken-2">Kab.Nganjuk</div>
+                </div>
+              </div>
               <v-spacer></v-spacer>
-              <v-btn @click="deleteAllList" v-if="itemsMapsetSelected.length > 0 && isApply" icon density="comfortable" variant="text" color="red"><v-icon>mdi-delete</v-icon></v-btn>
+              <v-btn @click="showMapsetController = !showMapsetController" variant="text" icon>
+                <v-icon
+                    class="chev-rotate"
+                    :class="{ 'chev-rotate--open': showMapsetController }"
+                >
+                  mdi-chevron-left-box-outline
+                </v-icon>
+              </v-btn>
             </div>
-            <v-divider></v-divider>
-            <v-card v-if="itemsMapsetSelected.length > 0 && isApply" elevation="0" class="mt-2">
-              <v-card elevation="0" class="overflow-y-auto ma-0 pa-0" height="25vh">
-                <v-card-text class="ma-0 pa-0">
-                  <v-row no-gutters class="ga-2">
-                    <v-col cols="12" v-for="(itemSelected) in itemsMapsetSelected" :key="itemSelected.id">
-                      <v-card elevation="0" class="d-flex rounded-lg flex-row align-center pa-1 border-opacity-25 border-thin">
-                        <v-icon size="small" class="mx-1" color="grey">mdi-dots-vertical</v-icon>
-                        <div class="ml-2 text-caption font-weight-bold text-black">{{itemSelected.description}}</div>
-                        <v-spacer></v-spacer>
-                        <v-btn
-                            @click.stop="toggleMapsetVisibility(itemSelected)"
-                            icon
-                            density="comfortable"
-                            variant="text"
-                            :color="itemSelected.hasGeojson === false ? 'grey' : 'black'"
-                            :title="itemSelected.hasGeojson === false ? 'Tampilkan di peta' : 'Sembunyikan dari peta'"
-                        >
-                          <v-icon>{{ itemSelected.hasGeojson === false ? 'mdi-eye-off' : 'mdi-eye' }}</v-icon>
-                        </v-btn>
-                      </v-card>
-                    </v-col>
-                  </v-row>
-                </v-card-text>
-              </v-card>
-              <v-card-text class="text-center ma-0 py-1">
-                <v-btn @click="showDialogPickMapset" color="green" class="text-white text-subtitle-2 mt-6 rounded-lg font-weight-bold" density="comfortable" variant="elevated">Tambah Mapset</v-btn>
+            <v-expand-transition v-show="showMapsetController === true">
+              <v-text-field
+                  v-model="searchText"
+                  @keyup.enter="searchAndHighlight(searchText)"
+                  @blur="searchAndHighlight(searchText)"
+                  append-inner-icon="mdi-magnify"
+                  density="compact"
+                  label="Cari pada peta (highlight)"
+                  hide-details
+                  class="rounded-lg text-caption border-opacity-25 mt-2 mx-2"
+                  variant="outlined"
+              ></v-text-field>
+            </v-expand-transition>
+          </v-card-title>
+          <v-expand-transition v-show="showMapsetController === true">
+            <v-card class="bg-white mt-2 py-2 rounded-lg" height="420px" style="overflow-y: auto;">
+              <v-card-text>
+                <div class="text-subtitle-1 mb-1 font-weight-bold d-flex flex-row align-center">
+                  <div>Mapset Selected</div>
+                  <span v-if="itemsMapsetSelected.length > 0 && isApply" class="ml-2 bg-orange rounded-lg py-1 px-3 text-caption font-weight-bold text-white">{{itemsMapsetSelected.length}}</span>
+                  <v-spacer></v-spacer>
+                  <v-btn @click="deleteAllList" v-if="itemsMapsetSelected.length > 0 && isApply" icon density="comfortable" variant="text" color="red"><v-icon>mdi-delete</v-icon></v-btn>
+                </div>
+                <v-divider></v-divider>
+                <v-card v-if="itemsMapsetSelected.length > 0 && isApply" elevation="0" class="mt-2">
+                  <v-card elevation="0" class="overflow-y-auto ma-0 pa-0" height="260px">
+                    <v-card-text class="ma-0 pa-0">
+                      <v-row no-gutters class="ga-2">
+                        <v-col cols="12" v-for="(itemSelected) in itemsMapsetSelected" :key="itemSelected.id">
+                          <v-card elevation="0" class="d-flex rounded-lg flex-row align-center pa-1 border-opacity-25 border-thin">
+                            <v-icon size="small" class="mx-1" color="grey">mdi-dots-vertical</v-icon>
+                            <div class="ml-2 text-caption font-weight-bold text-black">{{itemSelected.description}}</div>
+                            <v-spacer></v-spacer>
+                            <v-btn
+                                @click.stop="toggleMapsetVisibility(itemSelected)"
+                                icon
+                                density="comfortable"
+                                variant="text"
+                                :color="itemSelected.hasGeojson === false ? 'grey' : 'black'"
+                                :title="itemSelected.hasGeojson === false ? 'Tampilkan di peta' : 'Sembunyikan dari peta'"
+                            >
+                              <v-icon>{{ itemSelected.hasGeojson === false ? 'mdi-eye-off' : 'mdi-eye' }}</v-icon>
+                            </v-btn>
+                          </v-card>
+                        </v-col>
+                      </v-row>
+                    </v-card-text>
+                  </v-card>
+                  <v-card-text class="text-center ma-0 py-1">
+                    <v-btn @click="showDialogPickMapset" color="green" class="text-white text-subtitle-2 mt-6 rounded-lg font-weight-bold" density="comfortable" variant="elevated">Tambah Mapset</v-btn>
+                  </v-card-text>
+                </v-card>
+                <v-card v-else elevation="0" class="mt-2">
+                  <v-card elevation="0"  class="mt-2 overflow-y-auto d-flex flex-row justify-center align-center bg-grey-lighten-5" height="320px">
+                    <v-card-text class="text-center">
+                      <v-btn readonly color="grey" class="mb-6" icon variant="flat" size="small"><v-icon class="text-white">mdi-map</v-icon></v-btn>
+                      <div class="font-weight-black text-subtitle-2 text-center">Belum ada mapset yang dipilih</div>
+                      <div class="text-caption font-weight-light text-grey-darken-2 text-center">Silahkan pilih terlebih dahulu mapset untuk melihat data secara detail</div>
+                      <v-btn @click="showDialogPickMapset" color="indigo" class="text-white text-subtitle-2 rounded-lg mt-6 font-weight-bold" density="comfortable" variant="elevated">Pilih Mapset</v-btn>
+                    </v-card-text>
+                  </v-card>
+                </v-card>
               </v-card-text>
             </v-card>
-            <v-card v-else elevation="0" class="mt-2">
-              <v-card elevation="0"  class="mt-2 overflow-y-auto d-flex flex-row justify-center align-center bg-grey-lighten-5" height="33vh">
-                <v-card-text class="text-center">
-                  <v-btn readonly color="grey" class="mb-6" icon variant="flat" size="small"><v-icon class="text-white">mdi-map</v-icon></v-btn>
-                  <div class="font-weight-black text-subtitle-2 text-center">Belum ada mapset yang dipilih</div>
-                  <div class="text-caption font-weight-light text-grey-darken-2 text-center">Silahkan pilih terlebih dahulu mapset untuk melihat data secara detail</div>
-                  <v-btn @click="showDialogPickMapset" color="indigo" class="text-white text-subtitle-2 rounded-lg mt-6 font-weight-bold" density="comfortable" variant="elevated">Pilih Mapset</v-btn>
-                </v-card-text>
-              </v-card>
-            </v-card>
-          </v-card-text>
-        </v-card>
-      </v-expand-transition>
+          </v-expand-transition>
 
-      <v-expand-transition v-show="showMapsetController === true">
-        <v-card-text class="bg-white mt-3 py-4 rounded-lg">
-          <div class="text-subtitle-1 mb-1 font-weight-bold d-flex flex-row align-center">
-            <div>Alat Peta</div>
-            <v-spacer></v-spacer>
-            <v-btn
-                v-if="uploadedGeojson"
-                @click="showUploadedGeojson"
-                icon
-                density="comfortable"
-                variant="text"
-                :color="uploadedGeojsonVisible ? 'blue' : 'grey'"
-            >
-              <v-icon>{{ uploadedGeojsonVisible ? 'mdi-eye' : 'mdi-eye-off' }}</v-icon>
-              <v-tooltip
-                  class="text-caption"
-                  activator="parent"
-                  location="top"
-              >Peta Terupload</v-tooltip>
-            </v-btn>
+          <v-expand-transition v-show="showMapsetController === true">
+            <v-card-text class="bg-white mt-3 py-4 rounded-lg">
+              <div class="text-subtitle-1 mb-1 font-weight-bold d-flex flex-row align-center">
+                <div>Alat Peta</div>
+                <v-spacer></v-spacer>
+                <v-btn
+                    v-if="uploadedGeojson"
+                    @click="showUploadedGeojson"
+                    icon
+                    density="comfortable"
+                    variant="text"
+                    :color="uploadedGeojsonVisible ? 'blue' : 'grey'"
+                >
+                  <v-icon>{{ uploadedGeojsonVisible ? 'mdi-eye' : 'mdi-eye-off' }}</v-icon>
+                  <v-tooltip
+                      class="text-caption"
+                      activator="parent"
+                      location="top"
+                  >Peta Terupload</v-tooltip>
+                </v-btn>
+              </div>
+              <div class="text-subtitle-1 mb-2 font-weight-bold"></div>
+              <v-row no-gutters>
+                <v-col cols="4" md="4" class="px-1">
+                  <v-hover v-slot="{ isHovering, props }">
+                   <v-btn
+                        v-bind="props"
+                        block
+                        :variant="mapToolTipOn ? 'flat' : (isHovering ? 'flat' : 'outlined')"
+                        :class="{ 'color-bg-primary': isHovering || mapToolTipOn }"
+                        @click="setMapToolTip"
+                    >
+                      <v-tooltip
+                          activator="parent"
+                          location="bottom"
+                      >Aktifkan Tooltip pada Peta</v-tooltip>
+                      <v-icon size="large" :class="{ 'text-white': isHovering || mapToolTipOn }">mdi-tooltip-outline</v-icon>
+                    </v-btn>
+                  </v-hover>
+                </v-col>
+                <v-col cols="4" md="4" class="px-1">
+                  <v-hover v-slot="{ isHovering, props }">
+                    <v-btn
+                        v-bind="props"
+                        block
+                        @click="toggleDrawTools"
+                        :variant="drawToolsOn ? 'flat' : (isHovering ? 'flat' : 'outlined')"
+                        :class="{ 'color-bg-primary': isHovering || drawToolsOn }"
+                    >
+                      <v-tooltip
+                          activator="parent"
+                          location="bottom"
+                      >Menggambar pada Peta</v-tooltip>
+                      <v-icon size="large" :class="{ 'text-white': isHovering || drawToolsOn }">mdi-vector-polygon</v-icon>
+                    </v-btn>
+                  </v-hover>
+                </v-col>
+                <v-col cols="4" md="4" class="px-1">
+                  <v-hover v-slot="{ isHovering, props }">
+                    <v-btn
+                        @click="downloadOrFilledFormGeojson"
+                        v-bind="props"
+                        block
+                        :variant="isHovering ? 'flat' : 'outlined'"
+                        :class="{ 'color-bg-primary': isHovering }"
+                    >
+                      <v-tooltip
+                          activator="parent"
+                          location="bottom"
+                      >Download Data Geojson</v-tooltip>
+                      <v-icon size="large" :class="{ 'text-white': isHovering }">mdi-download-outline</v-icon>
+                    </v-btn>
+                  </v-hover>
+                </v-col>
+              </v-row>
+              <v-btn @click="showUploadGeojsonDialog" density="comfortable" block variant="elevated" class="mx-1 mt-2 text-subtitle-2 font-weight-bold" color="blue-darken-1">Upload Peta</v-btn>
+            </v-card-text>
+          </v-expand-transition>
+        </v-card>
+      </l-control>
+      <l-control position="topright">
+        <v-btn
+            @click="routeToHome"
+            variant="elevated"
+            class="rounded-lg text-white ma-1 color-bg-second"
+            density="default"
+            color="orange-darken-2"
+            style="text-transform: none"
+        >
+          <div class="d-flex align-content-md-stretch">
+            <v-icon color="white" size="default" >mdi-home</v-icon><span class="ml-1 hidden-sm-and-down font-weight-bold">Beranda</span>
           </div>
-          <div class="text-subtitle-1 mb-2 font-weight-bold"></div>
-          <v-row no-gutters>
-            <v-col cols="4" md="4" class="px-1">
-              <v-hover v-slot="{ isHovering, props }">
-                <v-btn
-                    v-bind="props"
-                    block
-                    :variant="mapToolTipOn ? 'flat' : (isHovering ? 'flat' : 'outlined')"
-                    :class="{ 'color-bg-primary': isHovering || mapToolTipOn }"
-                    @click="setMapToolTip"
-                >
-                  <v-tooltip
-                      activator="parent"
-                      location="bottom"
-                  >Aktifkan Tooltip pada Peta</v-tooltip>
-                  <v-icon size="large" :class="{ 'text-white': isHovering || mapToolTipOn }">mdi-tooltip-outline</v-icon>
-                </v-btn>
-              </v-hover>
-            </v-col>
-            <v-col cols="4" md="4" class="px-1">
-              <v-hover v-slot="{ isHovering, props }">
-                <v-btn
-                    v-bind="props"
-                    block
-                    @click="toggleDrawTools"
-                    :variant="drawToolsOn ? 'flat' : (isHovering ? 'flat' : 'outlined')"
-                    :class="{ 'color-bg-primary': isHovering || drawToolsOn }"
-                >
-                  <v-tooltip
-                      activator="parent"
-                      location="bottom"
-                  >Menggambar pada Peta</v-tooltip>
-                  <v-icon size="large" :class="{ 'text-white': isHovering || drawToolsOn }">mdi-vector-polygon</v-icon>
-                </v-btn>
-              </v-hover>
-            </v-col>
-            <v-col cols="4" md="4" class="px-1">
-              <v-hover v-slot="{ isHovering, props }">
-                <v-btn
-                    @click="downloadOrFilledFormGeojson"
-                    v-bind="props"
-                    block
-                    :variant="isHovering ? 'flat' : 'outlined'"
-                    :class="{ 'color-bg-primary': isHovering }"
-                >
-                  <v-tooltip
-                      activator="parent"
-                      location="bottom"
-                  >Download Data Geojson</v-tooltip>
-                  <v-icon size="large" :class="{ 'text-white': isHovering }">mdi-download-outline</v-icon>
-                </v-btn>
-              </v-hover>
-            </v-col>
-          </v-row>
-          <v-btn @click="showUploadGeojsonDialog" density="comfortable" block variant="elevated" class="mx-1 mt-2 text-subtitle-2 font-weight-bold" color="blue-darken-1">Upload Peta</v-btn>
-        </v-card-text>
-      </v-expand-transition>
-    </v-card>
-    <GooglePlacesDialog
-        ref="refGooglePlacesDialog"
-        @eventGooglePlacesSelect="googlePlacesSelect"
-        @closed="onPlacesClosed"
-    ></GooglePlacesDialog>
-    <v-snackbar
-      v-model="snackbar.show"
-      :color="snackbar.color? snackbar.color : 'info'"
-      :timeout="snackbar.timeout? snackbar.timeout : 1500"
-      location="bottom">
-        <span class="snackbar-center">{{ snackbar.text }}</span>
+        </v-btn>
+      </l-control>
+      <l-control-layers position="topright"></l-control-layers>
+
+      <l-control position="bottomright" class="control-offset-br">
+        <v-btn
+            color="primary"
+            icon
+            elevation="4"
+            class="rounded-lg"
+            title="Tengahkan Pointer Peta"
+            size="small"
+            @click="setCenterPosition"
+        >
+          <v-icon>mdi-crosshairs-gps</v-icon>
+        </v-btn>
+      </l-control>
+      <l-control position="bottomright" class="control-offset-br">
+        <v-btn
+            color="pink-lighten-2"
+            icon
+            elevation="4"
+            class="rounded-lg"
+            title="Screen Shot Peta"
+            size="small"
+            @click="ssPhotoDownload"
+        >
+          <v-icon>mdi-camera</v-icon>
+        </v-btn>
+      </l-control>
+
+      <l-control-zoom  position="bottomright" />
+
+      <l-tile-layer
+          v-for="tileProvider in computedTileProviders"
+          :key="tileProvider.name"
+          :name="tileProvider.name"
+          :visible="tileProvider.visible"
+          :url="tileProvider.url"
+          :attribution="tileProvider.attribution"
+          :subdomains="tileProvider.subdomains"
+          :max-native-zoom="tileProvider.maxNativeZoom"
+          :options="{ crossOrigin: true }"
+          layer-type="base"
+      />
+
+      <l-marker
+          ref="marker"
+          v-if="singleMarker"
+          :lat-lng="singleMarker.coords"
+          :icon="customIcon"
+          @click="singleMarkerClick"
+      >
+        <l-popup v-model:visible="markerPopupVisible">
+          <div v-if="!isMobileDevice" >
+            <div style="max-height:350px; min-width:280px; max-width:300px; overflow-y:auto"
+                 v-html="jsonToHtmlTable(markerProps || {})">
+            </div>
+          </div>
+          <div v-else style="max-height:350px;overflow-y:auto"
+               v-html="jsonToHtmlTable_Mobile(markerProps || {})">
+          </div>
+          <div>
+            <v-chip size="small" variant="tonal" prepend-icon="mdi-crosshairs-gps" v-if="singleMarker?.coords">
+              {{ singleMarker.coords[0] }}, {{ singleMarker.coords[1] }}
+            </v-chip>
+<!--            <span>-->
+<!--              {{ singleMarker?.coords?.[0] }}, {{ singleMarker?.coords?.[1] }}-->
+<!--            </span>-->
+            <span><v-chip @click="openGMapsCurrentMarker"  class="ml-3" color="primary" size="small" density="compact"><v-icon color="success">mdi-google</v-icon></v-chip></span>
+          </div>
+        </l-popup>
+      </l-marker>
+
+      <l-geo-json
+          v-for="(item, index) in visibleDatasetGeojsonItems"
+          :key="index"
+          :geojson="item.data"
+          :options="options"
+          :options-style="styleFunction"
+      >
+      </l-geo-json>
+      <l-geo-json
+          v-if="uploadedGeojson && uploadedGeojsonVisible"
+          :geojson="uploadedGeojson"
+          :options="options"
+          :options-style="styleFunction"
+      />
+    </l-map>
+
+      <GooglePlacesDialog
+          ref="refGooglePlacesDialog"
+          @eventGooglePlacesSelect="googlePlacesSelect"
+          @closed="onPlacesClosed"
+      ></GooglePlacesDialog>
+
+    <v-snackbar v-model="snackbar.show"
+                :color="snackbar.color? snackbar.color : 'info'"
+                :timeout="snackbar.timeout? snackbar.timeout : 1500"
+                location="bottom">
+      <span class="snackbar-center">{{ snackbar.text }}</span>
     </v-snackbar>
     <PickMapsetDialog @applyPeta="applyPeta" ref="refPickMapsetDialog"></PickMapsetDialog>
     <DownloadFormDialog :itemsFDivision="itemsFDivision" @downloadGeojsonZip="downloadGeojsonZip" ref="refDownloadFormDialog"></DownloadFormDialog>
@@ -233,6 +357,7 @@
 </template>
 
 <script>
+import { LControl, LControlLayers, LControlZoom, LGeoJson, LMap, LMarker, LPopup, LTileLayer } from "@vue-leaflet/vue-leaflet";
 import "leaflet/dist/leaflet.css";
 import L, {Icon} from 'leaflet';
 import 'leaflet-fullscreen';
@@ -255,7 +380,6 @@ import FDivisionService from "@/services/apiservices/f-division-service";
 import FGeoDownloadService from "@/services/apiservices/f-geo-download-service";
 import UploadGeojsonDialog from "@/components/public/peta-interaktif/UploadGeojsonDialog.vue";
 import ETipePeta from "@/models/e-tipe-peta";
-import PetaPostgis from "@/components/public/peta-tematik/PetaPostgis.vue";
 
 delete Icon.Default.prototype.Default;
 // Icon.Default.mergeOptions({
@@ -270,13 +394,23 @@ Icon.Default.mergeOptions({
 });
 
 export default {
-  name: "PetaInteraktif",
+  name: "PetaInteraktifOri",
   components: {
-    PetaPostgis,
     UploadGeojsonDialog,
     DownloadFormDialog,
     PickMapsetDialog,
     GooglePlacesDialog: GooglePlacesAutoCompleteDialog,
+    LMap,
+    LTileLayer,
+    LControl,
+    LControlLayers,
+    LMarker,
+    LControlZoom,
+    // LIcon,
+    LPopup,
+    // LTooltip,
+    LGeoJson,
+    // LControlPolylineMeasure,
 
   },
   props: {
@@ -472,12 +606,6 @@ export default {
       // console.log(this.itemsDatasetGeojson)
       const cache = Array.isArray(this.itemsDatasetGeojson) ? this.itemsDatasetGeojson : [];
       return cache.filter(ds => ds && ds.id != null && visibleIds.has(ds.id));
-    },
-    visibleDatasetGeojsonIds() {
-      const selected = Array.isArray(this.itemsMapsetSelected) ? this.itemsMapsetSelected : [];
-      return selected
-          .filter(x => x && x.id != null && x.hasGeojson !== false)
-          .map(x => x.id);
     },
     googleApiKey(){
       return this.$store.state.secretKey.googleApiKey?? '';
@@ -1484,14 +1612,18 @@ export default {
     },
     handleFullscreenChange() {
       this.isFullScreen = !!document.fullscreenElement;
+      console.log(`fullscreenchange detected: ${this.isFullScreen}`);
     },
 
     setSingleMarker(event) {
       if (this.drawToolsOn) return;
       const { lat, lng } = event.latlng;
+
+      // Tutup popup yang sedang terbuka dulu, biar klik marker lain tidak ketahan overlay popup
       this.closeAllLeafletPopups();
 
       this.singleMarker = { coords: [lat, lng] };
+      //Untuk Siapa saja Pemanggilnya maka akan diberi ini
       this.$emit('markerLatLngUpdate', this.singleMarker);
 
       const props = this.getFastPropsAtFromFeatureIndex(lat, lng);
@@ -1507,6 +1639,8 @@ export default {
         }
         return;
       }
+
+      // Desktop: auto-open popup marker utama
       this.reopenSingleMarkerPopup();
     },
 
@@ -1540,6 +1674,12 @@ export default {
       this.mobilePanel.expanded = isExpanded;
       this.mobilePanel.gone =false
     },
+    zoomUpdated(zoom) {
+      this.zoom = zoom;
+    },
+    centerUpdated(center) {
+      this.center = center;
+    },
     styleFunction(feature) {
       let weight = 1.2;
       let fillOpacity = 0.35;
@@ -1564,6 +1704,9 @@ export default {
     },
 
     async getFromServerDatasetGeojson({ idDataset, restApiFetch }) {
+      // NOTE: Local cache (Dexie/IndexedDB) intentionally removed.
+      // Always fetch fresh GeoJSON from server.
+      // console.log(idDataset);
       try {
         this.snackbar = {
           show: true,
@@ -1620,15 +1763,19 @@ export default {
     },
 
     async valueChangedSpaMainGeoJson(value) {
+      // if (value.selected !== true) {
       if (value.hasGeojson !== true) {
         this.isBulkCleanup = true;
 
         const index = this.itemsDatasetGeojson.findIndex((item) => item.id === value.id);
         if (index !== -1) this.itemsDatasetGeojson.splice(index, 1);
 
+        // bersihkan semua indeks terkait dataset ini
         this.cleanupByDataset(value.id);
+        // Leave bulk mode
         this.isBulkCleanup = false;
 
+        // optional: refresh panel jika titik aktif tidak lagi mengenai feature
         const lat = this.singleMarker?.coords?.[0];
         const lng = this.singleMarker?.coords?.[1];
         if (this.isMobileDevice && lat != null && lng != null) {
@@ -1641,17 +1788,21 @@ export default {
       const geojsonResponse = await this.getFromServerDatasetGeojson({
         idDataset: value.id,
         restApiFetch: async (idDataset) => {
+          // ✅ ambil via Axios (FtDatasetService)
           const resp = await FtDatasetService.getFtDatasetByIdPublic(idDataset, true);
           const payload = resp?.data ?? resp;
 
+          // payload bisa: { geojson: "..." } atau { geojson: {...} } atau langsung FeatureCollection
           const g = (payload && payload.geojson != null) ? payload.geojson : payload;
 
+          // ✅ kalau geojson string → parse jadi object
           if (typeof g === 'string') {
             const s = g.trim();
             if (!s) return { type: 'FeatureCollection', features: [] };
             return JSON.parse(s);
           }
 
+          // ✅ kalau sudah object → langsung return
           return g;
         }
       });
@@ -1690,6 +1841,7 @@ export default {
           fillColor: value.remark2
         });
 
+        // Optional UX: info jumlah fitur yang dirender vs total penuh
         if (this.useRadiusFilter) {
           const fullCount = (geojsonResponse.features || []).length;
           const showCount = (toShow.features || []).length;
@@ -1753,6 +1905,28 @@ export default {
       // 5) Keluar dari bulk mode
       this.isBulkCleanup = false;
     },
+
+    jsonToHtmlTable_Mobile(jsonValue) {
+      const myObj = jsonValue;
+
+      let text = "<table style='width: 180px'>"
+
+      for (const meta in myObj) {
+        // if (/^(OBJ|NAM|WAD|SHAPE|LUAS|Ket|KET|Fung|FUNG|Sumber|PENGGUNAAN|DESC|KRB|REMARK)/.test(meta)) {
+        if (/^(OBJ|desc|DESC)/.test(meta)) {
+          text +=
+              "  <tr>\n" +
+              myObj[meta] +
+              "  </tr>\n";
+        }
+      }
+
+      text += "</table>";
+
+      return text;
+    },
+
+
     jsonToHtmlTable(jsonValue) {
       const myObj = jsonValue || {};
 
@@ -1964,20 +2138,6 @@ export default {
 </script>
 
 <style scoped>
-.map-wrapper {
-  position: relative;
-  width: 100%;
-  height: 100vh;
-}
-
-/* Card overlay di atas peta */
-.map-overlay-card {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  z-index: 10; /* > leaflet controls */
-  background: transparent;
-}
     .snackbar-center {
       width: 100%;
       text-align: center;
@@ -2086,6 +2246,7 @@ export default {
     }
 
     /* Optional: di mobile, naikin lebih jauh biar gak ketutup bottom sheet */
+
     :deep(.kv-table) {
       width: 100%;
       border-collapse: collapse;
@@ -2138,9 +2299,44 @@ export default {
       margin-right: 16px !important;
     }
     :deep(.leaflet-bottom.leaflet-right .leaflet-draw) {
-      margin-right: 8px !important;
+      margin-right: 16px !important;
+    }
+    /* Leaflet Draw toolbar: make it not plain white */
+    :deep(.leaflet-bottom.leaflet-right .leaflet-draw-toolbar) {
+      background: #3F51B5; /* dark glass */
+      border-radius: 12px;
+      padding: 2px;
+      box-shadow: 0 10px 22px rgba(0,0,0,0.18);
+      border: 1px solid rgba(255,255,255,0.12);
+      backdrop-filter: saturate(1.2) blur(10px);
+      -webkit-backdrop-filter: saturate(1.2) blur(10px);
+    }
+    :deep(.leaflet-bottom.leaflet-right .leaflet-draw-toolbar a) {
+      /* keep sprite background-image intact; only style the button container */
+      background-color: transparent !important;
+      border: 1px solid rgba(0,0,0) !important;
+      border-radius: 10px !important;
+      margin: 4px !important;
+      width: 32px !important;
+      height: 32px !important;
+      box-shadow: none !important;
+      transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+
+      /* recolor the sprite to look WHITE on dark toolbar */
+      filter: invert(1) brightness(1.15) contrast(1.05);
     }
 
+    :deep(.leaflet-bottom.leaflet-right .leaflet-draw-toolbar a:hover) {
+      border-color: rgba(0,0,0) !important;
+      transform: translateY(-1px);
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.12) inset;
+    }
+
+    /* Enabled/active draw button */
+    :deep(.leaflet-bottom.leaflet-right .leaflet-draw-toolbar a.leaflet-draw-toolbar-button-enabled) {
+      border-color: rgba(255,255,255,0.75) !important;
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.18) inset;
+    }
 
 
 </style>

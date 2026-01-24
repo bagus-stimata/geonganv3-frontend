@@ -61,7 +61,10 @@
                 <v-row v-else no-gutters class="ga-2">
                   <v-col cols="12" v-for="dataset in ftDatasetsFiltered" :key="dataset.id">
                     <v-card
-                        :class="isDatasetSelected(dataset.id) ? 'border-activated' : ''"
+                        :class="{
+                          'border-activated': isDatasetSelected(dataset.id) && dataset.id !== lastSelectedMapsetId,
+                          'border-activated-blue': dataset.id === lastSelectedMapsetId
+                        }"
                         elevation="0"
                         class="pa-2 border-thin border-opacity-25"
                         width="100%"
@@ -92,7 +95,7 @@
 
                             <v-col cols="2" class="justify-center align-center">
                               <v-checkbox-btn
-                                  :color="isDatasetSelected(dataset.id) ? 'orange' : ''"
+                                  :color="dataset.id === lastSelectedMapsetId ? 'blue' : (isDatasetSelected(dataset.id) ? 'orange' : '')"
                                   :model-value="isDatasetSelected(dataset.id)"
                                   @update:model-value="(val) => toggleDatasetSelection(dataset, val)"
                               />
@@ -145,10 +148,19 @@
                   <div>
                     <v-row class="mb-n2">
                       <v-col cols="12" class="d-flex flex-row align-center">
-                        <div class="font-weight-bold text-subtitle-2">Preview</div>
+                        <div class="font-weight-black text-subtitle-1">Preview</div>
                       </v-col>
                     </v-row>
-                    <PetaPostgis :draw-enabled="false" :dataset-ids="itemMapsetSelectedIds" min-height="30vh" height="30vh"></PetaPostgis>
+                    <div class="my-1 text-subtitle-2 text-blue-darken-2 font-weight-bold">
+                      <span class="font-weight-bold text-black">Terpilih:</span>
+                      {{ lastSelectedMapsetDescription || '-' }}
+                    </div>
+                    <PetaPostgis
+                      :draw-enabled="false"
+                      :dataset-ids="lastSelectedMapsetId ? [lastSelectedMapsetId] : []"
+                      min-height="30vh"
+                      height="30vh"
+                    ></PetaPostgis>
                     <v-row class="my-2 ga-2 align-center" no-gutters>
                       <v-col cols="12" md="3" sm="12">
                         <div class="font-weight-bold text-subtitle-2">Mapset Terpilih</div>
@@ -236,6 +248,18 @@ export default {
               .filter(it => it && it.id != null)
               .map(it => it.id)
           : [];
+    },
+    lastSelectedMapsetId() {
+      const arr = Array.isArray(this.itemsMapsetSelected) ? this.itemsMapsetSelected : [];
+      if (arr.length === 0) return null;
+      const last = arr[arr.length - 1];
+      return last && last.id != null ? last.id : null;
+    },
+    lastSelectedMapsetDescription() {
+      const arr = Array.isArray(this.itemsMapsetSelected) ? this.itemsMapsetSelected : [];
+      if (arr.length === 0) return '';
+      const last = arr[arr.length - 1];
+      return last && last.description ? String(last.description) : '';
     },
   },
   watch: {
@@ -339,6 +363,10 @@ export default {
 <style scoped>
 .border-activated {
   border: 2px solid #FF8030 !important;
+  border-radius: 8px;
+}
+.border-activated-blue {
+  border: 2px solid #1e88e5 !important; /* Vuetify blue */
   border-radius: 8px;
 }
 </style>

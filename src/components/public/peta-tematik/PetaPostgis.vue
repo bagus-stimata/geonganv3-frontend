@@ -365,6 +365,53 @@ const options = {
 // Global snackbar (biar error/info selalu kelihatan)
 const snackbar = ref({ show: false, color: '', text: '', timeout: 1500 })
 
+// Whitelist kolom yang boleh tampil di popup (di-drive dari backend: res.data.propertiesShow)
+const propertiesShowKeys = ref([])
+
+function normalizePropertiesShowKeys(v) {
+  if (v == null) return []
+
+  // already array
+  if (Array.isArray(v)) {
+    return v
+      .map(x => String(x ?? '').trim())
+      .filter(Boolean)
+  }
+
+  // string: bisa JSON array, atau comma-separated
+  if (typeof v === 'string') {
+    const s = v.trim()
+    if (!s) return []
+
+    // try JSON first
+    try {
+      const parsed = JSON.parse(s)
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map(x => String(x ?? '').trim())
+          .filter(Boolean)
+      }
+    } catch (_) {
+      // ignore
+    }
+
+    // fallback: comma separated
+    return s
+      .split(',')
+      .map(x => x.trim())
+      .filter(Boolean)
+  }
+
+  // object: use keys
+  if (typeof v === 'object') {
+    return Object.keys(v)
+      .map(x => String(x ?? '').trim())
+      .filter(Boolean)
+  }
+
+  return []
+}
+
 // Props -> normalized IDs (source of truth)
 // NOTE: hasilnya murni Array<number> (int), sudah unique + >0
 const datasetIdsNorm = computed(() => {
@@ -671,6 +718,23 @@ async function fetchViewportData({ minX, minY, maxX, maxY, z, reason, startedAt 
       ids: datasetIdsNorm.value
     }
     const res = await FtDatasetExtService.getPostViewportClippedPublic(reqViewport)
+
+    // ---- propertiesShow (kolom popup) ----
+    // backend bisa balikin di root: { propertiesShow: [...] , items: [...] }
+    // atau per-row: [{ propertiesShow: "[...]" , ...}, ...]
+    let psRaw = res?.data?.propertiesShow
+    if (psRaw == null && Array.isArray(res?.data) && res.data.length > 0) {
+      psRaw = res.data?.[0]?.propertiesShow
+    }
+    // also support wrapper payload later (in case res.data is object with `data/items`)
+    if (psRaw == null && (res?.data?.items || res?.data?.data)) {
+      const first = (res.data.items || res.data.data)?.[0]
+      psRaw = first?.propertiesShow
+    }
+
+    const psKeys = normalizePropertiesShowKeys(psRaw)
+    propertiesShowKeys.value = psKeys
+    // ---- end propertiesShow ----
     /**
      * Jika res adalah data yang sama dengan sebelumnya, kita bisa skip update geojsonData.value
      * untuk menghindari re-rendering yang tidak perlu
@@ -981,31 +1045,54 @@ function goHome() {
   router.push("/")
 }
 
-function jsonToHtmlTable_Mobile(jsonValue) {
+function jsonToHtmlTable_Mobile(jsonValue, keys = []) {
   const myObj = jsonValue || {}
+  const allow = Array.isArray(keys) ? keys : []
 
-  let text = "<table style='width: 220px; font-size:12px'>"
+  // Default behavior: if no columns selected -> show all keys
+  const keyList = allow.length
+    ? allow
+    : Object.keys(myObj).sort((a, b) => String(a).localeCompare(String(b)))
 
-  for (const meta in myObj) {
-    if (!Object.prototype.hasOwnProperty.call(myObj, meta)) continue
+  // If still empty, show a small note
+  if (!keyList.length) {
+    return `<div style="font-size:12px; opacity:0.75; padding:2px 0;">Tidak ada data.</div>`
+  }
 
-    // mirip versi Mas-Win (OBJ + DESC)
-    if (/^(OBJ|desc|DESC)/.test(meta)) {
-      const v = myObj[meta]
-      if (v === undefined || v === null) continue
-      text += "<tr><td style='padding:4px 0; word-break:break-word'>" + escapeHtml(v) + "</td></tr>"
-    }
+  let text = "<table style='width: 240px; font-size:12px'>"
+
+  for (const k of keyList) {
+    if (!Object.prototype.hasOwnProperty.call(myObj, k)) continue
+    const v = myObj[k]
+    if (v === undefined || v === null) continue
+
+    text += `
+      <tr>
+        <td style="padding:4px 0; word-break:break-word;">
+          <b>${escapeHtml(k)}</b>: ${escapeHtml(v)}
+        </td>
+      </tr>`
   }
 
   text += "</table>"
   return text
 }
 
-function jsonToHtmlTable(jsonValue) {
+function jsonToHtmlTable(jsonValue, keys = []) {
   const myObj = jsonValue || {}
+  const allow = Array.isArray(keys) ? keys : []
+
+  // Default behavior: if no columns selected -> show all keys
+  const keyList = allow.length
+    ? allow
+    : Object.keys(myObj).sort((a, b) => String(a).localeCompare(String(b)))
+
+  if (!keyList.length) {
+    return `<div style="font-size:12px; opacity:0.75; padding:2px 0;">Tidak ada data.</div>`
+  }
 
   let rows = ""
-  for (const meta in myObj) {
+  for (const meta of keyList) {
     if (!Object.prototype.hasOwnProperty.call(myObj, meta)) continue
     const val = myObj[meta]
     if (val === undefined || val === null) continue
@@ -1018,6 +1105,11 @@ function jsonToHtmlTable(jsonValue) {
       </tr>`
   }
 
+  // if nothing rendered (e.g., all values null), show note
+  if (!rows) {
+    return `<div style="font-size:12px; opacity:0.75; padding:2px 0;">Tidak ada data.</div>`
+  }
+
   return `<table style="min-width:240px; max-width:340px; font-size:12px;"><tbody>${rows}</tbody></table>`
 }
 
@@ -1026,7 +1118,8 @@ function popupHtmlForProps(props) {
       && window.matchMedia
       && window.matchMedia('(max-width: 480px)').matches
 
-  return isMobile ? jsonToHtmlTable_Mobile(props) : jsonToHtmlTable(props)
+  const keys = propertiesShowKeys.value || []
+  return isMobile ? jsonToHtmlTable_Mobile(props, keys) : jsonToHtmlTable(props, keys)
 }
 
 

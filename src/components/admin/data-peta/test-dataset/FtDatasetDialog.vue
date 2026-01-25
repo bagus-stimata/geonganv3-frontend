@@ -736,9 +736,7 @@ export default {
 
   methods: {
     setGeoUpdated(value){
-      console.log(value.status);
       if(value.status === 'ok'){
-        console.log("Masuk sini");
         this.isGeoUpdated = true
       }
     },
@@ -1379,7 +1377,11 @@ export default {
 
     saveUpdateOnly() {
       const payload = this.buildPayload();
-      const includeGeojson = !!payload.withGeojson;
+      let includeGeojson = !!payload.withGeojson;
+      if (this.isGeoUpdated===true){
+        includeGeojson = true
+      }
+
 
       return new Promise((resolve, reject) => {
         FtDatasetExtService.updateFtDataset(payload, includeGeojson).then(

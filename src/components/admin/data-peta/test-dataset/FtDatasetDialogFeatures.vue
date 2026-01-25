@@ -126,7 +126,7 @@ const emit = defineEmits(["geoUpdated"]);
 
 const search = ref("");
 const currentPage = ref(1);
-const pageSize = ref(8);
+const pageSize = ref(15);
 const pageSizes = ref([8, 15, 20]);
 
 const loading = ref(false);

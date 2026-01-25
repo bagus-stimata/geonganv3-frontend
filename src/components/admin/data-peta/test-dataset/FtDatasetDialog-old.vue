@@ -419,7 +419,7 @@
               <v-btn
                   value="EDIT_DATA_GEOJSON"
                   color="orange-darken-1"
-                  @click="loadTableFeatures"
+                  @click="loadTableDataAndEdit"
                   style="text-transform: none;"
               >
                 <span class="d-flex align-center">
@@ -442,15 +442,126 @@
           </v-card-text>
 
           <!-- Load & Edit Data -->
-          <v-card-text  v-if="togglePetaDanEditMode==='EDIT_DATA_GEOJSON'">
-            <FtDatasetDialogFeatures
-                ref="refFtDatasetDialogFeatures"
-                :ftDataset="itemModified"
-                @geoUpdated="setGeoUpdated"
-            ></FtDatasetDialogFeatures>
-
+          <v-card-text  v-if="hasGeojsonForPreview && togglePetaDanEditMode==='EDIT_DATA_GEOJSON'">
+            <div class="text-caption">
+              Tabel ini menampilkan nilai properti tiap feature dari GeoJSON yang sudah dimuat dan <span class="font-weight-bold">bisa diedit</span>.
+            </div>
+            <div class="ml-2">
+              <v-checkbox
+                  v-model="featureShowOnlyMapColumns"
+                  label="Kolom yang Ditampilkan pada Peta Saja"
+                  density="compact"
+                  hide-details
+                  @change="syncFeatureColumnsView"
+              ></v-checkbox>
+            </div>
+            <div>
+              <v-text-field
+                  v-model="featureFilterInput"
+                  label="Filter data minimal 2 karakter ( ⏎ Enter mulai filter)"
+                  variant="outlined"
+                  density="compact"
+                  hide-details
+                  prepend-inner-icon="mdi-magnify"
+                  clearable
+                  @keyup.enter="applyFeatureFilter"
+              ></v-text-field>
+            </div>
           </v-card-text>
 
+          <!-- Tabel data per feature (editable seperti QGIS attribute table) -->
+
+          <v-card-text v-if="featureRows && featureRows.length" class="mt-n4 mb-4">
+            <div class="feature-table-scroll">
+              <v-table density="compact" class="feature-attr-table">
+                <thead>
+                  <tr>
+                    <th class="col-idx" style="width: 40px; min-width: 40px;">#</th>
+                    <th
+                      v-for="col in featureColumnsView"
+                      :key="col"
+                      class="resizable-th"
+                      :style="getFeatureColStyle(col)"
+                    >
+                      <div class="th-wrap">
+                        <span class="th-text">{{ col }}</span>
+                        <span
+                          class="col-resizer"
+                          @mousedown.prevent="startResizeFeatureCol($event, col)"
+                        ></span>
+                      </div>
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  <tr v-for="(row, idx) in pagedFeatureRows" :key="idx">
+                    <td class="col-idx">
+                      {{ (featureCurrentPage - 1) * featureItemsPerPage + idx + 1 }}
+                    </td>
+
+                    <td
+                      v-for="col in featureColumnsView"
+                      :key="col"
+                      :style="getFeatureColStyle(col)"
+                    >
+                      <v-text-field
+                        v-model="row[col]"
+                        variant="underlined"
+                        density="compact"
+                        hide-details
+                      ></v-text-field>
+                    </td>
+                  </tr>
+                </tbody>
+              </v-table>
+            </div>
+
+            <div class="d-flex align-center justify-end mt-2">
+              <span class="text-caption mr-3">
+                Halaman {{ featureCurrentPage }} / {{ featurePageCount }}
+              </span>
+              <v-btn
+                variant="text"
+                size="small"
+                class="mr-1"
+                :disabled="featureCurrentPage <= 1"
+                @click="featureCurrentPage = 1"
+                style="text-transform: none;"
+              >
+                « Awal
+              </v-btn>
+              <v-btn
+                variant="text"
+                size="small"
+                class="mr-1"
+                :disabled="featureCurrentPage <= 1"
+                @click="featureCurrentPage = featureCurrentPage - 1"
+                style="text-transform: none;"
+              >
+                ‹ Prev
+              </v-btn>
+              <v-btn
+                variant="text"
+                size="small"
+                class="mr-1"
+                :disabled="featureCurrentPage >= featurePageCount"
+                @click="featureCurrentPage = featureCurrentPage + 1"
+                style="text-transform: none;"
+              >
+                Next ›
+              </v-btn>
+              <v-btn
+                variant="text"
+                size="small"
+                :disabled="featureCurrentPage >= featurePageCount"
+                @click="featureCurrentPage = featurePageCount"
+                style="text-transform: none;"
+              >
+                Akhir »
+              </v-btn>
+            </div>
+          </v-card-text>
 
           <v-card-actions class="bg-amber-lighten-4">
             <v-chip
@@ -477,7 +588,7 @@
                 color="blue-darken-1"
                 variant="outlined"
                 @click="applyChanges"
-                :disabled="(!valid || isItemModified === false) && !isGeoUpdated"
+                :disabled="!valid || isItemModified === false"
                 class="hidden-sm-and-down mr-2"
             >
               Apply
@@ -486,7 +597,7 @@
                 color="blue-darken-1"
                 variant="flat"
                 @click="saveAndClose"
-                :disabled="(!valid || isItemModified === false) && !isGeoUpdated"
+                :disabled="!valid || isItemModified === false"
                 class="hidden-sm-and-down mr-4"
             >
               Save & Close
@@ -601,11 +712,9 @@ import {EnumDataSpaTypeList} from "@/models/e-data-spa-type";
 import ETipePeta, {ETipePetas} from "@/models/e-tipe-peta";
 import * as XLSX from "xlsx";
 import PetaPostgis from "@/components/public/peta-tematik/PetaPostgis.vue";
-import FtDatasetDialogFeatures from "@/components/admin/data-peta/test-dataset/FtDatasetDialogFeatures.vue";
 
 export default {
   components: {
-    FtDatasetDialogFeatures,
     PetaPostgis,
     CloseConfirmDialog,
     UploadImageDialog,
@@ -694,7 +803,7 @@ export default {
        */
       datasetIds: [],
 
-      isGeoUpdated: false,
+
 
     };
   },
@@ -705,7 +814,34 @@ export default {
       const modifiedItem = JSON.stringify(this.itemModified);
       return defaultItem !== modifiedItem;
     },
+    pagedFeatureRows() {
+      const perPage = this.featureItemsPerPage || 15;
+      const page = this.featureCurrentPage || 1;
+      const rows = this.filteredFeatureRows || [];
+      const start = (page - 1) * perPage;
+      return rows.slice(start, start + perPage);
+    },
+    featurePageCount() {
+      const perPage = this.featureItemsPerPage || 15;
+      const rows = this.filteredFeatureRows || [];
+      if (!perPage) return 1;
+      const pages = Math.ceil(rows.length / perPage);
+      return pages || 1;
+    },
 
+    hasGeojsonForPreview() {
+      // Untuk mode EDIT_DATA_GEOJSON, tabel hanya boleh tampil kalau GeoJSON full sudah dimuat ke table-local.
+      return this.hasStoredGeojson && this.hasGeojsonForTableLocal;
+    },
+
+    hasGeojsonLoaded() {
+      return (
+          this.itemModified &&
+          typeof this.itemModified.geojson === "string" &&
+          this.itemModified.geojson.trim() !== "" &&
+          this.itemModified.geojson.trim() !== "{}"
+      );
+    },
     hasStoredGeojson() {
       // lightweight flag dari backend (misal hasGeojson = featureCount>0)
       const hasFlag = !!(this.itemModified && this.itemModified.hasGeojson);
@@ -728,25 +864,142 @@ export default {
       }
       return [];
     },
-
+    filteredFeatureRows() {
+      if (!this.featureRows || !this.featureRows.length) {
+        return [];
+      }
+      const q = (this.featureFilterText || "").toString().trim().toLowerCase();
+      // Jika filter kosong atau panjang <= 2 karakter, jangan lakukan filter
+      if (!q || q.length <= 2) {
+        return this.featureRows;
+      }
+      const cols =
+          this.featureColumnsView && this.featureColumnsView.length
+              ? this.featureColumnsView
+              : (this.featureColumns || []);
+      return this.featureRows.filter((row) =>
+        cols.some((col) => {
+          const value = row[col];
+          if (value === null || value === undefined) return false;
+          return String(value).toLowerCase().includes(q);
+        })
+      );
+    },
   },
 
   watch: {
+    featureColumns(newVal) {
+      if (Array.isArray(newVal) && newVal.length) {
+        this.ensureFeatureColWidthDefaults();
+        this.syncFeatureColumnsView();
+      }
+    },
+    filteredFeatureRows() {
+      // Pastikan current page tidak melewati jumlah halaman yang tersedia
+      if (this.featureCurrentPage > this.featurePageCount) {
+        this.featureCurrentPage = this.featurePageCount;
+      }
+      if (this.featureCurrentPage < 1) {
+        this.featureCurrentPage = 1;
+      }
+    },
   },
 
   methods: {
-    setGeoUpdated(value){
-      console.log(value.status);
-      if(value.status === 'ok'){
-        console.log("Masuk sini");
-        this.isGeoUpdated = true
-      }
-    },
     isMapTypePoint(item){
       return item === ETipePeta.POINT
     },
+    getMapOnlyColumns() {
+      // Ambil dari propertiesShow (hasil dialog “Kolom Yang ditampilkan pada Peta”)
+      const selected = this.parsePropertiesShowFromItem(this.itemModified);
+      if (Array.isArray(selected) && selected.length) {
+        return selected;
+      }
+      // Fallback: kalau belum diset, anggap semua kolom aktif
+      return (this.featureColumns || []).slice();
+    },
 
+    syncFeatureColumnsView() {
+      const all = Array.isArray(this.featureColumns) ? this.featureColumns : [];
 
+      if (!this.featureShowOnlyMapColumns) {
+        this.featureColumnsView = all.slice();
+        return;
+      }
+
+      const mapCols = this.getMapOnlyColumns();
+      // Pastikan hanya kolom yang memang ada di table
+      this.featureColumnsView = (mapCols || []).filter((c) => all.includes(c));
+    },
+
+    getFeatureColStyle(col) {
+      const w = this.featureColWidths && this.featureColWidths[col];
+      if (!w) return {};
+      return { width: `${w}px`, minWidth: `${w}px` };
+    },
+
+    ensureFeatureColWidthDefaults() {
+      const cols = Array.isArray(this.featureColumns) ? this.featureColumns : [];
+      if (!this.featureColWidths) this.featureColWidths = {};
+      cols.forEach((c) => {
+        if (c && !this.featureColWidths[c]) {
+          this.featureColWidths[c] = 180; // default width
+        }
+      });
+    },
+
+    startResizeFeatureCol(evt, col) {
+      if (!col) return;
+
+      const th = evt?.target?.closest("th");
+      const startWidth = th ? th.offsetWidth : (this.featureColWidths[col] || 180);
+
+      this.featureResizeCtx = {
+        col,
+        startX: evt.clientX,
+        startWidth,
+      };
+
+      document.body.style.cursor = "col-resize";
+      document.addEventListener("mousemove", this.onResizeFeatureColMove);
+      document.addEventListener("mouseup", this.onResizeFeatureColUp);
+    },
+
+    onResizeFeatureColMove(evt) {
+      if (!this.featureResizeCtx) return;
+      evt.preventDefault();
+
+      const { col, startX, startWidth } = this.featureResizeCtx;
+      const delta = evt.clientX - startX;
+      const next = Math.max(80, Math.min(800, startWidth + delta));
+
+      if (!this.featureColWidths) this.featureColWidths = {};
+      this.featureColWidths[col] = next;
+    },
+
+    onResizeFeatureColUp() {
+      if (!this.featureResizeCtx) return;
+
+      this.featureResizeCtx = null;
+      document.body.style.cursor = "";
+      document.removeEventListener("mousemove", this.onResizeFeatureColMove);
+      document.removeEventListener("mouseup", this.onResizeFeatureColUp);
+    },
+
+    applyFeatureFilter() {
+      const trimmed = (this.featureFilterInput || "").trim();
+      if (trimmed.length > 2) {
+        this.featureFilterText = trimmed;
+      } else {
+        this.featureFilterText = "";
+      }
+      this.featureCurrentPage = 1;
+    },
+    setGeojsonForTableLocal(src) {
+      this.geojsonForTableLocal = src;
+      const s = typeof src === "string" ? src.trim() : "";
+      this.hasGeojsonForTableLocal = !!(s && s !== "{}" && s !== "null");
+    },
     async refreshFeatureRowsFromGeojson() {
       this.featureRows = [];
       this.featureColumns = [];
@@ -901,19 +1154,13 @@ export default {
         this.saveUpdateOnly()
       }
     },
-
-    async loadTableFeatures(){
-      this.togglePetaDanEditMode = "EDIT_DATA_GEOJSON";
-      const id = this.itemModified?.id ? Number(this.itemModified.id) : 0;
-      if (!id) {
-        this.snackBarMessage = "Dataset belum punya ID";
-        this.snackbar = true;
-        return;
+    async ensureGeojsonLoaded() {
+      // Untuk tabel: pastikan geojson full ada di geojsonForTableLocal.
+      if (this.hasStoredGeojson && !this.hasGeojsonForTableLocal) {
+        await this.loadGeojsonForTableFromServer();
       }
-      // 2) update props
-      this.datasetIds = [id];
-      await this.$nextTick();
     },
+
     async loadTampilanPeta() {
       try {
         // 1) pastiin komponen peta ter-render
@@ -932,6 +1179,14 @@ export default {
         // 3) tunggu render
         await this.$nextTick();
 
+        // 4) optional: paksa reload sekarang juga (biar responsif)
+        // const petaComp = this.$refs.refDatasetMap;
+        // if (petaComp && typeof petaComp.refreshDataForViewPort === "function") {
+        //   await petaComp.refreshDataForViewPort();
+        // }
+
+        // console.log("Done Load Tampilan Peta");
+
       } catch (e) {
         console.error(e);
         this.snackBarMessage = "Gagal menampilkan peta";
@@ -939,7 +1194,114 @@ export default {
       }
     },
 
+    async loadTableDataAndEdit(){
+      /**
+       * 1. Cek apakah geojsonForTableLocal sudah ada isinya?
+       * 2. Jika belum, load dari server (pastikan itemModified.geojson (data ori) ada isinya) dari FtDatasetExt.getFtDatasetGeojsonOriById
+       * 3. Jika sudah ada, set visibilitas tabel
+       */
+      try {
+        this.dialogLoading = true;
+        await this.ensureGeojsonLoaded();
+        if (!this.hasGeojsonForTableLocal && this.itemModified && typeof this.itemModified.geojson === "string") {
+          this.setGeojsonForTableLocal(this.itemModified.geojson);
+        }
+        await this.refreshFeatureRowsFromGeojson();
+        // Sinkronkan kolom tabel dengan opsi "Kolom yang Ditampilkan pada Peta Saja"
+        this.syncFeatureColumnsView();
+        this.dialogLoading = false;
+      } catch (e) {
+        console.error(e);
+        this.snackBarMessage = "Gagal memuat data untuk diedit";
+        this.snackbar = true;
+      }
+    },
 
+    async loadGeojsonForTableFromServer() {
+      if (!this.itemModified || !this.itemModified.id) return;
+
+      try {
+        this.dialogLoading = true;
+
+        // Wajib includeGeojson=true supaya backend mengirim field geojson
+        const resp = await FtDatasetExtService.getFtDatasetById(this.itemModified.id, true);
+        const incoming = resp && resp.data ? resp.data : null;
+
+        if (!incoming) {
+          this.snackBarMessage = "Gagal memuat data dari server";
+          this.snackbar = true;
+          return;
+        }
+
+        // Sinkronkan metadata ringan
+        if (typeof incoming.hasGeojson !== "undefined") {
+          this.itemModified.hasGeojson = !!incoming.hasGeojson;
+        }
+        if (typeof incoming.featureCount !== "undefined") {
+          this.itemModified.featureCount = incoming.featureCount;
+        }
+        if (typeof incoming.propertyKeys !== "undefined") {
+          this.itemModified.propertyKeys = incoming.propertyKeys;
+        }
+        if (typeof incoming.propertiesMeta !== "undefined") {
+          this.itemModified.propertiesMeta = incoming.propertiesMeta;
+        }
+        if (typeof incoming.fileNameLow !== "undefined") {
+          this.itemModified.fileNameLow = incoming.fileNameLow;
+        }
+
+        /**
+         * - kebutuhan saat ini hanya untuk tabel, sebelum dibuatkan paging dari Backend
+         * - Peta tetap menggunakan View Port saja
+         */
+        let incomingGeo = incoming.geojson;
+        let hasGeoContent = false;
+
+        if (typeof incomingGeo === "string") {
+          const trimmed = incomingGeo.trim();
+          hasGeoContent = trimmed !== "" && trimmed !== "{}";
+          if (hasGeoContent) {
+            this.itemModified.geojson = incomingGeo;
+          }
+        } else if (incomingGeo != null) {
+          try {
+            const asString = JSON.stringify(incomingGeo);
+            const trimmed = asString.trim();
+            hasGeoContent = trimmed !== "" && trimmed !== "{}";
+            if (hasGeoContent) {
+              this.itemModified.geojson = asString;
+            }
+          } catch (e) {
+            console.error("Gagal stringify incoming.geojson", e);
+          }
+        }
+
+        // Jika ternyata field hasGeojson belum diset oleh backend,
+        // turunkan dari konten yang berhasil kita baca atau dari featureCount.
+        if (this.itemModified.hasGeojson === undefined || this.itemModified.hasGeojson === null) {
+          this.itemModified.hasGeojson = hasGeoContent || (this.itemModified.featureCount || 0) > 0;
+        }
+
+        if (hasGeoContent) {
+          this.setGeojsonForTableLocal(this.itemModified.geojson);
+          // Load hanya untuk preview/download; jangan otomatis anggap akan di-save ulang
+          this.itemModified.withGeojson = false;
+        } else {
+          this.snackBarMessage =
+            "Server tidak mengirim GeoJSON (pastikan includeGeojson=true dan field geojson tidak di-strip).";
+          this.snackbar = true;
+        }
+      } catch (e) {
+        console.error(e);
+        this.snackBarMessage = "Gagal memuat GeoJSON dari server";
+        this.snackbar = true;
+      } finally {
+        this.dialogLoading = false;
+      }
+
+      // Setelah berhasil load dari server, refresh tabel metadata atribut
+      this.refreshPropertyMetaFromItem(this.itemModified);
+    },
     refreshPropertyMetaFromItem(item) {
       const rows = [];
       if (!item) {
@@ -1034,7 +1396,7 @@ export default {
       this.itemModified.propertiesShow = this.stringifyPropertiesShow(groups);
 
       this.dialogPropertyGroupShow = false;
-      // this.syncFeatureColumnsView();
+      this.syncFeatureColumnsView();
     },
     reinitAfterApply() {
       // snapshot ulang biar isItemModified jadi false setelah Apply
@@ -1060,7 +1422,7 @@ export default {
       // rebuild meta + rows dari itemModified (kayak baru load dialog)
       this.refreshPropertyMetaFromItem(this.itemModified);
       this.refreshFeatureRowsFromGeojson();
-      // this.syncFeatureColumnsView();
+      this.syncFeatureColumnsView();
       this.featureCurrentPage = 1;
 
       // kalau geojson sudah dihapus, pastikan heavy UI bener-bener drop
@@ -1072,6 +1434,55 @@ export default {
         this.featureColumns = [];
         this.featureColumnsView = [];
       }
+    },
+
+    onGeojsonFileSelectedXX() {
+      const file = Array.isArray(this.geojsonFile) ? this.geojsonFile[0] : this.geojsonFile;
+
+      if (!file) {
+        this.geojsonFile = null;
+        this.geojsonFileName = "";
+        if (this.itemModified && Object.prototype.hasOwnProperty.call(this.itemModified, "geojson")) {
+          this.itemModified.geojson = "{}";
+        }
+        return;
+      }
+
+      // Pastikan objek yang dibaca adalah File/Blob
+      if (!(file instanceof Blob)) {
+        console.error("File yang dipilih bukan Blob/File:", file);
+        this.snackBarMessage = "Format file tidak dikenali browser sebagai File";
+        this.snackbar = true;
+        return;
+      }
+
+      this.geojsonFileName = file.name || "";
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const result = e.target && e.target.result ? e.target.result : "";
+          const text = typeof result === "string" ? result : result.toString();
+
+          if (this.itemModified) {
+            this.itemModified.geojson = text;
+            this.itemModified.fileNameLow = this.geojsonFileName;
+            this.itemModified.withGeojson = true;
+            // Belum tersimpan di server; hasGeojson akan diset oleh backend
+            this.itemModified.hasGeojson = false;
+            // Tidak refreshPropertyMetaFromItem atau refreshFeatureRowsFromGeojson di sini
+          }
+        } catch (err) {
+          console.error(err);
+          this.snackBarMessage = "Gagal membaca file GeoJSON";
+          this.snackbar = true;
+        }
+      };
+      reader.onerror = () => {
+        this.snackBarMessage = "Gagal membaca file GeoJSON";
+        this.snackbar = true;
+      };
+      reader.readAsText(file);
     },
 
     toNumberSafe(val) {
@@ -1317,6 +1728,86 @@ export default {
       // Pastikan payload.propertiesMeta dikirim sebagai string JSON
       payload.propertiesMeta = JSON.stringify(meta);
     },
+    doSaveChanges(closeAfterDialog) {
+      if (this.isItemModified === false) {
+        if (closeAfterDialog) {
+          this.dialogShow = false;
+          this.$emit("eventFromFormDialog1", this.itemModified);
+        }
+        return;
+      }
+      if (!this.$refs.form.validate()) {
+        return;
+      }
+      const payload = this.buildPayload();
+      if (this.formMode === FormMode.EDIT_FORM) {
+        const includeGeojson = !!payload.withGeojson;
+        FtDatasetExtService.updateFtDataset(payload, includeGeojson).then(
+          () => {
+            console.log("=== masuk update dataset (applyChanges) ===");
+            if (payload.withGeojson) {
+              this.itemModified.hasGeojson = true;
+              this.itemModified.withGeojson = false;
+              this.itemModified.geojson = "{}";
+              this.geojsonFile = null;
+              this.geojsonFileName = "";
+            }
+            this.itemDefault = JSON.parse(JSON.stringify(this.itemModified));
+            // Conditional emit: only emit close event if closeAfterDialog, else emit Apply event
+            if (closeAfterDialog) {
+              this.$emit("eventFromFormDialogEdit", this.itemModified);
+            } else {
+              // Apply only: inform parent without implying dialog should close
+              this.$emit("eventFromFormDialogEditApply", this.itemModified);
+            }
+            if (closeAfterDialog) {
+              this.dialogShow = false;
+              this.$emit("eventFromFormDialog1", this.itemModified);
+            }
+          },
+          (error) => {
+            this.formDialogOptions.errorMessage =
+              error.response?.data?.message || "Gagal update FtDataset";
+            console.error(error);
+          }
+        );
+      } else {
+        console.log("=== masuk create dataset (applyChanges) ===");
+        FtDatasetExtService.createFtDataset(payload).then(
+          (response) => {
+            this.itemModified = response.data;
+            if (
+              typeof this.itemModified.hasGeojson === "undefined" ||
+              this.itemModified.hasGeojson === null
+            ) {
+              this.itemModified.hasGeojson =
+                (this.itemModified.featureCount || 0) > 0 || !!payload.withGeojson;
+            }
+            this.itemModified.withGeojson = false;
+            this.itemModified.geojson = "{}";
+            this.geojsonFile = null;
+            this.geojsonFileName = "";
+            this.itemDefault = JSON.parse(JSON.stringify(this.itemModified));
+            // Conditional emit: only emit close event if closeAfterDialog, else emit Apply event
+            if (closeAfterDialog) {
+              this.$emit("eventFromFormDialogNew", response.data);
+            } else {
+              // Apply only: inform parent without implying dialog should close
+              this.$emit("eventFromFormDialogNewApply", response.data);
+            }
+            this.$emit("update:formMode", FormMode.EDIT_FORM);
+            if (closeAfterDialog) {
+              this.dialogShow = false;
+              this.$emit("eventFromFormDialog1", this.itemModified);
+            }
+          },
+          (error) => {
+            this.formDialogOptions.errorMessage =
+              error.response?.data?.message || "Gagal create FtDataset";
+          }
+        );
+      }
+    },
 
     async applyChanges() {
       try {
@@ -1342,7 +1833,6 @@ export default {
 
         this.snackBarMessage = "Tersimpan (Apply)";
         this.snackbar = true;
-        this.isGeoUpdated = false;
       } catch (e) {
         console.error(e);
         this.snackBarMessage = "Gagal Apply";

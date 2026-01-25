@@ -32,6 +32,14 @@ class FtDatasetExtService {
             { headers: authHeader() }
         );
     }
+    getFtDatasetGeojsonOriById(id ) {
+        return axios.get(
+            API_URL + `ext/getFtDatasetGeojsonOriById/${id}`,
+            { headers: authHeader() }
+        );
+    }
+
+
     getPostAllFtDatasetContainingExt(item, deepSearch = false) {
         return axios.post(
             API_URL + `ext/getPostAllFtDatasetContainingExt`,

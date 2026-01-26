@@ -32,7 +32,7 @@
           :options-style="styleOption"
       />
 
-      <LControl position="topleft" v-if="showZoomButton && !isFullscreen">
+      <LControl position="topright" v-if="showZoomButton && !isFullscreen">
         <v-btn
             variant="elevated"
             class="rounded-lg text-white ma-1 color-bg-second"

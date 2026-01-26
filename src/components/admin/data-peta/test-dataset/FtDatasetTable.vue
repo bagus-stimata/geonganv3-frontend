@@ -378,7 +378,7 @@ export default {
 
       FtDatasetExtService.getPostAllFtDatasetContainingExt(
           extendedFilter,
-          false
+          true
       ).then(
           (response) => {
             const { items, totalPages, totalItems } = response.data;

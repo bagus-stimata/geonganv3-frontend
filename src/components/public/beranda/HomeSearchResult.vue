@@ -138,10 +138,10 @@
 
 import FtDataset from "@/models/ft-dataset";
 import FDayaDukungFilter from "@/models/payload/f-dayadukung-filter";
-import FtDatasetService from "@/services/apiservices/ft-dataset-service";
 import FileService from "@/services/apiservices/file-service";
 import FtTematikService from "@/services/apiservices/ft-tematik-service";
 import FtTematik from "@/models/ft-tematik";
+import FtDatasetExtService from "@/services/apiservices/ft-dataset-ext-service";
 
 export default {
   name: "HomeSearch",
@@ -214,7 +214,7 @@ export default {
       this.ftTematiks = [];
 
       Promise.all([
-        FtDatasetService.getPostAllFtDatasetContainingExtPublic(filterDataset, false, deepSearch),
+        FtDatasetExtService.getPostAllFtDatasetContainingExtPublic(filterDataset, false, deepSearch),
         FtTematikService.getPostAllFtTematikContainingExtPublic(filterTematik),
       ])
           .then(([resDataset, resTematik]) => {

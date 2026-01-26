@@ -243,7 +243,7 @@ export default {
         }
       }
 
-      console.log(deepSearch);
+      // console.log(deepSearch);
       
       this.loading = true;
       FtDatasetExtService.getPostAllFtDatasetContainingExtPublic(
@@ -288,6 +288,9 @@ export default {
 
     activateDeepSearchGeojson(){
       this.isActiveDeepSearch = !this.isActiveDeepSearch
+      this.$nextTick(() =>{
+        this.searchDataset()
+      })
     },
     truncateNotes(notes) {
       if (!notes) return "";

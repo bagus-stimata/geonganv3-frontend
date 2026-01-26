@@ -13,7 +13,24 @@
               hint="Kode, Deskripsi (press ⏎ to search)"
               label="Search ⏎"
               variant="underlined"
-          ></v-text-field>
+          >
+
+            <template #append-inner>
+              <div class="d-flex flex-row align-center">
+                <v-divider vertical></v-divider>
+                <v-btn @click="activateDeepSearchGeojson" size="regular" class="px-2 font-weight-bold" :color="isActiveDeepSearch?'blue':''" density="comfortable" variant="text">
+                  <v-chip prepend-icon="mdi-map" :class="isActiveDeepSearch?'text-blue':'text-grey-darken-2'" class="ml-1 font-weight-bold text-caption" style="text-transform: none;">
+                    Deep
+                  </v-chip>
+                  <v-tooltip
+                      activator="parent"
+                      location="top"
+                  >Pencarian lebih dalam ke isi geospasial</v-tooltip>
+                </v-btn>
+              </div>
+            </template>
+          </v-text-field>
+
           <v-btn @click="showFilterDialog" icon dark variant="text" color="blue" size="small">
             <v-icon>mdi-filter</v-icon>
           </v-btn>
@@ -292,6 +309,7 @@ export default {
       title: "TEST DATASET",
       snackbar: false,
       snackBarMessage: "",
+      isActiveDeepSearch:false,
 
       dialogLoading: false,
       loading: false,
@@ -366,6 +384,12 @@ export default {
       this.showFilter = !this.showFilter;
     },
 
+    activateDeepSearchGeojson(){
+      this.isActiveDeepSearch = !this.isActiveDeepSearch
+      this.$nextTick(() =>{
+        this.runExtendedFilter()
+      })
+    },
     runExtendedFilter() {
       const extendedFilter = new DataFilter();
       extendedFilter.fdivisionIds = this.filterFdivisions;
@@ -376,9 +400,18 @@ export default {
       extendedFilter.search = this.search;
       extendedFilter.city = "";
 
+      let deepSearch = false
+      if (this.isActiveDeepSearch){
+        if (this.isActiveDeepSearch===true){
+          deepSearch = true
+        }
+      }
+
+      // console.log(deepSearch)
+
       FtDatasetExtService.getPostAllFtDatasetContainingExt(
           extendedFilter,
-          true
+          deepSearch
       ).then(
           (response) => {
             const { items, totalPages, totalItems } = response.data;
@@ -386,7 +419,8 @@ export default {
             this.totalPaginationPages = totalPages;
             this.totalItems = totalItems;
 
-            // console.log(JSON.stringify(this.ftDatasets));
+            // console.log(`${new Date()} ==> ${items.length}`);
+
           },
           (error) => {
             console.log(error);

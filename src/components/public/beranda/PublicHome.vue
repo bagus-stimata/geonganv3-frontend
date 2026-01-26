@@ -318,6 +318,9 @@ export default {
     },
     activateDeepSearchGeojson(){
       this.isActiveDeepSearch = !this.isActiveDeepSearch
+      this.$nextTick(() =>{
+        this.searchDataset()
+      })
     },
     truncateNotes(notes) {
       if (!notes) return "";

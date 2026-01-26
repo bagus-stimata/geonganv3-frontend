@@ -1,6 +1,12 @@
 <template>
   <div class="map-wrapper">
-    <PetaPostgis :min-height="`100vh`" :dataset-ids="visibleDatasetGeojsonIds" :height="`100vh`"/>
+    <PetaPostgis
+        :min-height="`100vh`"
+        :height="`100vh`"
+        :dataset-ids="visibleDatasetGeojsonIds"
+        :uploaded-geojson="uploadedGeojson"
+        :uploaded-geojson-visible="uploadedGeojsonVisible"
+    />
     <v-card elevation="0" width="280" class="map-overlay-card bg-transparent ma-md-2 ma-1">
       <v-card-title class="bg-white py-4 rounded-lg">
         <div class="d-flex flex-row">
@@ -243,6 +249,7 @@ import zonaMapper from '@/helpers/zona-color-mapper';
 import GooglePlacesAutoCompleteDialog from "@/components/util-ext/GooglePlacesAutoCompleteDialog.vue";
 
 import RBush from 'rbush'
+import { markRaw } from 'vue'
 import * as turf from '@turf/turf'
 import PickMapsetDialog from "@/components/public/peta-interaktif/PickMapsetDialog.vue";
 import FtDatasetService from "@/services/apiservices/ft-dataset-service";
@@ -817,29 +824,26 @@ export default {
     },
     onGeojsonUploaded(geo) {
       try {
-        if (!geo || geo.type !== 'FeatureCollection') {
-          this.snackbar = {
-            show: true,
-            color: 'error',
-            text: 'GeoJSON tidak valid',
-            timeout: 1800,
-          };
-          return;
-        }
-        this.uploadedGeojson = geo;
-        this.uploadedGeojsonVisible = true;
+        // biar vue-leaflet gak kena Proxy/reactive object
+        this.uploadedGeojsonVisible = false;
+        this.uploadedGeojson = geo ? markRaw(geo) : null;
+
+        this.$nextTick(() => {
+          this.uploadedGeojsonVisible = true;
+        });
+
         this.snackbar = {
           show: true,
-          color: 'primary',
-          text: 'Peta GeoJSON upload berhasil ditampilkan',
-          timeout: 1800,
+          color: "primary",
+          text: "GeoJSON upload siap ditampilkan di peta",
+          timeout: 1500,
         };
       } catch (e) {
-        console.error('onGeojsonUploaded error', e);
+        console.error("[PetaInteraktif][onGeojsonUploaded] error", e);
         this.snackbar = {
           show: true,
-          color: 'error',
-          text: 'Gagal menampilkan GeoJSON upload',
+          color: "error",
+          text: "Gagal memproses GeoJSON upload",
           timeout: 2000,
         };
       }

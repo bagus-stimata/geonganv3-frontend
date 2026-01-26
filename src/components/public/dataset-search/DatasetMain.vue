@@ -14,7 +14,7 @@
                 variant="plain"
                 hide-details
                 placeholder="Cari ⏎"
-                @keyup.enter = "runExtendedFilter"
+                @keyup.enter = "searchDataset"
             >
               <template #append-inner>
                 <div class="d-flex flex-row align-center">
@@ -28,7 +28,7 @@
                         location="top"
                     >Pencarian lebih dalam ke isi geospasial</v-tooltip>
                   </v-btn>
-                  <v-btn @click="runExtendedFilter" :color="isActiveDeepSearch?'indigo' : 'green'" class=" font-weight-bold text-white" variant="flat" size="small">Search</v-btn>
+                  <v-btn @click="searchDataset" :color="isActiveDeepSearch?'indigo' : 'green'" class=" font-weight-bold text-white" variant="flat" size="small">Search</v-btn>
                 </div>
               </template>
             </v-text-field>
@@ -195,14 +195,14 @@ export default {
   watch: {
     currentPage(newPage) {
       if (newPage) {
-        this.fetchFtDataset();
+        this.searchDataset();
       }
     },
     pageSize() {
       const refreshData = this.currentPage === 1;
       this.currentPage = 1;
       if (refreshData) {
-        this.fetchFtDataset();
+        this.searchDataset();
       }
     },
   },
@@ -226,7 +226,7 @@ export default {
       this.$router.push("/public-peta-interaktif?itemIds=" + listIds.join(","));
     },
 
-    runExtendedFilter() {
+    runExtendedFilter(deepSearchStatus) {
       const extendedFilter = new DataFilter();
       extendedFilter.fdivisionIds = [];
       extendedFilter.pageNo = this.currentPage;
@@ -234,11 +234,17 @@ export default {
       extendedFilter.sortBy = "id";
       extendedFilter.order = "DESC";
       extendedFilter.search = this.search;
-      let deepSearch = this.isActiveDeepSearch
 
-      if(this.isActiveDeepSearch){
-        deepSearch = true
+      // let deepSearch = this.isActiveDeepSearch
+      let deepSearch = false
+      if (deepSearchStatus){
+        if (deepSearchStatus===true){
+          deepSearch = true
+        }
       }
+
+      console.log(deepSearch);
+      
       this.loading = true;
       FtDatasetExtService.getPostAllFtDatasetContainingExtPublic(
           extendedFilter,
@@ -259,8 +265,11 @@ export default {
           }
       )
     },
-    fetchFtDataset() {
-      this.runExtendedFilter();
+    searchDataset() {
+      this.$nextTick(() =>{
+        this.runExtendedFilter(this.isActiveDeepSearch);
+      })
+
     },
     lookupImageUrl(item){
       if (item.avatarImage===undefined || item.avatarImage===""){
@@ -288,7 +297,7 @@ export default {
   },
   mounted() {
 
-    this.fetchFtDataset()
+    this.searchDataset()
   },
 };
 </script>

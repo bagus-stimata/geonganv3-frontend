@@ -85,14 +85,6 @@ export default {
       pageSize: 10,
       pageSizes: [10, 25, 50, 150, 500],
       items:[],
-      // items: [
-      //   { title: 'Penerangan Jalan Umum', description: 'Dinas Perumahan, Kawasan Permukiman Dan Cipta Karya', categ:'Indikator', fdivisionBean:123 },
-      //   { title: 'Data Jalan', description: 'Dinas Pekerjaan Umum Bina Marga Dan Penataan Ruang', categ:'Indikator', fdivisionBean:123  },
-      //   { title: 'Panjang Jalan & Angkutan', description: 'Dinas Perhubungan', categ:'Dataset', fdivisionBean:123  },
-      //   { title: 'Panjang Jalan & Angkutan', description: 'Dinas Perhubungan', categ:'Dataset', fdivisionBean:123  },
-      //   { title: 'Panjang Jalan & Angkutan', description: 'Dinas Perhubungan', categ:'Dataset', fdivisionBean:123  },
-      //   { title: 'Panjang Jalan & Angkutan', description: 'Dinas Perhubungan', categ:'Dataset', fdivisionBean:123  },
-      // ],
       itemsFDivision: [],
 
     };

@@ -189,7 +189,7 @@ export default {
         this.$router.push("/public-peta-interaktif?tematikId=" + item.id);
       }
     },
-    runExtendedFilter(search) {
+    runExtendedFilter(search, deepSearchStatus) {
       if (typeof search === "string") {
         this.search = search.trim();
         this.currentPage = 1;
@@ -203,7 +203,12 @@ export default {
       extendedFilter.search = this.search || "";
       extendedFilter.city = "";
 
-      const deepSearch = !!this.isActiveDeepSearch;
+      let deepSearch = false
+      if (deepSearchStatus){
+        if (deepSearchStatus===true){
+          deepSearch = true
+        }
+      }
 
       // Clone filter supaya nggak ke-mutate silang di service
       const filterDataset = { ...extendedFilter };
@@ -213,8 +218,10 @@ export default {
       this.ftDatasets = [];
       this.ftTematiks = [];
 
+      // console.log(deepSearch);
+
       Promise.all([
-        FtDatasetExtService.getPostAllFtDatasetContainingExtPublic(filterDataset, false, deepSearch),
+        FtDatasetExtService.getPostAllFtDatasetContainingExtPublic(filterDataset, deepSearch),
         FtTematikService.getPostAllFtTematikContainingExtPublic(filterTematik),
       ])
           .then(([resDataset, resTematik]) => {

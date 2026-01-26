@@ -308,7 +308,7 @@ export default {
       this.$nextTick(() => {
         const comp = this.$refs.refHomeSearchResult
         if (comp && typeof comp.runExtendedFilter === 'function') {
-          comp.runExtendedFilter(this.search)
+          comp.runExtendedFilter(this.search, this.isActiveDeepSearch)
         }
         const el = comp?.$el || comp
         if (el) {

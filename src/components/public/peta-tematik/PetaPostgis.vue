@@ -32,7 +32,7 @@
           :options-style="styleOption"
       />
 
-      <LControl position="topright" v-if="showZoomButton && !isFullscreen">
+      <LControl v-if="isVisibleHomeButton && showZoomButton && !isFullscreen" position="topright">
         <v-btn
             variant="elevated"
             class="rounded-lg text-white ma-1 color-bg-second"
@@ -50,7 +50,7 @@
       <LControlLayers position="topright"></LControlLayers>
 
       <LControlZoomComp position="bottomright"></LControlZoomComp>
-      <l-control position="bottomright" class="control-offset-br">
+      <l-control v-if="isVisibleSsButton" position="bottomright" class="control-offset-br">
         <v-btn
             color="pink-lighten-2"
             icon
@@ -64,7 +64,7 @@
         </v-btn>
       </l-control>
 
-      <l-control position="bottomright" class="control-offset-br">
+      <l-control v-if="isVisibleFullScreenButton" position="bottomright" class="control-offset-br">
         <v-btn
             color="indigo"
             icon
@@ -78,7 +78,7 @@
         </v-btn>
       </l-control>
 
-      <l-control position="bottomright" class="control-offset-br">
+      <l-control v-if="isVisibleCenterButton" position="bottomright" class="control-offset-br">
         <v-btn
             color="primary"
             icon
@@ -94,10 +94,10 @@
 
 
       <!-- Drawn shapes layer for Leaflet.Draw (mounted always; enabled via props) -->
-      <LFeatureGroup ref="drawGroupRef" />
+      <LFeatureGroup v-if="isVisibleFeatureGroup" ref="drawGroupRef" />
 
       <!-- Bottom-left host to force Leaflet.Draw toolbar to be horizontal and aligned with attribution -->
-      <l-control position="bottomleft" class="draw-host">
+      <l-control v-if="isVisibleDrawTools" position="bottomleft" class="draw-host">
         <div ref="drawHostRef" class="draw-host-inner"></div>
       </l-control>
 
@@ -151,6 +151,7 @@ import router from "@/router";
 
 import 'leaflet/dist/leaflet.css'
 import 'leaflet-draw'
+import 'leaflet-draw/dist/leaflet.draw.js'
 import 'leaflet-draw/dist/leaflet.draw.css'
 
 // ---- component sizing (container-based, reusable across pages) ----
@@ -162,7 +163,14 @@ const props = defineProps({
   // IDs dataset yang mau ditampilkan (di-drive dari parent)
   datasetIds: { type: Array, default: () => [] },
   showZoomButton: { type: Boolean, default: true },
-  drawEnabled: { type: Boolean, default: true }
+  drawEnabled: { type: Boolean, default: true },
+
+  isVisibleHomeButton: { type: Boolean, default: true },
+  isVisibleSsButton: { type: Boolean, default: true },
+  isVisibleFullScreenButton: { type: Boolean, default: true },
+  isVisibleCenterButton: { type: Boolean, default: true },
+  isVisibleFeatureGroup: { type: Boolean, default: true },
+  isVisibleDrawTools: { type: Boolean, default: true }
 })
 
 const isFullscreen = ref(false)
@@ -222,6 +230,10 @@ let onDrawCreatedHandler = null
 // state peta
 const mapRef = ref(null)
 
+// Leaflet.Draw event names (string fallbacks so we don't rely on L.Draw.Event existing)
+const DRAW_EVT_CREATED = (L?.Draw?.Event?.CREATED) || 'draw:created'
+
+
 // Leaflet needs invalidateSize() when its container changes (dialog/tab/sidebar/resize)
 let resizeObserver = null
 
@@ -261,7 +273,13 @@ const userLocation = ref(null)
 const activeBasemapId = ref('googleHybrid')
 const basemapList = Object.values(basemaps)
 
-
+// template visibility flags (computed aliases)
+const isVisibleHomeButton = computed(() => props.isVisibleHomeButton !== false)
+const isVisibleSsButton = computed(() => props.isVisibleSsButton !== false)
+const isVisibleFullScreenButton = computed(() => props.isVisibleFullScreenButton !== false)
+const isVisibleCenterButton = computed(() => props.isVisibleCenterButton !== false)
+const isVisibleFeatureGroup = computed(() => props.isVisibleFeatureGroup !== false)
+const isVisibleDrawTools = computed(() => props.isVisibleDrawTools !== false)
 function setBasemap(id) {
   if (basemaps[id]) {
     activeBasemapId.value = id
@@ -525,6 +543,7 @@ function setupDrawHostObserver(map) {
 function onMapUpdate() {
   const map = mapRef.value?.leafletObject
   if (!map) return
+  // If Leaflet.Draw didn't register (bundle/import issues), do not cras
 
   const z = map.getZoom()
 
@@ -569,6 +588,17 @@ watch(
   async (nextIds, prevIds) => {
     // avoid redundant refresh if content identical
     if (sameIntArray(nextIds, prevIds)) return
+
+    // If parent clears selection, clear map immediately (no fetch)
+    if (!Array.isArray(nextIds) || nextIds.length === 0) {
+      geojsonData.value = []
+      propertiesShowKeys.value = []
+      responseBefore.value = { hash: null, sizeBytes: 0 }
+      pendingRefresh.value = false
+      vpRetryCount = 0
+      clearTimeout(debounceTimer)
+      return
+    }
 
     await nextTick()
     triggerViewportFetch('datasetIds-change', { debounce: false })
@@ -622,7 +652,10 @@ function safeByteSizeOf(v) {
 function triggerViewportFetch(reason = 'unknown', { debounce = false } = {}) {
   // kalau belum ada dataset dipilih, jangan request
   if (!datasetIdsNorm.value.length) {
-    // keep last render to avoid flicker; clear only on explicit parent reset if needed
+    // parent cleared selection -> clear map
+    geojsonData.value = []
+    propertiesShowKeys.value = []
+    responseBefore.value = { hash: null, sizeBytes: 0 }
     return
   }
 
@@ -1127,6 +1160,16 @@ function popupHtmlForProps(props) {
 function initDrawTools(map) {
   if (!map) return
 
+  if (!L?.Control?.Draw) {
+    // console.warn('[draw] Leaflet.Draw plugin not available (L.Control.Draw missing)')
+    snackbar.value = {
+      show: true,
+      color: 'warning',
+      text: 'Draw tools belum tersedia (Leaflet.Draw belum ter-load).',
+      timeout: 2200
+    }
+    return
+  }
   // (re)resolve FeatureGroup from vue-leaflet
   const fg = drawGroupRef.value?.leafletObject || drawGroupRef.value?.mapObject
 
@@ -1176,7 +1219,7 @@ function initDrawTools(map) {
         drawnItems.addLayer(layer)
       }
     }
-    map.on(L.Draw.Event.CREATED, onDrawCreatedHandler)
+    map.on(DRAW_EVT_CREATED, onDrawCreatedHandler)
   }
 }
 
@@ -1246,7 +1289,7 @@ onBeforeUnmount(() => {
   // Cleanup event handler for Leaflet.Draw
   const map = mapRef.value?.leafletObject
   if (map && onDrawCreatedHandler) {
-    map.off(L.Draw.Event.CREATED, onDrawCreatedHandler)
+    map.off(DRAW_EVT_CREATED, onDrawCreatedHandler)
     onDrawCreatedHandler = null
   }
   if (drawHostObserver) {

@@ -156,10 +156,17 @@
                       {{ lastSelectedMapsetDescription || '-' }}
                     </div>
                     <PetaPostgis
+                      :key="lastSelectedMapsetId || 'empty'"
                       :draw-enabled="false"
                       :dataset-ids="lastSelectedMapsetId ? [lastSelectedMapsetId] : []"
                       min-height="30vh"
                       height="30vh"
+                      :is-visible-center-button="false"
+                      :is-visible-home-button="false"
+                      :is-visible-feature-group="false"
+                      :is-visible-full-screen-button="false"
+                      :is-visible-draw-tools="false"
+                      :is-visible-ss-button="false"
                     ></PetaPostgis>
                     <v-row class="my-2 ga-2 align-center" no-gutters>
                       <v-col cols="12" md="3" sm="12">

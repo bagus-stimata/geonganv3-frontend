@@ -156,6 +156,7 @@
                       {{ lastSelectedMapsetDescription || '-' }}
                     </div>
                     <PetaPostgis
+                      :items-mapset-selected="itemsMapsetSelected"
                       :key="lastSelectedMapsetId || 'empty'"
                       :draw-enabled="false"
                       :dataset-ids="lastSelectedMapsetId ? [lastSelectedMapsetId] : []"
@@ -248,13 +249,6 @@ export default {
   computed: {
     ftDatasetsFiltered() {
       return this.ftDatasets;
-    },
-    itemMapsetSelectedIds() {
-      return Array.isArray(this.itemsMapsetSelected)
-          ? this.itemsMapsetSelected
-              .filter(it => it && it.id != null)
-              .map(it => it.id)
-          : [];
     },
     lastSelectedMapsetId() {
       const arr = Array.isArray(this.itemsMapsetSelected) ? this.itemsMapsetSelected : [];

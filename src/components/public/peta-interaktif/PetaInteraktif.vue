@@ -1,6 +1,15 @@
 <template>
   <div class="map-wrapper">
-    <PetaPostgis :min-height="`100vh`" :dataset-ids="visibleDatasetGeojsonIds" :height="`100vh`"/>
+    <PetaPostgis
+      ref="refPetaPostgis"
+      :min-height="`100vh`"
+      :height="`100vh`"
+      :dataset-ids="visibleDatasetGeojsonIds"
+      :items-mapset-selected="itemsMapsetSelected"
+      :draw-enabled="drawToolsOn"
+      :uploaded-geojson="uploadedGeojson"
+      :uploaded-geojson-visible="uploadedGeojsonVisible"
+    />
     <v-card elevation="0" width="280" class="map-overlay-card bg-transparent ma-md-2 ma-1">
       <v-card-title class="bg-white py-4 rounded-lg">
         <div class="d-flex flex-row">
@@ -45,9 +54,9 @@
           <v-card-text>
             <div class="text-subtitle-1 mb-1 font-weight-bold d-flex flex-row align-center">
               <div>Mapset Selected</div>
-              <span v-if="itemsMapsetSelected.length > 0 && isApply" class="ml-2 bg-orange rounded-lg py-1 px-3 text-caption font-weight-bold text-white">{{itemsMapsetSelected.length}}</span>
+              <span v-if="itemsMapsetSelected.length > 0" class="ml-2 bg-orange rounded-lg py-1 px-3 text-caption font-weight-bold text-white">{{itemsMapsetSelected.length}}</span>
               <v-spacer></v-spacer>
-              <v-btn @click="deleteAllList" v-if="itemsMapsetSelected.length > 0 && isApply" icon density="comfortable" variant="text" color="red"><v-icon>mdi-delete</v-icon></v-btn>
+              <v-btn @click="deleteAllList" v-if="itemsMapsetSelected.length > 0" icon density="comfortable" variant="text" color="red"><v-icon>mdi-delete</v-icon></v-btn>
             </div>
             <v-divider></v-divider>
             <v-card v-if="itemsMapsetSelected.length > 0" elevation="0" class="mt-2">
@@ -661,36 +670,16 @@ export default {
     },
 
     toggleDrawTools() {
-      const map = this.$refs.map?.leafletObject || this.$refs.map?.mapObject;
-      if (!map) {
-        this.snackbar = { show: true, color: 'warning', text: 'Map belum siap', timeout: 1500 };
-        return;
-      }
-
-      this.initDrawTools(map);
-
+      // Draw tools are handled inside PetaPostgis (Leaflet control)
       this.drawToolsOn = !this.drawToolsOn;
-
-      try {
-        if (this.drawToolsOn) {
-          if (this.drawControl) map.addControl(this.drawControl);
-          this.snackbar = { show: true, color: 'teal', text: 'Mode gambar aktif disebelah kanan', timeout: 1500 };
-        } else {
-          if (this.drawControl) map.removeControl(this.drawControl);
-
-          // Auto-clear semua shape ketika mode gambar dimatikan
-          if (this.drawnItems && typeof this.drawnItems.clearLayers === 'function') {
-            this.drawnItems.clearLayers();
-          }
-          this.lastDrawnGeojson = null;
-          // Optional: inform parent that shapes are cleared
-          this.$emit('shapesDeleted', this.exportDrawnGeojson());
-
-          this.snackbar = { show: true, color: 'info', text: 'Mode gambar dimatikan (shape dibersihkan)', timeout: 1500 };
-        }
-      } catch (e) {
-        console.warn('[PetaInteraktif][toggleDrawTools] error', e);
-      }
+      this.snackbar = {
+        show: true,
+        color: this.drawToolsOn ? 'teal' : 'info',
+        text: this.drawToolsOn
+          ? 'Mode gambar aktif (di Peta)'
+          : 'Mode gambar dimatikan',
+        timeout: 1500,
+      };
     },
 
     onDrawCreated(e) {
@@ -1470,7 +1459,6 @@ export default {
           this._fsControl = L.control.fullscreen({ position: 'bottomright' });
           this._fsControl.addTo(map);
         }
-        this.initDrawTools(map);
         // Sync state saat popup ditutup otomatis (mis. klik marker lain / autoClose)
         // supaya popup marker utama tidak "nyangkut" dan menghalangi klik marker lain.
         this._onPopupClose = () => {

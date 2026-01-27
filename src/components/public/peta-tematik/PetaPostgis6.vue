@@ -143,10 +143,9 @@
 /* global defineProps */
 import { ref, onMounted, nextTick, onBeforeUnmount, computed, watch } from 'vue'
 import { LMap, LTileLayer, LGeoJson, LControl, LControlZoom as LControlZoomComp, LControlLayers, LFeatureGroup } from '@vue-leaflet/vue-leaflet'
-import L, {Icon} from 'leaflet'
+import L from 'leaflet'
 
 import FtDatasetExtService from "@/services/apiservices/ft-dataset-ext-service";
-import FileService from "@/services/apiservices/file-service";
 import ZonaColorMapper from "@/helpers/zona-color-mapper";
 import router from "@/router";
 
@@ -154,15 +153,6 @@ import 'leaflet/dist/leaflet.css'
 import 'leaflet-draw'
 import 'leaflet-draw/dist/leaflet.draw.js'
 import 'leaflet-draw/dist/leaflet.draw.css'
-import * as turf from '@turf/turf'
-import ETipePeta from "@/models/e-tipe-peta";
-
-delete Icon.Default.prototype.Default;
-Icon.Default.mergeOptions({
-  iconRetinaUrl: require("@/assets/images/my-marker.webp"),
-  iconUrl: require("@/assets/images/my-marker.webp"),
-  shadowUrl: require("@/assets/images/my-marker.webp"),
-});
 
 // ---- component sizing (container-based, reusable across pages) ----
 const props = defineProps({
@@ -172,7 +162,6 @@ const props = defineProps({
 
   // IDs dataset yang mau ditampilkan (di-drive dari parent)
   datasetIds: { type: Array, default: () => [] },
-  itemsMapsetSelected: { type: Array, default: () => [] },
   showZoomButton: { type: Boolean, default: true },
   drawEnabled: { type: Boolean, default: true },
 
@@ -237,8 +226,6 @@ let drawHostObserver = null
 let drawControl = null
 let drawnItems = null
 let onDrawCreatedHandler = null
-let onDrawEditedHandler = null
-const DRAW_EVT_EDITED = (L?.Draw?.Event?.EDITED) || 'draw:edited'
 
 // state peta
 const mapRef = ref(null)
@@ -358,163 +345,16 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;')
 }
 
-// NOTE: Leaflet GeoJSON pointToLayer signature: (feature, latlng) => Layer
 function pointToLayerOption(feature, latlng) {
-  try {
-    const icon = getMarkerIconForFeature(feature)
-
-    return icon ? L.marker(latlng, { icon }) : L.marker(latlng)
-  } catch (e) {
-    console.warn('[PetaPostgis][pointToLayer] fallback default marker', e)
-    return L.marker(latlng)
-  }
+  // Points: pakai circleMarker biar consistent & ringan (canvas-friendly)
+  return L.circleMarker(latlng, {
+    radius: 6,
+    weight: 1.2,
+    opacity: 0.9,
+    fillOpacity: 0.85
+  })
 }
 
-// cache icon biar gak recreate terus
-const markerIconCache = ref(new Map())
-
-
-function resolveMarkerImageUrl(markerImage) {
-  const v = (markerImage == null) ? '' : String(markerImage).trim()
-  if (!v) return ''
-  if (/^https?:\/\//i.test(v)) return v
-
-  try {
-    // kalau markerImage itu key/filename dari backend
-    return FileService.image_url_medium(v)
-  } catch (e) {
-    console.warn('[PetaPostgis][resolveMarkerImageUrl] fallback raw value', e)
-    return v
-  }
-}
-
-// Helper: inject datasetId into GeoJSON Feature(s)
-function injectDatasetIdIntoGeojson(gj, dsId) {
-  try {
-    const did = Number(dsId)
-    if (!Number.isFinite(did) || did <= 0) return gj
-    if (!gj || typeof gj !== 'object') return gj
-
-    if (gj.type === 'Feature') {
-      gj.properties = gj.properties || {}
-      if (gj.properties.__datasetId == null) gj.properties.__datasetId = did
-      return gj
-    }
-
-    if (gj.type === 'FeatureCollection' && Array.isArray(gj.features)) {
-      gj.features.forEach(f => {
-        if (!f || f.type !== 'Feature') return
-        f.properties = f.properties || {}
-        if (f.properties.__datasetId == null) f.properties.__datasetId = did
-      })
-      return gj
-    }
-
-    return gj
-  } catch (e) {
-    console.warn('[PetaPostgis][injectDatasetIdIntoGeojson] failed', e)
-    return gj
-  }
-}
-
-function getMarkerIconForFeature(feature) {
-  try {
-    const propsFeature = feature?.properties || {}
-
-    // dataset id can be injected by fetchViewportData (preferred)
-    const dsIdRaw = (
-      propsFeature.__datasetId ??
-      propsFeature.__datasetBean ??
-      // fallback aliases (if backend embeds it per-feature)
-      propsFeature.ftDatasetBean ??
-      propsFeature.ft_dataset_bean ??
-      propsFeature.datasetId ??
-      propsFeature.dataset_id ??
-      propsFeature.ftDatasetId ??
-      propsFeature.datasetBean ??
-      propsFeature.idDataset ??
-      propsFeature.id_dataset
-    )
-
-    const dsId = (dsIdRaw == null || String(dsIdRaw).trim() === '') ? null : Number(dsIdRaw)
-
-    const list = Array.isArray(props.itemsMapsetSelected) ? props.itemsMapsetSelected : []
-
-    // If only one dataset is selected, we can safely use it without dsId
-    let ds = null
-    if ((!Number.isFinite(dsId) || dsId == null || dsId <= 0) && list.length === 1) {
-      ds = list[0]
-    }
-
-    // If dsId exists, match it
-    if (!ds && dsId != null && Number.isFinite(dsId) && dsId > 0) {
-      ds = list.find(x => {
-        const xid = Number(
-          x?.id ??
-          x?.datasetId ??
-          x?.dataset_id ??
-          x?.ftDatasetBean ??
-          x?.ft_dataset_bean ??
-          x?.ftDatasetId ??
-          x?.datasetBean
-        )
-        return Number.isFinite(xid) && xid === dsId
-      })
-    }
-
-    if (!ds) return null
-
-    // Resolve marker image field (support multiple naming styles)
-    const markerImageRaw = (
-      ds?.markerImage ??
-      ds?.marker_image ??
-      ds?.markerIcon ??
-      ds?.marker_icon ??
-      ds?.iconUrl ??
-      ds?.icon_url ??
-      ds?.icon ??
-      ds?.marker
-    )
-
-    const markerImageUrl = resolveMarkerImageUrl(markerImageRaw)
-    if (!markerImageUrl) return null
-
-    // Only apply custom icon for POINT datasets if tipePeta is provided
-    const tipePeta = ds?.tipePeta ?? ds?.tipe_peta
-    if (tipePeta != null && !isPointTipePeta(tipePeta)) {
-      return null
-    }
-
-    // cache by URL + size
-    const iconSize = [32, 32]
-    const iconAnchor = [16, 32]
-    const popupAnchor = [0, -32]
-    const cacheKey = `${markerImageUrl}|${iconSize[0]}x${iconSize[1]}`
-
-    const cached = markerIconCache.value.get(cacheKey)
-    if (cached) return cached
-
-    const icon = L.icon({
-      iconUrl: markerImageUrl,
-      iconSize,
-      iconAnchor,
-      popupAnchor,
-      shadowUrl: undefined,
-      shadowSize: undefined,
-      shadowAnchor: undefined
-    })
-
-    markerIconCache.value.set(cacheKey, icon)
-    return icon
-  } catch (e) {
-    console.warn('[PetaPostgis][getMarkerIconForFeature] failed, fallback default marker', e)
-    return null
-  }
-}
-
-function isPointTipePeta(tipePeta) {
-  return tipePeta === ETipePeta.POINT
-}
 function onEachFeatureOption(feature, layer) {
   try {
     const props = feature?.properties || {}
@@ -681,50 +521,7 @@ function rehomeDrawToolbar(map) {
     console.warn('[draw] rehomeDrawToolbar failed', e)
   }
 }
-function formatHectares(valueHa) {
-  if (!Number.isFinite(valueHa)) return ''
-  return Number(valueHa.toFixed(4))
-}
 
-function setDrawnAreaTooltip(layer) {
-  try {
-    if (!layer) return
-
-    // Only show area tooltip for shapes that have area: Polygon/Rectangle/Circle
-    let areaM2 = null
-
-    if (layer instanceof L.Circle && typeof layer.getRadius === 'function') {
-      const r = layer.getRadius()
-      if (Number.isFinite(r)) areaM2 = Math.PI * r * r
-    } else if (typeof layer.toGeoJSON === 'function') {
-      const gj = layer.toGeoJSON()
-      const t = gj && gj.geometry ? gj.geometry.type : ''
-      if (t === 'Polygon' || t === 'MultiPolygon') {
-        areaM2 = turf.area(gj)
-      }
-    }
-
-    if (!Number.isFinite(areaM2)) return
-
-    const areaHa = areaM2 / 10000
-    const haText = formatHectares(areaHa)
-    if (haText === '') return
-
-    const html = `<div style='font-weight:700'>Luas: ${haText} ha</div>`
-
-    if (typeof layer.unbindTooltip === 'function') layer.unbindTooltip()
-    if (typeof layer.bindTooltip === 'function') {
-      layer.bindTooltip(html, {
-        permanent: false,
-        sticky: true,
-        direction: 'top',
-        opacity: 0.95,
-      })
-    }
-  } catch (e) {
-    console.warn('[PetaPostgis][setDrawnAreaTooltip] error', e)
-  }
-}
 function setupDrawHostObserver(map) {
   try {
     if (drawHostObserver) return
@@ -1037,30 +834,7 @@ async function fetchViewportData({ minX, minY, maxX, maxY, z, reason, startedAt 
     // CASE A: sudah array of rows
     if (Array.isArray(payload)) {
       geojsonData.value = payload
-        .map(item => {
-          const parsed = safeParseGeojson(item?.geojsonForMap, item?.id)
-          if (!parsed) return null
-
-          // IMPORTANT: when multiple datasets are requested, each row may contain a FeatureCollection
-          // that already has datasetId at root. Use that first.
-          const dsIdRaw = (
-            parsed?.datasetId ??
-            parsed?.dataset_id ??
-            parsed?.ftDatasetBean ??
-            parsed?.ft_dataset_bean ??
-            // then wrapper fields
-            item?.datasetId ??
-            item?.dataset_id ??
-            item?.ftDatasetBean ??
-            item?.ft_dataset_bean ??
-            item?.ftDatasetId ??
-            item?.datasetBean ??
-            item?.idDataset ??
-            item?.id_dataset
-          )
-
-          return injectDatasetIdIntoGeojson(parsed, dsIdRaw)
-        })
+        .map(item => safeParseGeojson(item?.geojsonForMap, item?.id))
         .filter(Boolean)
       return
     }
@@ -1069,44 +843,15 @@ async function fetchViewportData({ minX, minY, maxX, maxY, z, reason, startedAt 
     const maybeArr = payload?.items || payload?.data
     if (Array.isArray(maybeArr)) {
       geojsonData.value = maybeArr
-        .map(item => {
-          const parsed = safeParseGeojson(item?.geojsonForMap, item?.id)
-          if (!parsed) return null
-
-          const dsIdRaw = (
-            parsed?.datasetId ??
-            parsed?.dataset_id ??
-            parsed?.ftDatasetBean ??
-            parsed?.ft_dataset_bean ??
-            item?.datasetId ??
-            item?.dataset_id ??
-            item?.ftDatasetBean ??
-            item?.ft_dataset_bean ??
-            item?.ftDatasetId ??
-            item?.datasetBean ??
-            item?.idDataset ??
-            item?.id_dataset
-          )
-
-          return injectDatasetIdIntoGeojson(parsed, dsIdRaw)
-        })
+        .map(item => safeParseGeojson(item?.geojsonForMap, item?.id))
         .filter(Boolean)
       return
     }
 
     // CASE C: backend balikin GeoJSON langsung (FeatureCollection/Feature)
-    // IMPORTANT: some endpoints return datasetId at root (not inside feature.properties)
     if (payload && typeof payload === 'object') {
       const t = payload.type
       if (t === 'FeatureCollection' || t === 'Feature') {
-        const dsIdRootRaw = payload?.datasetId ?? payload?.dataset_id ?? payload?.ftDatasetBean ?? payload?.ft_dataset_bean
-        const dsIdRoot = Number(dsIdRootRaw)
-        const hasDsIdRoot = Number.isFinite(dsIdRoot) && dsIdRoot > 0
-
-        if (hasDsIdRoot) {
-          injectDatasetIdIntoGeojson(payload, dsIdRoot)
-        }
-
         geojsonData.value = [payload]
         return
       }
@@ -1432,9 +1177,7 @@ function initDrawTools(map) {
   if (drawControl && drawnItems) {
     // ensure layer exists on map
     if (!map.hasLayer(drawnItems)) {
-      try {
-        map.addLayer(drawnItems)
-      } catch (_) { /* ignore */ }
+      try { map.addLayer(drawnItems) } catch (_) { /* ignore */ }
     }
     return
   }
@@ -1474,22 +1217,9 @@ function initDrawTools(map) {
       if (!layer) return
       if (drawnItems && typeof drawnItems.addLayer === 'function') {
         drawnItems.addLayer(layer)
-        setDrawnAreaTooltip(layer)
       }
     }
     map.on(DRAW_EVT_CREATED, onDrawCreatedHandler)
-  }
-  if (!onDrawEditedHandler) {
-    onDrawEditedHandler = (e) => {
-      try {
-        const layers = e?.layers
-        if (!layers || typeof layers.eachLayer !== 'function') return
-        layers.eachLayer((ly) => setDrawnAreaTooltip(ly))
-      } catch (err) {
-        console.warn('[PetaPostgis][draw:edited] handler error', err)
-      }
-    }
-    map.on(DRAW_EVT_EDITED, onDrawEditedHandler)
   }
 }
 
@@ -1566,11 +1296,6 @@ onBeforeUnmount(() => {
     try { drawHostObserver.disconnect() } catch (_) { /* ignore */ }
     drawHostObserver = null
   }
-  if (map && onDrawEditedHandler) {
-    map.off(DRAW_EVT_EDITED, onDrawEditedHandler)
-    onDrawEditedHandler = null
-  }
-  try { markerIconCache.value.clear() } catch (_) { /* ignore */ }
 })
 
 // if parent changes size via props, reflow the map

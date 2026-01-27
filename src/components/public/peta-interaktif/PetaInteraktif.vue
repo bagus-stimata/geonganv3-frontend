@@ -50,7 +50,7 @@
               <v-btn @click="deleteAllList" v-if="itemsMapsetSelected.length > 0 && isApply" icon density="comfortable" variant="text" color="red"><v-icon>mdi-delete</v-icon></v-btn>
             </div>
             <v-divider></v-divider>
-            <v-card v-if="itemsMapsetSelected.length > 0 && isApply" elevation="0" class="mt-2">
+            <v-card v-if="itemsMapsetSelected.length > 0" elevation="0" class="mt-2">
               <v-card elevation="0" class="overflow-y-auto ma-0 pa-0" height="25vh">
                 <v-card-text class="ma-0 pa-0">
                   <v-row no-gutters class="ga-2">
@@ -1906,7 +1906,10 @@ export default {
         .then((response) => {
           const {ftTematik, listFtDataset} = response.data ? response.data : [];
           const data = Array.isArray(listFtDataset) ? listFtDataset : [];
-          this.itemsMapsetSelected = data;
+          this.itemsMapsetSelected = data.map(d => ({
+            ...d,
+            hasGeojson: true
+          }))
           this.applyPeta(this.itemsMapsetSelected);
           this.ftTematik = ftTematik
         })

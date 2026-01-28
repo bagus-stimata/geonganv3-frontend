@@ -306,7 +306,7 @@ export default {
   },
   data() {
     return {
-      title: "TEST DATASET",
+      title: "DATASET",
       snackbar: false,
       snackBarMessage: "",
       isActiveDeepSearch:false,

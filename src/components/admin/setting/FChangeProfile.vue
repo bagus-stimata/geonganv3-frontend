@@ -9,144 +9,63 @@
             sm="6"
             md="6"
           >
-
             <header>
-              <h3>
-                <v-icon small>mdi-account</v-icon> <strong>username: {{currentUser.username}}</strong> <span class="font-weight-light caption">*{{currentUser.id}}</span>
-              </h3>
-              <p>
-                <v-icon small>mdi-email</v-icon> <strong>email: </strong>
-                {{currentUser.email}}
-              </p>
+              <div class="text-subtitle-1 font-weight-bold">
+                <v-icon size="default" class="me-2" color="blue">mdi-account</v-icon><span>Username: <span class="font-weight-regular text-grey-darken-2">{{currentUser.username}}</span></span>
+              </div>
+              <div class="text-subtitle-1 font-weight-bold">
+                <v-icon size="default" class="me-2" color="blue">mdi-email</v-icon><span>Email: <span class="font-weight-regular text-grey-darken-2">{{currentUser.email}}</span></span>
+              </div>
+              <div class="text-subtitle-1 font-weight-bold">
+                <v-icon size="default" class="me-2" color="blue">mdi-account-group</v-icon><span>Div/Dinas: <span class="font-weight-regular text-grey-darken-2">{{lookupFDivision(currentUser.fdivisionBean)}}</span></span>
+              </div>
+              <div class="text-subtitle-1 font-weight-bold" >
+                <v-icon size="default" class="me-2" color="blue">mdi-account-network</v-icon><span>Level Organisasi: <span class="font-weight-regular text-grey-darken-2">{{currentUser.organizationLevel}}</span></span>
+              </div>
+              <div class="text-subtitle-1 mt-3 font-weight-bold" >
+                <div>Authorities:</div>
+                <div class="ps-8">
+                  <ul class="text-subtitle-2">
+                    <li v-for="(role,index) in currentUser.roles" :key="index">{{role}}</li>
+                  </ul>
+                </div>
+              </div>
             </header>
-            <div class="caption">
-              <strong>Token:</strong>
-              {{currentUser.accessToken.substring(0, 20)}} ... {{currentUser.accessToken.substr(currentUser.accessToken.length - 20)}}
-            </div>
-
-            <strong>Authorities:</strong>
-            <ul class="subtitle-2">
-              <li v-for="(role,index) in currentUser.roles" :key="index">{{role}}</li>
-            </ul>
-
-            <div class="mt-4">
-              <strong>Division/Bidang: </strong>
-              {{lookupFDivision(currentUser.fdivisionBean)}} <span class="font-weight-light caption">*{{currentUser.fdivisionBean}}</span>
-            </div>
-            <div>
-              <strong>Level Organisasi: </strong>
-              {{currentUser.organizationLevel}}
-            </div>
-
           </v-col>
-
-          <v-col
-              cols="12"
-              sm="6"
-              md="6"
-          >
-
-            <v-container class="text-center">
-              <v-row
-                  class="fill-height"
-                  align="center"
-                  justify="center"
-              >
-                <template>
-                  <v-col
-                      cols="12"
-                      md="6"
-                      sm="6"
-                  >
-                    <v-hover v-slot="{ hover }">
-                      <v-card
-                          :elevation="hover ? 10 : 1"
-                          :class="[{ 'on-hover': hover }, hover?'card-hover-opacity':'card-not-hover-opacity']"
-                      >
-                        <v-img
-                            :lazy-src="lookupImageUrlLazy(itemModified)"
-                            :src="lookupImageUrl(itemModified)"
-                            height="225px"
-                        >
-                          <v-card-title class="text-h6 white--text fill-height">
-
-                            <v-row
-                                class="fill-height flex-column"
-                                justify="space-between"
-                            >
-                              <v-spacer/>
-                              <div class="align-self-center">
-                                <v-btn
-                                    :class="{ 'show-btns': hover }"
-                                    :color="transparent"
-                                    icon
-                                    large
-                                    dark
-                                    outlined
-                                    @click="showDialogUpload"
-                                >
-                                  <v-icon
-                                      :class="{ 'show-btns': hover }"
-                                      :color="transparent"
-                                      large
-                                  >
-                                    mdi-upload
-                                  </v-icon>
-                                </v-btn>
-                              </div>
-                            </v-row>
-
-                          </v-card-title>
-                        </v-img>
-
-                      </v-card>
-                    </v-hover>
-                  </v-col>
-                </template>
-              </v-row>
-            </v-container>
-
-          </v-col>
-
-
         </v-row>
-
       </v-card-text>
-
     </v-card>
 
     <v-form ref="form" v-model="valid" >
       <v-card class="mt-4">
-        <v-card-title>
-          Ubah Password <span class="subtitle-2 font-weight-light"> *{{itemModified.id}}</span>
+        <v-card-title class="font-weight-bold">
+          Ubah Password <span class="subtitle-2 font-weight-light"></span>
         </v-card-title>
         <v-card-text>
           <v-text-field
               v-model="itemModified.password"
               label="Password"
+              variant="outlined"
+              density="comfortable"
               :rules="[required, min5]"
-              :counter="5"
-              hide-details="auto"
               @click:append="showPassword = !showPassword"
               :append-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
               :type="showPassword ? 'text' : 'password'"
-              clearable
           >
           </v-text-field>
 
           <v-text-field
               v-model="confirmPassword"
               label="Confirm Password"
-              hide-details="auto"
+              variant="outlined"
+              density="comfortable"
               type="password"
-              counter="5"
               :rules="[required, min5_password, matchingPasswords ]"
-              clearable
           ></v-text-field>
         </v-card-text>
       </v-card>
 
-      <v-card class="mt-4">
+      <v-card class="mt-4" v-if="false">
         <v-card-text>
           <v-text-field
               v-model="itemModified.fullName"
@@ -166,10 +85,10 @@
       </v-card>
 
       <v-container>
-        <v-btn color="primary" block
+        <v-btn :color="!valid || isItemModified===false? 'grey':'primary'" block
         @click="save"
-       :disabled="!valid || isItemModified===false"
-        ><v-icon color="red">mdi-content-save</v-icon>Save</v-btn>
+        :disabled="!valid || isItemModified===false"
+        ><v-icon color="white">mdi-content-save</v-icon>Save</v-btn>
       </v-container>
     </v-form>
 

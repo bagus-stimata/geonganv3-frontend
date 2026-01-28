@@ -15,7 +15,7 @@
             <v-btn icon dark @click="closeForm">
               <v-icon>mdi-arrow-left</v-icon>
             </v-btn>
-            <v-toolbar-title class="text-subtitle-2 text-red">{{title}}
+            <v-toolbar-title class="text-subtitle-2">{{title}}
               <span v-if="formMode === 'EDIT_FORM'" class="text-caption ml-1"><v-icon color="orange" size="small">mdi-pencil</v-icon></span>
               <span v-if="formMode === 'NEW_FORM'" class="text-caption ml-1"><v-icon color="success" size="small">mdi-plus-circle</v-icon></span>
             </v-toolbar-title>

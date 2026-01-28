@@ -7,10 +7,9 @@
       :dataset-ids="visibleDatasetGeojsonIds"
       :items-mapset-selected="itemsMapsetSelected"
       :draw-enabled="drawToolsOn"
+      :is-visible-full-screen-button="false"
       :uploaded-geojson="uploadedGeojson"
       :uploaded-geojson-visible="uploadedGeojsonVisible"
-      :uploadedGeojson="uploadedGeojson"
-      :uploadedGeojsonVisible="uploadedGeojsonVisible"
       :mapToolTipOn="mapToolTipOn"
     />
     <v-card elevation="0" width="280" class="map-overlay-card bg-transparent ma-md-2 ma-1">
@@ -103,7 +102,6 @@
           </v-card-text>
         </v-card>
       </v-expand-transition>
-
       <v-expand-transition v-show="showMapsetController === true">
         <v-card-text class="bg-white mt-3 py-4 rounded-lg">
           <div class="text-subtitle-1 mb-1 font-weight-bold d-flex flex-row align-center">
@@ -179,15 +177,10 @@
               </v-hover>
             </v-col>
           </v-row>
-          <v-btn @click="showUploadGeojsonDialog" density="comfortable" block variant="elevated" class="mx-1 mt-2 text-subtitle-2 font-weight-bold" color="blue-darken-1">Upload Peta</v-btn>
+          <v-btn v-if="false" @click="showUploadGeojsonDialog" density="comfortable" block variant="elevated" class="mx-1 mt-2 text-subtitle-2 font-weight-bold" color="blue-darken-1">Upload Peta</v-btn>
         </v-card-text>
       </v-expand-transition>
     </v-card>
-    <GooglePlacesDialog
-        ref="refGooglePlacesDialog"
-        @eventGooglePlacesSelect="googlePlacesSelect"
-        @closed="onPlacesClosed"
-    ></GooglePlacesDialog>
     <v-snackbar
       v-model="snackbar.show"
       :color="snackbar.color? snackbar.color : 'info'"
@@ -238,10 +231,8 @@
             <div class="mt-3 text-caption">{{ ftTematik.notes }}</div>
           </v-col>
         </v-row>
-
       </v-card-text>
     </v-card>
-
   </div>
 </template>
 
@@ -253,28 +244,20 @@ import 'leaflet-fullscreen/dist/leaflet.fullscreen.css';
 import 'leaflet-draw';
 import 'leaflet-draw/dist/leaflet.draw.css';
 import zonaMapper from '@/helpers/zona-color-mapper';
-import GooglePlacesAutoCompleteDialog from "@/components/util-ext/GooglePlacesAutoCompleteDialog.vue";
 
 import RBush from 'rbush'
 import * as turf from '@turf/turf'
 import PickMapsetDialog from "@/components/public/peta-interaktif/PickMapsetDialog.vue";
 import FtDatasetService from "@/services/apiservices/ft-dataset-service";
 import FtTematikDatasetService from "@/services/apiservices/ft-tematik-dataset-service";
-import {lookupImageUrl} from "@/helpers/lookup-file-helper";
 import FileService from "@/services/apiservices/file-service";
 import DownloadFormDialog from "@/components/public/peta-interaktif/DownloadFormDialog.vue";
 import FDivisionService from "@/services/apiservices/f-division-service";
 import UploadGeojsonDialog from "@/components/public/peta-interaktif/UploadGeojsonDialog.vue";
-import ETipePeta from "@/models/e-tipe-peta";
 import PetaPostgis from "@/components/public/peta-tematik/PetaPostgis.vue";
 import DownloadChoiceDialog from "@/components/public/peta-interaktif/DownloadChoiceDialog.vue";
 
 delete Icon.Default.prototype.Default;
-// Icon.Default.mergeOptions({
-//   iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
-//   iconUrl: require('leaflet/dist/images/marker-icon.png'),
-//   shadowUrl: require('leaflet/dist/images/marker-shadow.png')
-// });
 Icon.Default.mergeOptions({
   iconRetinaUrl: require("@/assets/images/my-marker.webp"),
   iconUrl: require("@/assets/images/my-marker.webp"),
@@ -289,31 +272,11 @@ export default {
     UploadGeojsonDialog,
     DownloadFormDialog,
     PickMapsetDialog,
-    GooglePlacesDialog: GooglePlacesAutoCompleteDialog,
 
-  },
-  props: {
-    autoSelectRDTR: {
-      type: Boolean,
-      default: true,
-    },
-    mapMinHeight: {
-      type: String,
-      default: "100vh",
-    },
-    mapMaxHeight: {
-      type: String,
-      default: "100vh",
-    },
-  },
-  watch: {
   },
   data()  {
     return {
       drawToolsOn: false,
-      drawnItems: null,
-      drawControl: null,
-      lastDrawnGeojson: null,
       markerIconCache: new Map(),
       ftTematik: undefined,
       loadingSync:false,
@@ -328,8 +291,6 @@ export default {
         color: "info",
         timeout: 1500,
       },
-      filterFDayaDukung: '',
-      markerPopupVisible: false,
       mobilePanel: {
         gone: false,     // sticky bar hilang
         visible: false,     // sticky bar terlihat (collapsed)
@@ -337,97 +298,20 @@ export default {
         title: '',          // judul singkat
         props: null,        // object feature.properties
       },
-
-      isFullScreen: false,
-      showCenterMarker: false,
-      drawHandlers: { created: null, edited: null, deleted: null },
       singleMarker: {
         coords: this.$store.state.potensi.centerMap.coordinates,
       },
-      customIcon: L.icon({
-        iconUrl: "https://cdn-icons-png.flaticon.com/512/149/149059.png",
-        iconSize: [50, 38],
-        iconAnchor: [19, 38],
-        popupAnchor: [0, -30]
-      }),
-
-      enableTooltip: true,
-      zoom: 11,
-      maxZoom: 19, // cap global; providers will overzoom above their native (OSM 19)
       currentMarker: {
         id: 0,
         coordinates: this.$store.state.potensi.centerMap.coordinates,
       },
-
-      url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-      attribution:
-          '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors',
-
-      tileProviders: [
-        {
-          name: "OpenStreetMap",
-          visible: true,
-          maxNativeZoom: 19,
-          attribution:
-              '&copy; <a target="_blank" href="http://osm.org/copyright">OpenStreetMap</a> contributors',
-          url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-        },
-        {
-          name: "OpenTopoMap",
-          visible: false,
-          maxNativeZoom: 17,
-          url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
-          attribution:
-              'Map data: &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)',
-        },
-        {
-          name: "OpenSatelite",
-          visible: false,
-          maxNativeZoom: 19,
-          url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-          attribution:
-              '&copy; <a target="_blank" href="http://osm.org/copyright">OpenStreetMap</a> contributors',
-        },
-        // Google Maps tile providers (without API key, public endpoint, like TesLeafletGoogleMaps.vue)
-        {
-          name: "Google Maps",
-          visible: false,
-          maxNativeZoom: 21,
-          url: "https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}",
-          attribution: "© Google",
-          subdomains: ["mt0", "mt1", "mt2", "mt3"]
-        },
-        {
-          name: "Google Satellite",
-          visible: false,
-          maxNativeZoom: 21,
-          url: "https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}",
-          attribution: "© Google",
-          subdomains: ["mt0", "mt1", "mt2", "mt3"]
-        },
-        {
-          name: "Google Hybrid",
-          visible: false,
-          maxNativeZoom: 21,
-          url: "https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}",
-          attribution: "© Google",
-          subdomains: ["mt0", "mt1", "mt2", "mt3"]
-        }
-      ],
-
-      showLayers1: false,
-
-      mapFullScreen: false,
-
-
-      geojson: null,
       itemsDatasetGeojson: [],
       uploadedGeojson: null,
       uploadedGeojsonVisible: true,
 
+
       colorMap: {},
       itemsFDivision : [],
-      showSearchMenu: false,
       searchText: '',
       featureIndex: new Map(),   // id -> layer
       textIndex: [],             // { text, layerId }
@@ -443,11 +327,6 @@ export default {
       // DISPLAY FILTER ONLY (cache tetap full)
       useRadiusFilter: false,        // tampilkan hanya fitur di radius tertentu (default: Full mode)
       filterRadiusMeters: 2000,     // default 2 km
-      //Untuk singleMarker berada di koordinat atau tidak
-      lastFullGeoJson: null,
-      lastSelectedValue: null,
-
-      markerDataInfo: ''
 
     };
   },
@@ -458,146 +337,23 @@ export default {
           .filter(x => x && x.id != null && x.hasGeojson !== false)
           .map(x => x.id);
     },
-    googleApiKey(){
-      return this.$store.state.secretKey.googleApiKey?? '';
-    },
     isMobileDevice() {
       const sm = this.winWidth <= 600;
       const md = this.winWidth <= 960;
       const coarse = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
       return (this.hasTouch || coarse) && (sm || md);
     },
-    options() {
-      return {
-        onEachFeature: this.onEachFeatureFunction,
-        pointToLayer: this.pointToLayerFunction,
-      };
-    },
-    pointToLayerFunction() {
-      return (feature, latlng) => {
-        try {
-          const icon = this.getMarkerIconForFeature(feature);
-          return icon ? L.marker(latlng, { icon }) : L.marker(latlng);
-        } catch (e) {
-          console.warn('[PetaInteraktif][pointToLayer] fallback default marker', e);
-          return L.marker(latlng);
-        }
-      };
-    },
-    onEachFeatureFunction() {
-      return (feature, layer) => {
-        const props = feature?.properties || {};
-        const text = this.buildSearchTextForIndex(props);
-        const id = L.stamp(layer);
-        this.featureIndex.set(id, layer);
-        if (text) this.textIndex.push({ text, layerId: id });
-        const dsid = props.__dsid;
-        if (dsid != null) {
-          if (!this.datasetIndex.has(dsid)) this.datasetIndex.set(dsid, new Set());
-          this.datasetIndex.get(dsid).add(id);
-        }
-        if (layer.getBounds) {
-          const b = layer.getBounds();
-          if (b?.isValid && b.isValid()) {
-            const bbox = {
-              minX: b.getWest(),
-              minY: b.getSouth(),
-              maxX: b.getEast(),
-              maxY: b.getNorth(),
-              id
-            };
-            this.layerBBoxes.set(id, bbox);
-            this.spatialIndex.insert(bbox);
-          }
-        } else if (layer.getLatLng) {
-          const p = layer.getLatLng();
-          const bbox = { minX: p.lng, minY: p.lat, maxX: p.lng, maxY: p.lat, id };
-          this.layerBBoxes.set(id, bbox);
-          this.spatialIndex.insert(bbox);
-        }
-
-        // 4) Auto-clean indices jika layer dihapus oleh Leaflet (mis. v-if / re-render)
-        layer.on('remove', () => {
-          if (!this.isBulkCleanup) this.cleanupByLayerId(id);
-        });
-
-        // 5) Popup pada klik hanya untuk desktop (biarkan seperti semula)
-        if (!this.isMobileDevice) {
-
-          if (this.mapToolTipOn) {
-            layer.bindTooltip(
-                `<div style='max-height: 350px; overflow-y: auto; min-width: 300px; overflow-x: auto;' >
-                    ${this.jsonToHtmlTable(feature.properties)}
-                </div>`,
-                { permanent: false, sticky: true }
-            );
-          }
-
-          layer.on('click', (e) => {
-            const latlng = e.latlng;
-            layer.bindPopup(
-              `<div style='max-height: 350px; overflow-y: auto; min-width: 300px; overflow-x: auto;' >
-                 ${this.jsonToHtmlTable(feature.properties)}
-               </div><div><strong>${latlng.lat}, ${latlng.lng}</strong></div>`
-            ).openPopup();
-          });
-        }
-
-      };
-    },
-    currentUser() {
-      return this.$store.state.auth.user;
-    },
   },
   methods: {
-    formatHectares(valueHa) {
-      if (!Number.isFinite(valueHa)) return '';
-      return Number(valueHa.toFixed(4));
-    },
-
-    setDrawnAreaTooltip(layer) {
-      try {
-        if (!layer) return;
-
-        let areaM2 = null;
-
-        if (layer instanceof L.Circle && typeof layer.getRadius === 'function') {
-          const r = layer.getRadius();
-          if (Number.isFinite(r)) areaM2 = Math.PI * r * r;
-        } else if (typeof layer.toGeoJSON === 'function') {
-          const gj = layer.toGeoJSON();
-          const t = gj && gj.geometry ? gj.geometry.type : '';
-          if (t === 'Polygon' || t === 'MultiPolygon') {
-            areaM2 = turf.area(gj);
+    fetchParent(){
+      FDivisionService.getAllFDivisionPublic().then(
+          (response) => {
+            this.itemsFDivision = response.data
           }
-        }
-
-        if (!Number.isFinite(areaM2)) return;
-        const areaHa = areaM2 / 10000;
-        const haText = this.formatHectares(areaHa);
-        if (haText === '') return;
-
-        const html = `<div style='font-weight:700'>Luas: ${haText} ha</div>`;
-
-        // Re-bind to keep tooltip updated
-        if (typeof layer.unbindTooltip === 'function') {
-          layer.unbindTooltip();
-        }
-        if (typeof layer.bindTooltip === 'function') {
-          layer.bindTooltip(html, {
-            permanent: false,
-            sticky: true,
-            direction: 'top',
-            opacity: 0.95,
-          });
-        }
-      } catch (e) {
-        console.warn('[PetaInteraktif][setDrawnAreaTooltip] error', e);
-      }
+      )
     },
-
+    //DRAW
     toggleDrawTools() {
-      // Draw tools are handled inside PetaPostgis (Leaflet control)
       this.drawToolsOn = !this.drawToolsOn;
       this.snackbar = {
         show: true,
@@ -608,54 +364,8 @@ export default {
         timeout: 1500,
       };
     },
-    isPointTipePeta(tipePeta) {
-      return tipePeta === ETipePeta.POINT
-    },
-    resolveMarkerImageUrl(markerImage) {
-      const v = (markerImage == null) ? '' : String(markerImage).trim();
-      if (!v) return '';
-      if (/^https?:\/\//i.test(v)) return v;
 
-      try {
-        // kalau markerImage itu key/filename dari backend
-        return FileService.image_url_medium(v);
-      } catch (e) {
-        console.warn('[PetaInteraktif][resolveMarkerImageUrl] fallback raw value', e);
-        return v;
-      }
-    },
-
-    getMarkerIconForFeature(feature) {
-      const props = feature?.properties || {};
-      const dsid = props.__dsid;
-      if (dsid == null) return null;
-
-      const list = Array.isArray(this.itemsMapsetSelected) ? this.itemsMapsetSelected : [];
-      const ds = list.find(x => x && x.id === dsid);
-      if (!ds) return null;
-      // only POINT dataset + markerImage not empty
-      if (!this.isPointTipePeta(ds.tipePeta)) return null;
-
-      const url = this.resolveMarkerImageUrl(ds.markerImage);
-      if (!url) return null;
-
-      // cache icon biar gak recreate terus
-      if (!this._markerIconCache) this._markerIconCache = new Map();
-      const key = `${dsid}::${url}`;
-      if (this._markerIconCache.has(key)) return this._markerIconCache.get(key);
-
-      const icon = L.icon({
-        iconUrl: url,
-        iconSize: [34, 34],
-        iconAnchor: [17, 34],
-        popupAnchor: [0, -28],
-        shadowUrl: undefined,
-      });
-
-      this._markerIconCache.set(key, icon);
-      return icon;
-    },
-    lookupImageUrl,
+    //UPLOAD GEOJSON
     showUploadGeojsonDialog() {
       if (this.$refs.refUploadGeojsonDialog) {
         this.$refs.refUploadGeojsonDialog.showDialog();
@@ -712,6 +422,8 @@ export default {
         timeout: 1500,
       };
     },
+
+    //DOWNLOAD GEOJSON
     showDialogDownloadGeojson(){
       const ids = Array.isArray(this.itemsMapsetSelected)
           ? this.itemsMapsetSelected.map(x => x && x.id).filter(v => Number.isFinite(v))
@@ -869,6 +581,7 @@ export default {
 
 
     },
+
     setMapToolTip() {
       this.mapToolTipOn = !this.mapToolTipOn;
 
@@ -881,13 +594,6 @@ export default {
         text: this.mapToolTipOn ? 'Tooltip peta diaktifkan' : 'Tooltip peta dimatikan',
         timeout: 1500,
       };
-    },
-    fetchParent(){
-      FDivisionService.getAllFDivisionPublic().then(
-          (response) => {
-            this.itemsFDivision = response.data
-          }
-      )
     },
     updateLayerTooltips() {
       try {
@@ -916,7 +622,6 @@ export default {
         console.warn('updateLayerTooltips error', e);
       }
     },
-
     async toggleMapsetVisibility(itemSelected) {
       const id = itemSelected && itemSelected.id;
       if (id == null) return;
@@ -951,12 +656,10 @@ export default {
 
       this.isApply = true;
     },
-
     deleteAllList(){
       this.itemsMapsetSelected = []
       if (this.markerIconCache && this.markerIconCache.clear) this.markerIconCache.clear();
     },
-
     async applyPeta(itemsMapsetSelected) {
       this.itemsMapsetSelected = Array.isArray(itemsMapsetSelected) ? itemsMapsetSelected : [];
       this.isApply = true;
@@ -983,156 +686,12 @@ export default {
         }
       }
     },
-
-    routeToHome(){
-      this.$router.push("/home")
-    },
-
     showDialogPickMapset(){
       this.$refs.refPickMapsetDialog.showDialog(this.itemsMapsetSelected)
       this.isApply = false
     },
-    buildSearchTextForIndex(props = {}) {
-      try {
-        const parts = [];
-        // Utamakan deskripsi zona dari mapper (jika ada)
-        const main = zonaMapper.getDescCandidate(props);
-        if (main && typeof main === 'string') {
-          parts.push(main);
-        }
 
-        // Gabungkan semua properti string/number lain sebagai kata kunci
-        for (const value of Object.values(props)) {
-          if (value == null) continue;
-          if (typeof value === 'string') {
-            const v = value.trim();
-            if (v) parts.push(v);
-          } else if (typeof value === 'number') {
-            parts.push(String(value));
-          }
-        }
-
-        return parts.join(' ').toLowerCase();
-      } catch (e) {
-        console.warn('buildSearchTextForIndex error', e);
-        return '';
-      }
-    },
-
-    closeAllLeafletPopups() {
-      try {
-        const map = this.$refs.map?.leafletObject || this.$refs.map?.mapObject;
-        if (map && typeof map.closePopup === 'function') {
-          map.closePopup();
-        }
-      } catch (e) {
-        console.warn('closeAllLeafletPopups error', e);
-      }
-    },
-
-    reopenSingleMarkerPopup() {
-      // vue-leaflet + v-model:visible bisa "stuck" ketika popup ditutup otomatis oleh Leaflet.
-      // Jadi kita paksa toggle agar popup bisa kebuka lagi dengan content terbaru.
-      try {
-        this.markerPopupVisible = false;
-        this.$nextTick(() => {
-          this.markerPopupVisible = true;
-        });
-      } catch (e) {
-        console.warn('reopenSingleMarkerPopup error', e);
-      }
-    },
-
-    openGMapsAt(lat, lng, zoom = 20) {
-      try {
-        if (lat == null || lng == null) {
-          this.snackbar = { show: true, color: 'warning', text: 'Koordinat tidak valid', timeout: 1500 };
-          return;
-        }
-        const z = Math.max(0, Math.min(22, Number(zoom) || 20));
-        // Format URL Google Maps dengan zoom tinggi
-        const url = `https://www.google.com/maps/@${lat},${lng},${z}z`;
-        window.open(url, '_blank', 'noopener');
-      } catch (e) {
-        console.error('openGMapsAt error', e);
-        this.snackbar = { show: true, color: 'error', text: 'Gagal membuka Google Maps', timeout: 1800 };
-      }
-    },
-
-    async ssPhotoDownload(){
-      try {
-        // 1) Ambil elemen container Leaflet yang sedang tampil
-        const mapRef = this.$refs.map;
-        const mapEl = (mapRef && (mapRef.leafletObject?.getContainer?.() || mapRef.mapObject?.getContainer?.() || mapRef.$el?.querySelector?.('.leaflet-container')));
-        if (!mapEl) {
-          console.warn('Leaflet map container not found');
-          this.snackbar = { show: true, color: 'warning', text: 'Map belum siap untuk di-screenshot', timeout: 1800 };
-          return;
-        }
-
-        // 2) Sembunyikan tooltip/popup sementara supaya tidak berantakan saat render
-        const prevOverflow = mapEl.style.overflow;
-        mapEl.style.overflow = 'hidden';
-
-        // 3) Lazy import html2canvas agar bundle tetap ringan
-        const html2canvas = (await import('html2canvas')).default;
-
-        // Ensure UI is settled before screenshot
-        await this.$nextTick();
-
-        // 4) Render ke canvas (pakai useCORS untuk tile yang support CORS)
-        const canvas = await html2canvas(mapEl, {
-          useCORS: true,
-          allowTaint: false,
-          backgroundColor: '#ffffff',
-          logging: false,
-          scale: 1,
-          windowWidth: mapEl.clientWidth,
-          windowHeight: mapEl.clientHeight,
-          width: mapEl.clientWidth,
-          height: mapEl.clientHeight
-        });
-
-        // 5) Kembalikan style
-        mapEl.style.overflow = prevOverflow || '';
-
-        // 6) Download sebagai JPEG
-        const blob = await new Promise(res => canvas.toBlob(res, 'image/jpeg', 0.9));
-        if (!blob) {
-          this.snackbar = { show: true, color: 'error', text: 'Gagal membuat gambar', timeout: 1800 };
-          return;
-        }
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        const ts = new Date().toISOString().replace(/[:.]/g,'-');
-        a.href = url;
-        a.download = `snapshot-map-${ts}.jpg`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        this.snackbar = { show: true, color: 'primary', text: 'Screenshot peta terunduh', timeout: 1500 };
-      } catch (e) {
-        console.error('ssPhotoDownload error', e);
-        this.snackbar = { show: true, color: 'error', text: 'Gagal screenshot. Coba layer lain (yang support CORS).', timeout: 2500 };
-      }
-    },
-    googlePlacesSelect(payload){
-      if (!payload) return;
-      const { lat, lng, address, name } = payload;
-      if (lat && lng) {
-        this.currentMarker.coordinates = [lat, lng];
-        this.singleMarker = { coords: [lat, lng] };
-        this.centerToMarker();
-      }
-      const text = address || name || 'Lokasi dipilih';
-      this.snackbar = { show: true, color: 'primary', text, timeout: 1800 };
-    },
-    onPlacesClosed() {
-      // Optional: focus back to map control or do nothing
-      // console.debug('GooglePlacesAutoCompleteDialog closed');
-    },
+    //SEARCH
     _resetStyle(layer) {
       try {
         const original = this.styleFunction(layer.feature);
@@ -1258,123 +817,7 @@ export default {
 
       this.showSearchMenu = false;
     },
-    centerToMarker() {
-      let map = this.$refs.map?.leafletObject || this.$refs.map?.mapObject;
-      if (!map) {
-        // Kalau belum ready, skip dulu
-        console.warn('Map object belum siap!');
-        return;
-      }
-      const latLng = this.currentMarker.coordinates;
-      let targetZoom = map.getZoom() < 15 ? 15 : map.getZoom();
-      map.setView(latLng, targetZoom, { animate: true });
 
-      // Toggle marker
-      this.showCenterMarker = false;
-      this.$nextTick(() => {
-        this.showCenterMarker = true;
-      });
-
-    },
-
-    setCenterPosition() {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            (position) => {
-              // Koordinat user
-              const lat = position.coords.latitude;
-              const lon = position.coords.longitude;
-              console.log("User location:", lat, lon);
-
-              // Update marker & center map jika mau
-              this.currentMarker.coordinates = [lat, lon];
-              this.singleMarker = {
-                coords: [lat, lon]
-              }
-
-              this.centerToMarker(); // atau setView manual
-            },
-            (error) => {
-              console.error("Gagal dapat lokasi: ", error);
-              alert("Tidak bisa mengambil lokasi Anda.");
-            }
-        );
-      } else {
-        alert("Browser tidak support Geolocation!");
-      }
-    },
-
-    initializeFullscreen() {
-      // const map = this.$refs.map.mapObject;
-      let map = this.$refs.map?.leafletObject || this.$refs.map?.mapObject;
-      if (map) {
-        // Fullscreen button moved to bottom-right (will stack with zoom control)
-        if (!this._fsControl) {
-          this._fsControl = L.control.fullscreen({ position: 'bottomright' });
-          this._fsControl.addTo(map);
-        }
-        // Sync state saat popup ditutup otomatis (mis. klik marker lain / autoClose)
-        // supaya popup marker utama tidak "nyangkut" dan menghalangi klik marker lain.
-        this._onPopupClose = () => {
-          if (this.markerPopupVisible) this.markerPopupVisible = false;
-        };
-        map.off('popupclose', this._onPopupClose);
-        map.on('popupclose', this._onPopupClose);
-      } else {
-        console.error("Map object not initialized yet.");
-      }
-    },
-    handleFullscreenChange() {
-      this.isFullScreen = !!document.fullscreenElement;
-    },
-
-    setSingleMarker(event) {
-      if (this.drawToolsOn) return;
-      const { lat, lng } = event.latlng;
-      this.closeAllLeafletPopups();
-
-      this.singleMarker = { coords: [lat, lng] };
-      this.$emit('markerLatLngUpdate', this.singleMarker);
-
-      const props = this.getFastPropsAtFromFeatureIndex(lat, lng);
-
-      if (this.isMobileDevice) {
-        // On mobile: show sticky bar, no Leaflet popup
-        this.markerPopupVisible = false;
-        if (props) {
-          this.openMobilePanel(props, null, true, false);
-        } else {
-          this.openMobilePanel(null, 'Tidak ada Zona', true, false);
-          this.snackbar = { show: true, color: 'warning', text: 'Tidak ada feature di titik ini', timeout: 1200 };
-        }
-        return;
-      }
-      this.reopenSingleMarkerPopup();
-    },
-
-    singleMarkerClick() {
-      if (this.drawToolsOn) return;
-      // Pastikan popup lain tertutup dulu
-      this.closeAllLeafletPopups();
-
-      const props = this.getFastPropsAtFromFeatureIndex(this.singleMarker.coords[0], this.singleMarker.coords[1]);
-
-      this.$emit('markerLatLngUpdate', this.singleMarker);
-
-      if (this.isMobileDevice) {
-        this.markerPopupVisible = false;
-        if (props) {
-          this.openMobilePanel(props, null, true, true);
-        } else {
-          this.openMobilePanel(null, 'Tidak ada Zona', true, false);
-          this.snackbar = { show: true, color: 'warning', text: 'Tidak ada feature di titik ini', timeout: 1200 };
-        }
-        return;
-      }
-
-      // Desktop: paksa popup marker utama kebuka lagi
-      this.reopenSingleMarkerPopup();
-    },
     openMobilePanel(props, title = '', isVisible, isExpanded) {
       this.mobilePanel.props = props || null;
       this.mobilePanel.title = title || (props?.DESC || props?.NAM || props?.name || 'Detail Zona/Lokasi');
@@ -1404,7 +847,6 @@ export default {
         fillOpacity
       };
     },
-
     async getFromServerDatasetGeojson({ idDataset, restApiFetch }) {
       try {
         this.snackbar = {
@@ -1434,7 +876,6 @@ export default {
         throw e;
       }
     },
-
     _filterGeoJSONByRadius(geojson, centerLatLng, radiusMeters = 2000) {
       if (!geojson || !Array.isArray(geojson.features) || !centerLatLng || centerLatLng.length < 2) return geojson;
       const [lat, lng] = centerLatLng;
@@ -1460,7 +901,6 @@ export default {
       }
       return { type: 'FeatureCollection', features, crs: geojson.crs };
     },
-
     async valueChangedSpaMainGeoJson(value) {
       if (value.hasGeojson !== true) {
         this.isBulkCleanup = true;
@@ -1539,26 +979,7 @@ export default {
         }
       }
     },
-
-
     // --- Index cleanup helpers ---
-    cleanupByLayerId(id) {
-      // RBush remove requires the same object reference used on insert
-      const bbox = this.layerBBoxes && this.layerBBoxes.get ? this.layerBBoxes.get(id) : null;
-      if (bbox && this.spatialIndex && this.spatialIndex.remove) {
-        try { this.spatialIndex.remove(bbox); } catch (e) { /* ignore */ }
-        this.layerBBoxes.delete(id);
-      }
-
-      // feature + text index
-      if (this.featureIndex && this.featureIndex.delete) this.featureIndex.delete(id);
-      if (Array.isArray(this.textIndex)) {
-        this.textIndex = this.textIndex.filter(x => x.layerId !== id);
-      }
-
-      // highlighted state
-      if (this.highlighted && this.highlighted.delete) this.highlighted.delete(id);
-    },
     rebuildSpatialIndex() {
       // Build a fresh RBush dari sisa bboxes; jauh lebih cepat untuk penghapusan massal
       const items = Array.from(this.layerBBoxes.values());
@@ -1597,7 +1018,6 @@ export default {
     },
     jsonToHtmlTable(jsonValue) {
       const myObj = jsonValue || {};
-
       const escapeHtml = (v) => String(v)
           .replace(/&/g, '&amp;')
           .replace(/</g, '&lt;')
@@ -1622,11 +1042,8 @@ export default {
         <td class="val">${escapeHtml(displayVal)}</td>
       </tr>`;
       }
-
       return `<table class="kv-table"><tbody>${rows}</tbody></table>`;
     },
-
-
     getFastPropsAtFromFeatureIndex(lat, lng, { lineTolMeters = 5, pointTolMeters = 5 } = {}) {
       // 1) ambil kandidat dari RBush pakai bbox titik
       const cand = this.spatialIndex.search({
@@ -1691,7 +1108,6 @@ export default {
       }
       return null;
     },
-
     lookupImageMediumUrl(item){
       if (item.avatarImage===undefined || item.avatarImage===""){
         return require('@/assets/images/peta-tematik.png')
@@ -1706,10 +1122,8 @@ export default {
         return FileService.image_url_verylow(item.avatarImage)
       }
     },
-
   },
   async mounted() {
-
     this.fetchParent()
     /**
      * Jika mendapatkan parameter yang berisi Array Id Dataset maka
@@ -1738,7 +1152,6 @@ export default {
         });
     }
 
-
     const mapsetTemaId = (qTematikId != null && Number.isFinite(Number(qTematikId)))
       ? Number(qTematikId)
       : null;
@@ -1759,10 +1172,6 @@ export default {
           console.error('Gagal mengambil data dataset peta berdasarkan tema: ', error);
         });
     }
-
-
-
-
     if(this.$vuetify.display.smAndDown){
       this.showMapsetController = false
     }
@@ -1771,13 +1180,6 @@ export default {
       coords: this.currentMarker.coordinates,
     }
 
-    /**
-     * Tidak perlu dinyalakan karena dataset peta diambil saat user menagktikna dialog Datase
-     */
-    // this.fetchDatasetPeta();
-
-
-    document.addEventListener('fullscreenchange', this.handleFullscreenChange);
     this._onResize = () => (this.winWidth = window.innerWidth);
     window.addEventListener('resize', this._onResize, { passive: true });
     window.addEventListener('orientationchange', this._onResize, { passive: true });
@@ -1792,7 +1194,6 @@ export default {
     }
   },
   beforeUnmount() {
-    document.removeEventListener('fullscreenchange', this.handleFullscreenChange);
     window.removeEventListener('resize', this._onResize);
     window.removeEventListener('orientationchange', this._onResize);
     try {
@@ -1820,7 +1221,7 @@ export default {
   position: absolute;
   top: 12px;
   left: 12px;
-  z-index: 10; /* > leaflet controls */
+  z-index: 20000; /* > leaflet controls */
   background: transparent;
 }
     .snackbar-center {
@@ -1831,97 +1232,6 @@ export default {
     }
 
 
-    /* Mobile Sticky Bottom Bar / Bottom Sheet (Glow Up) */
-    .mobile-sticky {
-      position: fixed;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      z-index: 1000;
-      transform: translateY(calc(100% - 64px)); /* collapsed height */
-      transition: transform 220ms ease, box-shadow 220ms ease;
-      background: #ffffff; /* solid to avoid text ghosting */
-      /* remove blur from container to prevent text stacking artifacts */
-      box-shadow: 0 -6px 22px rgba(0,0,0,0.18);
-      border-top-left-radius: 16px;
-      border-top-right-radius: 16px;
-      pointer-events: auto;
-      padding-bottom: max(8px, env(safe-area-inset-bottom));
-      overflow: hidden; /* contain inner scroll */
-    }
-    .mobile-sticky.visible { transform: translateY(0); }
-    .mobile-sticky.expanded { transform: translateY(0); }
-
-    .mobile-sticky.expanded {
-      height: 80vh;               /* fixed height when expanded */
-      max-height: none;
-      display: flex;
-      flex-direction: column;     /* allow content to size relative to container */
-    }
-
-    .mobile-sticky__header {
-      position: relative;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 12px 8px 12px;
-      min-height: 64px;
-      user-select: none;
-    }
-    .mobile-sticky__header.glossy {
-      background: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0) 100%);
-      border-top-left-radius: 16px;
-      border-top-right-radius: 16px;
-      backdrop-filter: saturate(1.1) blur(8px);
-      -webkit-backdrop-filter: saturate(1.1) blur(8px);
-    }
-    .mobile-sticky__handle {
-      width: 44px;
-      height: 5px;
-      border-radius: 3px;
-      background: rgba(0,0,0,0.22);
-      position: absolute;
-      left: 50%;
-      transform: translateX(-50%);
-      top: 8px;
-    }
-    .mobile-sticky__title {
-      flex: 1;
-      text-align: center;
-      font-weight: 700;
-      letter-spacing: .2px;
-    }
-    .mobile-sticky__title-text {
-      max-width: 80vw;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .mobile-sticky__close-btn {
-      position: absolute;
-      right: 6px;
-      top: 8px;
-    }
-    .mobile-sticky__content {
-      height: calc(100% - 64px - env(safe-area-inset-bottom)); /* relative to container height */
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch; /* smooth iOS scroll */
-      overscroll-behavior: contain;      /* prevent body scroll hijack */
-      touch-action: pan-y;               /* allow vertical scroll gestures */
-      padding: 8px 12px 16px 12px;
-      border-top: 1px solid rgba(0,0,0,0.06);
-      will-change: transform;
-      transform: translateZ(0);
-      backface-visibility: hidden;
-    }
-    .mobile-sticky__summary {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-      margin-bottom: 8px;
-    }
-    .mobile-sticky__table table { width: 100%; }
-    .mobile-sticky__footer-spacer { height: max(6px, env(safe-area-inset-bottom)); }
 
     :deep(.control-offset-br) {
       margin-right: 16px;

@@ -957,13 +957,35 @@ function onEachFeatureOption(feature, layer) {
     }
 
     // --- popup (existing behavior) ---
-    const html = `<div style="max-height:260px; overflow:auto;">
-                    ${popupHtmlForProps(propsFeature)}
-                  </div>`
+    const html = `<div style="max-height:260px; overflow:auto;">${popupHtmlForFeature(feature, layer)}</div>`
+
     if (layer && typeof layer.bindPopup === 'function') {
       layer.bindPopup(html, {
         autoPan: false,
         closeButton: true,
+      })
+      layer.on('popupopen', (e) => {
+        try {
+          const el = e?.popup?.getElement?.()
+          if (!el) return
+
+          const btn = el.querySelector('.btn-open-gmap')
+          if (!btn) return
+
+          // overwrite handler biar gak dobel kalau popup dibuka berkali-kali
+          btn.onclick = (ev) => {
+            ev.preventDefault()
+            ev.stopPropagation()
+
+            const lat = Number(btn.getAttribute('data-lat'))
+            const lng = Number(btn.getAttribute('data-lng'))
+            const z = Number(btn.getAttribute('data-zoom')) || 20
+
+            openGMapsAt(lat, lng, z)
+          }
+        } catch (err) {
+          console.warn('[PetaPostgis][popup] popupopen handler error', err)
+        }
       })
 
       // --- Tooltip (hover) driven by parent prop ---
@@ -1083,8 +1105,7 @@ watch(
       // Re-bind tooltips for existing layers
       for (const lyr of featureIndex.value.values()) {
         if (!lyr) continue
-        const propsFeature = lyr?.feature?.properties || {}
-        const html = `<div style="max-height:260px; overflow:auto;">${popupHtmlForProps(propsFeature)}</div>`
+        const html = `<div style="max-height:260px; overflow:auto;">${popupHtmlForFeature(lyr?.feature, lyr)}</div>`
 
         if (on === true) {
           if (typeof lyr.bindTooltip === 'function') {
@@ -1888,14 +1909,13 @@ function jsonToHtmlTable_Mobile(jsonValue, keys = []) {
   return text
 }
 
-function jsonToHtmlTable(jsonValue, keys = []) {
+function jsonToHtmlTable(jsonValue, keys = [], ll = null) {
   const myObj = jsonValue || {}
   const allow = Array.isArray(keys) ? keys : []
 
-  // Default behavior: if no columns selected -> show all keys
   const keyList = allow.length
-    ? allow
-    : Object.keys(myObj).sort((a, b) => String(a).localeCompare(String(b)))
+      ? allow
+      : Object.keys(myObj).sort((a, b) => String(a).localeCompare(String(b)))
 
   if (!keyList.length) {
     return `<div style="font-size:12px; opacity:0.75; padding:2px 0;">Tidak ada data.</div>`
@@ -1915,42 +1935,100 @@ function jsonToHtmlTable(jsonValue, keys = []) {
       </tr>`
   }
 
-  // if nothing rendered (e.g., all values null), show note
   if (!rows) {
     return `<div style="font-size:12px; opacity:0.75; padding:2px 0;">Tidak ada data.</div>`
   }
 
-  return `
-       <button
-          type="button"
-          onclick="window.openInGmap()"
-          style="
-            padding: 6px 10px;
-            border: 1px solid #bbb;
-            background: #f5f5f5;
-            color: #222;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-          "
-        >
-          Open in Gmap
-        </button>
-        <table style="min-width:240px; max-width:340px; font-size:12px;"><tbody>${rows}</tbody></table>
-        `
+  const lat = ll?.lat
+  const lng = ll?.lng
+  const disabled = !(Number.isFinite(Number(lat)) && Number.isFinite(Number(lng)))
+
+  const btnHtml = `
+    <div style="margin-bottom:10px; display:flex; justify-content:flex-end;">
+      <button
+        type="button"
+        class="btn-open-gmap"
+        data-lat="${disabled ? '' : lat}"
+        data-lng="${disabled ? '' : lng}"
+        data-zoom="20"
+        ${disabled ? 'disabled' : ''}
+        title="${disabled ? 'Koordinat tidak ditemukan' : 'Buka lokasi di Google Maps'}"
+        style="padding:6px 10px; border:1px solid #bbb; background:#f5f5f5; color:#222; border-radius:4px; cursor:pointer; font-size:12px;"
+      >
+        Open in Gmap
+      </button>
+    </div>
+  `
+
+  return `${btnHtml}<table style="min-width:240px; max-width:340px; font-size:12px;"><tbody>${rows}</tbody></table>`
 }
+
 function openInGmap() {
   const url = `https://www.google.com/maps/search/?api=1&query=$`
   window.open(url, '_blank')
 }
 
-function popupHtmlForProps(props) {
+function popupHtmlForFeature(feature, layer) {
+  const props = feature?.properties || {}
+
   const isMobile = typeof window !== 'undefined'
       && window.matchMedia
       && window.matchMedia('(max-width: 480px)').matches
 
   const keys = propertiesShowKeys.value || []
-  return isMobile ? jsonToHtmlTable_Mobile(props, keys) : jsonToHtmlTable(props, keys)
+  const ll = pickLatLngForPopup(feature, layer)
+
+  return isMobile
+      ? jsonToHtmlTable_Mobile(props, keys, ll)
+      : jsonToHtmlTable(props, keys, ll)
+}
+
+function pickLatLngForPopup(feature, layer) {
+  try {
+    // 1) Point GeoJSON: geometry.coordinates = [lng, lat]
+    const geom = feature?.geometry
+    if (geom?.type === 'Point' && Array.isArray(geom.coordinates)) {
+      const lng = Number(geom.coordinates[0])
+      const lat = Number(geom.coordinates[1])
+      if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng }
+    }
+
+    // 2) Any Leaflet vector layer: use bounds center
+    if (layer?.getBounds && typeof layer.getBounds === 'function') {
+      const c = layer.getBounds().getCenter()
+      const lat = Number(c?.lat)
+      const lng = Number(c?.lng)
+      if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng }
+    }
+
+    // 3) Marker layer: getLatLng
+    if (layer?.getLatLng && typeof layer.getLatLng === 'function') {
+      const c = layer.getLatLng()
+      const lat = Number(c?.lat)
+      const lng = Number(c?.lng)
+      if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng }
+    }
+  } catch (e) {
+    console.warn('[PetaPostgis] pickLatLngForPopup failed', e)
+  }
+  return null
+}
+
+function openGMapsAt(lat, lng, zoom = 20) {
+  try {
+    const latNum = Number(lat)
+    const lngNum = Number(lng)
+    if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
+      snackbar.value = { show: true, color: 'warning', text: 'Koordinat tidak valid', timeout: 1500 }
+      return
+    }
+    const z = Math.max(0, Math.min(22, Number(zoom) || 20))
+    const url = `https://www.google.com/maps/@${latNum},${lngNum},${z}z`
+    window.open(url, '_blank', 'noopener')
+  } catch (e) {
+    console.error('openGMapsAt error', e)
+    snackbar.value = { show: true, color: 'error', text: 'Gagal membuka Google Maps', timeout: 1800 }
+  }
 }
 
 
@@ -2095,7 +2173,6 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   delete window.openInGmap
-
   document.removeEventListener('fullscreenchange', onFsChange)
   clearMarkerClusters()
   clearPlainPoints()

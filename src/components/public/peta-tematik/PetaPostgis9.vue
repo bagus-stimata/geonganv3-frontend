@@ -184,11 +184,7 @@ const props = defineProps({
   isVisibleFullScreenButton: { type: Boolean, default: true },
   isVisibleCenterButton: { type: Boolean, default: true },
   isVisibleFeatureGroup: { type: Boolean, default: true },
-  isVisibleDrawTools: { type: Boolean, default: true },
-
-  // --- highlight/search (client-side) ---
-  keywordHighlight: { type: String, default: '' },               // filter/highlight by text
-  highlightFeatureKey: { type: String, default: '' }    // highlight by feature key/id
+  isVisibleDrawTools: { type: Boolean, default: true }
 })
 
 const isFullscreen = ref(false)
@@ -319,176 +315,6 @@ function setBasemap(id) {
 }
 // GeoJSON dari backend
 const geojsonData = ref([])
-
-// =======================
-// Highlight + Indexing (client-side)
-// =======================
-const featureIndex = ref(new Map()) // layerId -> Leaflet layer
-const textIndex = ref([])           // { text, layerId }
-const highlighted = ref(new Set())  // Set<layerId>
-
-function cleanupHighlightIndices() {
-  try {
-    clearHighlights()
-    featureIndex.value = new Map()
-    textIndex.value = []
-  } catch (e) {
-    console.warn('[PetaPostgis][highlight] cleanupHighlightIndices failed', e)
-  }
-}
-
-function normalizeText(v) {
-  return String(v ?? '').toLowerCase().trim()
-}
-
-function buildSearchTextForFeatureProps(props = {}) {
-  try {
-    const parts = []
-
-    // include zona desc candidate if available
-    try {
-      const desc = ZonaColorMapper.getDescCandidate(props)
-      if (desc) parts.push(String(desc))
-    } catch (e) {
-      console.warn('[PetaPostgis][highlight] ZonaColorMapper.getDescCandidate failed (ignored)', e)
-    }
-
-    // include stable-ish keys
-    const fk = props.featureKey ?? props.feature_key ?? props.FEATURE_KEY ?? ''
-    if (fk) parts.push(String(fk))
-
-    const id = props.id ?? props.ID ?? ''
-    if (id) parts.push(String(id))
-
-    for (const [k, val] of Object.entries(props)) {
-      if (val == null) continue
-      if (typeof val === 'string') {
-        const s = val.trim()
-        if (s) parts.push(s)
-      } else if (typeof val === 'number' && Number.isFinite(val)) {
-        parts.push(String(val))
-      } else if (typeof val === 'boolean') {
-        parts.push(`${k}:${val}`)
-      }
-    }
-
-    return parts.join(' ').toLowerCase()
-  } catch (e) {
-    console.warn('[PetaPostgis][highlight] buildSearchTextForFeatureProps failed', e)
-    return ''
-  }
-}
-
-function resetLayerStyle(layer) {
-  try {
-    if (layer && typeof layer.setStyle === 'function') {
-      const style = styleOption(layer?.feature)
-      layer.setStyle(style)
-    }
-  } catch (e) {
-    console.warn('[PetaPostgis][highlight] resetLayerStyle failed', e)
-  }
-}
-
-function setMarkerDomHighlight(marker, on) {
-  try {
-    const el = marker?._icon
-    if (!el || !el.classList) return
-    if (on) el.classList.add('marker-highlight')
-    else el.classList.remove('marker-highlight')
-  } catch (e) {
-    console.warn('[PetaPostgis][highlight] setMarkerDomHighlight failed', e)
-  }
-}
-
-function applyLayerHighlight(layer) {
-  try {
-    // polygons/lines
-    if (layer && typeof layer.setStyle === 'function') {
-      layer.setStyle({
-        weight: 6,
-        opacity: 1,
-        fillOpacity: 0.65
-      })
-    }
-
-    // markers
-    setMarkerDomHighlight(layer, true)
-  } catch (e) {
-    console.warn('[PetaPostgis][highlight] applyLayerHighlight failed', e)
-  }
-}
-
-function clearHighlights() {
-  try {
-    for (const id of highlighted.value) {
-      const lyr = featureIndex.value.get(id)
-      if (!lyr) continue
-
-      if (typeof lyr.setStyle === 'function') resetLayerStyle(lyr)
-      setMarkerDomHighlight(lyr, false)
-    }
-    highlighted.value.clear()
-  } catch (e) {
-    console.warn('[PetaPostgis][highlight] clearHighlights failed', e)
-  }
-}
-
-function highlightByKeyword(keywordRaw) {
-  const q = normalizeText(keywordRaw)
-  if (!q) {
-    clearHighlights()
-    return
-  }
-
-  clearHighlights()
-
-  try {
-    const matches = textIndex.value
-      .filter(x => x?.text && x.text.includes(q))
-      .slice(0, 250)
-
-    for (const m of matches) {
-      const lyr = featureIndex.value.get(m.layerId)
-      if (!lyr) continue
-      highlighted.value.add(m.layerId)
-      applyLayerHighlight(lyr)
-    }
-  } catch (e) {
-    console.warn('[PetaPostgis][highlight] highlightByKeyword failed', e)
-  }
-}
-
-function highlightByFeatureKey(featureKeyRaw) {
-  const key = normalizeText(featureKeyRaw)
-  if (!key) {
-    clearHighlights()
-    return
-  }
-
-  clearHighlights()
-
-  try {
-    for (const [id, lyr] of featureIndex.value.entries()) {
-      const props = lyr?.feature?.properties || {}
-      const fk = normalizeText(
-        props.featureKey ??
-        props.feature_key ??
-        props.FEATURE_KEY ??
-        props.id ??
-        props.ID ??
-        ''
-      )
-
-      if (fk && fk.includes(key)) {
-        highlighted.value.add(id)
-        applyLayerHighlight(lyr)
-      }
-    }
-  } catch (e) {
-    console.warn('[PetaPostgis][highlight] highlightByFeatureKey failed', e)
-  }
-}
 // Split GeoJSON: NON-POINT rendered by <LGeoJson>, POINT/MultiPoint rendered by MarkerClusterGroup
 const geojsonDataNonPoint = computed(() => {
   const src = Array.isArray(geojsonData.value) ? geojsonData.value : []
@@ -933,32 +759,14 @@ function isPointTipePeta(tipePeta) {
 }
 function onEachFeatureOption(feature, layer) {
   try {
-    // --- indexing for highlight/search ---
-    const layerId = L.stamp(layer)
-    featureIndex.value.set(layerId, layer)
-
     const props = feature?.properties || {}
-    const text = buildSearchTextForFeatureProps(props)
-    if (text) textIndex.value.push({ text, layerId })
-
-    // Cleanup when layer removed (viewport refresh / re-render)
-    if (layer && typeof layer.on === 'function') {
-      layer.on('remove', () => {
-        try {
-          setMarkerDomHighlight(layer, false)
-          highlighted.value.delete(layerId)
-          featureIndex.value.delete(layerId)
-        } catch (e) {
-          console.warn('[PetaPostgis][highlight] layer remove cleanup failed', e)
-        }
-      })
-    }
-
-    // --- popup (existing behavior) ---
+    // ringan & aman: render JSON props dalam <pre>
+    // const pretty = JSON.stringify(props, null, 2)
+    // const html = `<pre style="max-height:260px; overflow:auto; min-width:260px; white-space:pre-wrap; margin:0">${escapeHtml(pretty)}</pre>`
     const html = `<div style="max-height:260px; overflow:auto;">${popupHtmlForProps(props)}</div>`
     if (layer && typeof layer.bindPopup === 'function') {
       layer.bindPopup(html, {
-        autoPan: false,
+        autoPan: false, // <- ini biang geser
         closeButton: true,
       })
     }
@@ -1038,19 +846,6 @@ const datasetIdsNorm = computed(() => {
   // unique (preserve order)
   return Array.from(new Set(ids))
 })
-
-// highlight watchers (driven by parent props)
-watch(
-  () => props.keywordHighlight,
-  (v) => { highlightByKeyword(v) },
-  { immediate: true }
-)
-
-watch(
-  () => props.highlightFeatureKey,
-  (v) => { highlightByFeatureKey(v) },
-  { immediate: true }
-)
 
 const lastZoom = ref(zoom.value)
 const showZoomInfo = ref(false)
@@ -1477,6 +1272,8 @@ async function fetchViewportData({ minX, minY, maxX, maxY, z, reason, startedAt 
       ? (endedAt - startedAt)
       : null
 
+
+
     console.log('[viewport] response metrics', {
       reason,
       z,
@@ -1485,9 +1282,6 @@ async function fetchViewportData({ minX, minY, maxX, maxY, z, reason, startedAt 
       sizeBytes: rawSizeBytes
     })
     // --- End metrics ---
-
-    // reset indices before applying new GeoJSON (viewport refresh)
-    cleanupHighlightIndices()
 
     // Backend bisa return: Array<row> (punya geojsonForMap), atau langsung GeoJSON (Feature/FeatureCollection)
     // Jadi kita normalisasi dulu biar `.map` tidak meledak.
@@ -2198,13 +1992,5 @@ watch(
 /* do not let draw host add extra padding */
 .draw-host {
   padding: 0;
-}
-</style>
-
-<style scoped>
-:deep(.marker-highlight) {
-  filter: drop-shadow(0 0 10px rgba(255, 0, 128, 0.9)) drop-shadow(0 0 6px rgba(255, 255, 255, 0.75));
-  transform: scale(1.15);
-  transition: transform 120ms ease, filter 120ms ease;
 }
 </style>

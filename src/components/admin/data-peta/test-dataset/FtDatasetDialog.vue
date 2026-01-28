@@ -621,7 +621,7 @@ export default {
   data() {
 
     return {
-      title: "TEST DATASET",
+      title: "DATASET",
       snackBarMessage: "",
       snackbar: false,
 

@@ -37,7 +37,7 @@
             </v-icon>
           </v-btn>
         </div>
-        <v-expand-transition v-show="showMapsetController === true">
+        <v-expand-transition v-show="showMapsetController === true && itemsMapsetSelected.length > 0">
           <v-text-field
               v-model="searchText"
               @keyup.enter="searchAndHighlight(searchText)"
@@ -1055,15 +1055,6 @@ export default {
       } catch (e) {
         console.error('openGMapsAt error', e);
         this.snackbar = { show: true, color: 'error', text: 'Gagal membuka Google Maps', timeout: 1800 };
-      }
-    },
-    openGMapsCurrentMarker() {
-      const coords = (this.singleMarker && this.singleMarker.coords) || (this.currentMarker && this.currentMarker.coordinates);
-      if (coords && coords.length >= 2) {
-        const [lat, lng] = coords;
-        this.openGMapsAt(lat, lng, 20); // gunakan zoom tinggi
-      } else {
-        this.snackbar = { show: true, color: 'warning', text: 'Koordinat marker belum tersedia', timeout: 1800 };
       }
     },
 

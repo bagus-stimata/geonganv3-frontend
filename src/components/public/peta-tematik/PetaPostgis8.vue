@@ -23,10 +23,9 @@
           :visible="bm.id === activeBasemapId"
       />
 
-
-      <!-- GeoJSON overlay (NON-POINT only; points are rendered via MarkerClusterGroup) -->
+      <!-- GeoJSON overlay -->
       <LGeoJson
-          v-for="(g, idx) in geojsonDataNonPoint"
+          v-for="(g, idx) in geojsonData"
           :key="g?.properties?.id ?? idx"
           :geojson="g"
           :options="options"
@@ -145,9 +144,6 @@
 import { ref, onMounted, nextTick, onBeforeUnmount, computed, watch } from 'vue'
 import { LMap, LTileLayer, LGeoJson, LControl, LControlZoom as LControlZoomComp, LControlLayers, LFeatureGroup } from '@vue-leaflet/vue-leaflet'
 import L, {Icon} from 'leaflet'
-import 'leaflet.markercluster'
-import 'leaflet.markercluster/dist/MarkerCluster.css'
-import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 
 import FtDatasetExtService from "@/services/apiservices/ft-dataset-ext-service";
 import FileService from "@/services/apiservices/file-service";
@@ -316,66 +312,6 @@ function setBasemap(id) {
 }
 // GeoJSON dari backend
 const geojsonData = ref([])
-// Split GeoJSON: NON-POINT rendered by <LGeoJson>, POINT/MultiPoint rendered by MarkerClusterGroup
-const geojsonDataNonPoint = computed(() => {
-  const src = Array.isArray(geojsonData.value) ? geojsonData.value : []
-
-  const isPointGeom = (geom) => {
-    const t = geom?.type
-    return t === 'Point' || t === 'MultiPoint'
-  }
-
-  return src
-      .map(g => {
-        if (!g || typeof g !== 'object') return null
-
-        if (g.type === 'Feature') {
-          return isPointGeom(g.geometry) ? null : g
-        }
-
-        if (g.type === 'FeatureCollection' && Array.isArray(g.features)) {
-          const nonPoint = g.features.filter(f => {
-            if (!f || f.type !== 'Feature') return false
-            return !isPointGeom(f.geometry)
-          })
-          if (!nonPoint.length) return null
-          return { type: 'FeatureCollection', features: nonPoint }
-        }
-
-        return null
-      })
-      .filter(Boolean)
-})
-
-const geojsonDataPoint = computed(() => {
-  const src = Array.isArray(geojsonData.value) ? geojsonData.value : []
-
-  const isPointGeom = (geom) => {
-    const t = geom?.type
-    return t === 'Point' || t === 'MultiPoint'
-  }
-
-  return src
-      .map(g => {
-        if (!g || typeof g !== 'object') return null
-
-        if (g.type === 'Feature') {
-          return isPointGeom(g.geometry) ? g : null
-        }
-
-        if (g.type === 'FeatureCollection' && Array.isArray(g.features)) {
-          const onlyPoint = g.features.filter(f => {
-            if (!f || f.type !== 'Feature') return false
-            return isPointGeom(f.geometry)
-          })
-          if (!onlyPoint.length) return null
-          return { type: 'FeatureCollection', features: onlyPoint }
-        }
-
-        return null
-      })
-      .filter(Boolean)
-})
 
 // --- GeoJSON styling (match PetaInteraktif styleFunction) ---
 // NOTE: vue-leaflet `LGeoJson` supports `:options-style` which can be a function(feature) => style
@@ -437,119 +373,6 @@ function pointToLayerOption(feature, latlng) {
 // cache icon biar gak recreate terus
 const markerIconCache = ref(new Map())
 
-// --- Marker clustering layer for POINT/MultiPoint ---
-let markerClusterGroup = null
-let markerClusterGeojsonLayer = null
-
-let markerPlainGeojsonLayer = null // normal points (no cluster) when zoom >= 13
-const CLUSTER_OFF_AT_ZOOM = 13
-
-function clearPlainPoints() {
-  try {
-    const map = mapRef.value?.leafletObject
-    if (map && markerPlainGeojsonLayer && map.hasLayer(markerPlainGeojsonLayer)) {
-      map.removeLayer(markerPlainGeojsonLayer)
-    }
-    markerPlainGeojsonLayer = null
-  } catch (e) {
-    console.warn('[PetaPostgis][plainPoints] clear failed', e)
-  }
-}
-
-function rebuildPlainPointsFromGeojson() {
-  const map = mapRef.value?.leafletObject
-  if (!map) return
-
-  clearPlainPoints()
-
-  try {
-    markerPlainGeojsonLayer = L.geoJSON(geojsonDataPoint.value, {
-      pointToLayer: pointToLayerOption,
-      onEachFeature: onEachFeatureOption
-    })
-    markerPlainGeojsonLayer.addTo(map)
-  } catch (e) {
-    console.warn('[PetaPostgis][plainPoints] rebuild failed', e)
-  }
-}
-
-function ensureMarkerClusterLayer() {
-  const map = mapRef.value?.leafletObject
-  if (!map) return null
-
-  if (markerClusterGroup) return markerClusterGroup
-
-  markerClusterGroup = L.markerClusterGroup({
-    chunkedLoading: true,
-    showCoverageOnHover: false,
-    spiderfyOnMaxZoom: true,
-    removeOutsideVisibleBounds: true
-  })
-
-  map.addLayer(markerClusterGroup)
-  return markerClusterGroup
-}
-
-function clearMarkerClusters() {
-  try {
-    if (markerClusterGeojsonLayer && markerClusterGroup) {
-      markerClusterGroup.removeLayer(markerClusterGeojsonLayer)
-      markerClusterGeojsonLayer = null
-    }
-    if (markerClusterGroup && typeof markerClusterGroup.clearLayers === 'function') {
-      markerClusterGroup.clearLayers()
-    }
-  } catch (e) {
-    console.warn('[PetaPostgis][cluster] clear failed', e)
-  }
-}
-
-function rebuildMarkerClustersFromGeojson() {
-  const map = mapRef.value?.leafletObject
-  if (!map) return
-
-  const z = Number(map.getZoom?.())
-  const zoomIsClusterOff = Number.isFinite(z) ? (z >= CLUSTER_OFF_AT_ZOOM) : false
-
-  // zoom >= 13 => normal markers; cluster OFF
-  if (zoomIsClusterOff) {
-    try {
-      clearMarkerClusters()
-      if (markerClusterGroup && map.hasLayer(markerClusterGroup)) {
-        map.removeLayer(markerClusterGroup)
-      }
-    } catch (e) {
-      console.warn('[PetaPostgis][cluster] detach failed', e)
-    }
-
-    rebuildPlainPointsFromGeojson()
-    return
-  }
-
-  // zoom < 13 => cluster ON; normal OFF
-  clearPlainPoints()
-
-  const grp = ensureMarkerClusterLayer()
-  if (!grp) return
-
-  try {
-    if (!map.hasLayer(grp)) map.addLayer(grp)
-  } catch (e) {
-    console.warn('[PetaPostgis][cluster] attach failed', e)
-  }
-
-  clearMarkerClusters()
-
-  try {
-    markerClusterGeojsonLayer = L.geoJSON(geojsonDataPoint.value, {
-      pointToLayer: pointToLayerOption,
-      onEachFeature: onEachFeatureOption
-    })
-    grp.addLayer(markerClusterGeojsonLayer)
-  } catch (e) {
-    console.warn('[PetaPostgis][cluster] rebuild failed', e)
-  }
-}
 
 function resolveMarkerImageUrl(markerImage) {
   const v = (markerImage == null) ? '' : String(markerImage).trim()
@@ -803,12 +626,8 @@ const MAX_VP_RETRY = 6
 const isMapReady = ref(false)
 const pendingRefresh = ref(false)
 
-
 function onMapReady() {
   isMapReady.value = true
-// init cluster layer early (points use this)
-  ensureMarkerClusterLayer()
-  rebuildMarkerClustersFromGeojson()
 
   // reflow biar ukuran leaflet bener (flex layout / dialog)
   requestAnimationFrame(() => invalidateMapSize())
@@ -936,7 +755,6 @@ function onMapUpdate() {
   // If Leaflet.Draw didn't register (bundle/import issues), do not cras
 
   const z = map.getZoom()
-  rebuildMarkerClustersFromGeojson()
 
   // Zoom info overlay logic
   if (z !== lastZoom.value) {
@@ -988,10 +806,6 @@ watch(
       pendingRefresh.value = false
       vpRetryCount = 0
       clearTimeout(debounceTimer)
-      // also clear clustered points
-      clearMarkerClusters()
-      clearPlainPoints()
-
       return
     }
 
@@ -1000,15 +814,7 @@ watch(
   },
   { immediate: true }
 )
-// rebuild clustered points every time viewport data changes
-watch(
-    geojsonData,
-    async () => {
-      await nextTick()
-      rebuildMarkerClustersFromGeojson()
-    },
-    { deep: true }
-)
+
 
 function getViewportFromMap() {
   const map = mapRef.value?.leafletObject
@@ -1751,8 +1557,6 @@ onMounted(async () => {
 
 onBeforeUnmount(() => {
   document.removeEventListener('fullscreenchange', onFsChange)
-  clearMarkerClusters()
-  clearPlainPoints()
 
   if (resizeObserver) {
     resizeObserver.disconnect()
@@ -1773,18 +1577,6 @@ onBeforeUnmount(() => {
     onDrawEditedHandler = null
   }
   try { markerIconCache.value.clear() } catch (_) { /* ignore */ }
-
-  try {
-    const map = mapRef.value?.leafletObject
-    if (map && markerClusterGroup) {
-      map.removeLayer(markerClusterGroup)
-    }
-    markerClusterGroup = null
-    markerClusterGeojsonLayer = null
-  } catch (e) {
-    console.warn('[PetaPostgis][cluster] cleanup failed', e)
-  }
-
 })
 
 // if parent changes size via props, reflow the map

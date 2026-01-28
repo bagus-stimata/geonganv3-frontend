@@ -31,6 +31,7 @@
     "leaflet": "^1.9.4",
     "leaflet-draw": "^1.0.4",
     "leaflet-fullscreen": "^1.0.2",
+    "leaflet.markercluster": "^1.5.3",
     "mdi-vue": "^3.0.13",
     "primeicons": "^7.0.0",
     "primevue": "^4.3.1",

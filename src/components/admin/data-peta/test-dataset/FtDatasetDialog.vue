@@ -233,7 +233,8 @@
             </v-container>
           </v-card-title>
 
-          <v-card-text class="mt-0">
+          <div v-if="isGeoJsonDeleted" class="text-caption text-orange ml-6">Batal untuk membatalkan dan Save and Close untuk menerapkan penghapusan</div>
+          <v-card-text class="mt-0" v-if="! isGeoJsonDeleted">
             <!-- Mode: pilih file baru (belum ada geojson tersimpan ATAU user sudah pilih file baru) -->
             <v-row v-if="!hasStoredGeojson || geojsonFileName">
               <v-col cols="12" sm="8" md="8">
@@ -284,7 +285,7 @@
                     color="error"
                     variant="outlined"
                     class="rounded-lg"
-                    @click="clearStoredGeojson"
+                    @click="hapusGeoJsonRef"
                 >
                   Hapus GeoJSON
                 </v-btn>
@@ -695,6 +696,7 @@ export default {
       datasetIds: [],
 
       isGeoUpdated: false,
+      isGeoJsonDeleted: false
 
     };
   },
@@ -1226,6 +1228,7 @@ export default {
           this.featureColumns = [];
           this.featureRows = [];
       }
+      this.isGeoJsonDeleted =false
     },
     setDialogState(value) {
       this.dialogShow = value;
@@ -1616,6 +1619,10 @@ export default {
 
     },
 
+    hapusGeoJsonRef(){
+      this.isGeoJsonDeleted = true
+      this.clearStoredGeojson()
+    },
     clearStoredGeojson() {
       if (this.itemModified) {
         // Mark clear

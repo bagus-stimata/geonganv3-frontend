@@ -10,11 +10,11 @@ const ETipePetas = Object.freeze([
     },
     {
         id: ETipePeta.POLYLINE,
-        description: 'Polyline (Garis)'
+        description: 'Polyline (Garis: jaringan jalan, jaringan sungai etc)'
     },
     {
         id: ETipePeta.POINT,
-        description: 'Point (Titik)'
+        description: 'Point (Titik Koordinat)'
     },
 
 ])

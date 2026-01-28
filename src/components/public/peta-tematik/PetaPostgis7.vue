@@ -417,9 +417,6 @@ function injectDatasetIdIntoGeojson(gj, dsId) {
   }
 }
 
-/**
- * Marker harus punya dataset __datasetId
- */
 function getMarkerIconForFeature(feature) {
   try {
     const propsFeature = feature?.properties || {}
@@ -467,7 +464,6 @@ function getMarkerIconForFeature(feature) {
 
     if (!ds) return null
 
-
     // Resolve marker image field (support multiple naming styles)
     const markerImageRaw = (
       ds?.markerImage ??
@@ -479,8 +475,6 @@ function getMarkerIconForFeature(feature) {
       ds?.icon ??
       ds?.marker
     )
-
-    console.log(markerImageRaw)
 
     const markerImageUrl = resolveMarkerImageUrl(markerImageRaw)
     if (!markerImageUrl) return null

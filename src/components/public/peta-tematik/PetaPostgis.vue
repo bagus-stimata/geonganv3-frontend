@@ -188,7 +188,9 @@ const props = defineProps({
 
   // --- highlight/search (client-side) ---
   keywordHighlight: { type: String, default: '' },               // filter/highlight by text
-  highlightFeatureKey: { type: String, default: '' }    // highlight by feature key/id
+  highlightFeatureKey: { type: String, default: '' },    // highlight by feature key/id
+  // --- tooltip on hover (popup-like) ---
+  mapToolTipOn: { type: Boolean, default: false }
 })
 
 const isFullscreen = ref(false)
@@ -937,8 +939,8 @@ function onEachFeatureOption(feature, layer) {
     const layerId = L.stamp(layer)
     featureIndex.value.set(layerId, layer)
 
-    const props = feature?.properties || {}
-    const text = buildSearchTextForFeatureProps(props)
+    const propsFeature = feature?.properties || {}
+    const text = buildSearchTextForFeatureProps(propsFeature)
     if (text) textIndex.value.push({ text, layerId })
 
     // Cleanup when layer removed (viewport refresh / re-render)
@@ -955,13 +957,32 @@ function onEachFeatureOption(feature, layer) {
     }
 
     // --- popup (existing behavior) ---
-    const html = `<div style="max-height:260px; overflow:auto;">${popupHtmlForProps(props)}</div>`
+    const html = `<div style="max-height:260px; overflow:auto;">${popupHtmlForProps(propsFeature)}</div>`
     if (layer && typeof layer.bindPopup === 'function') {
       layer.bindPopup(html, {
         autoPan: false,
         closeButton: true,
       })
+
+      // --- Tooltip (hover) driven by parent prop ---
+      if (props.mapToolTipOn === true) {
+        // Use same popup html, but as tooltip content
+        layer.bindTooltip(
+          `<div style="max-height:350px; overflow:auto; min-width:300px;">${html}</div>`,
+          {
+            permanent: false,
+            sticky: true,
+            direction: 'top',
+            opacity: 0.95
+          }
+        )
+      } else {
+        // if parent turns it off, ensure old tooltip removed
+        if (typeof layer.unbindTooltip === 'function') layer.unbindTooltip()
+      }
+
     }
+
   } catch (e) {
     console.warn('[PetaPostgis][onEachFeatureOption] failed', e)
   }
@@ -1040,6 +1061,7 @@ const datasetIdsNorm = computed(() => {
 })
 
 // highlight watchers (driven by parent props)
+
 watch(
   () => props.keywordHighlight,
   (v) => { highlightByKeyword(v) },
@@ -1049,6 +1071,39 @@ watch(
 watch(
   () => props.highlightFeatureKey,
   (v) => { highlightByFeatureKey(v) },
+  { immediate: true }
+)
+
+watch(
+  () => props.mapToolTipOn,
+  (on) => {
+    try {
+      // Re-bind tooltips for existing layers
+      for (const lyr of featureIndex.value.values()) {
+        if (!lyr) continue
+        const propsFeature = lyr?.feature?.properties || {}
+        const html = `<div style="max-height:260px; overflow:auto;">${popupHtmlForProps(propsFeature)}</div>`
+
+        if (on === true) {
+          if (typeof lyr.bindTooltip === 'function') {
+            lyr.bindTooltip(
+              `<div style="max-height:350px; overflow:auto; min-width:300px;">${html}</div>`,
+              {
+                permanent: false,
+                sticky: true,
+                direction: 'top',
+                opacity: 0.95
+              }
+            )
+          }
+        } else {
+          if (typeof lyr.unbindTooltip === 'function') lyr.unbindTooltip()
+        }
+      }
+    } catch (e) {
+      console.warn('[PetaPostgis][tooltip] toggle update failed', e)
+    }
+  },
   { immediate: true }
 )
 

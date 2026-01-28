@@ -43,6 +43,11 @@ class FileService {
             headers: authHeader()
         });
     }
+    deleteFileMarker(file_name){
+        return axios.delete(API_URL + `storage/delete-file-marker/${file_name}`, {
+            headers: authHeader()
+        });
+    }
 
     file_url(file_name){
         return API_URL + `storage/files/${file_name}`
@@ -54,6 +59,10 @@ class FileService {
     fileGeojsonGzip(file_name){
         return API_URL + `storage/encode/geojsongzip/${file_name}`
     }
+    fileMarker(file_name){
+        return API_URL + `storage/files_marker/${file_name}`
+    }
+
 
     fileStreamMp4File(file_name){
         return API_URL + `storage/stream/mp4/${file_name}`

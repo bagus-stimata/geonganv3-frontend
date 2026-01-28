@@ -153,11 +153,10 @@ export default {
         return;
       }
 
-
       this.progress = 0;
       this.dialogProgres = true
 
-      UploadService.uploadImage(this.currentImage, (event) => {
+      UploadService.uploadMarker(this.currentImage, (event) => {
         this.progress = Math.round((100 * event.loaded) / event.total);
       })
         .then(response => {

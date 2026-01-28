@@ -381,7 +381,7 @@ function resolveMarkerImageUrl(markerImage) {
 
   try {
     // kalau markerImage itu key/filename dari backend
-    return FileService.image_url_medium(v)
+    return FileService.fileMarker(v)
   } catch (e) {
     console.warn('[PetaPostgis][resolveMarkerImageUrl] fallback raw value', e)
     return v

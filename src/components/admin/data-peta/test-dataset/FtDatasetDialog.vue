@@ -522,10 +522,10 @@
 
       </v-dialog>
 
-      <UploadMarkerWebp
+      <UploadMarkerDialog
           ref="refUploadDialogMerker1"
           @eventUploadSuccess="completeUploadSuccessMarker1"
-      ></UploadMarkerWebp>
+      ></UploadMarkerDialog>
 
       <v-snackbar v-model="snackbar">
         {{ snackBarMessage }}
@@ -603,11 +603,11 @@ import ETipePeta, {ETipePetas} from "@/models/e-tipe-peta";
 import * as XLSX from "xlsx";
 import PetaPostgis from "@/components/public/peta-tematik/PetaPostgis.vue";
 import FtDatasetDialogFeatures from "@/components/admin/data-peta/test-dataset/FtDatasetDialogFeatures.vue";
-import UploadMarkerWebp from "@/components/utils/UploadMarkerWebpDialog.vue";
+import UploadMarkerDialog from "@/components/utils/UploadMarkerDialog.vue";
 
 export default {
   components: {
-    UploadMarkerWebp,
+    UploadMarkerDialog: UploadMarkerDialog,
     FtDatasetDialogFeatures,
     PetaPostgis,
     CloseConfirmDialog,
@@ -1516,7 +1516,7 @@ export default {
         return require('@/assets/images/no_image_available.jpeg')
       } else {
         // console.log(FileService.file_url(markerImage))
-        return FileService.image_url_ori(markerImage);
+        return FileService.fileMarker(markerImage);
       }
     },
     showDialogUploadMarker1() {
@@ -1545,7 +1545,7 @@ export default {
           this.itemModified.markerImage !== undefined &&
           this.itemModified.markerImage !== ""
       ) {
-        FileService.deleteFile(this.itemModified.markerImage).then(
+        FileService.deleteFileMarker(this.itemModified.markerImage).then(
             () => {
               // console.log(response.data);
             },

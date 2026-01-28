@@ -5,6 +5,16 @@ import authHeaderMultipart from "../../services/auth-header-multipart"
 const API_URL = ConstApiUrls.API_SERVICE_URL
 
 class FileUploadService {
+    uploadMarker(file, onUploadProgress) {
+        let formData = new FormData();
+
+        formData.append("file", file);
+
+        return axios.post(API_URL +"storage/upload_marker", formData, {
+            headers: authHeaderMultipart() ,
+            onUploadProgress
+        });
+    }
 
     uploadImage(file, onUploadProgress) {
         let formData = new FormData();

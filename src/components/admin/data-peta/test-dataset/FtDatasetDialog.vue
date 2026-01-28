@@ -437,6 +437,7 @@
               <PetaPostgis
                   ref="refDatasetMap"
                   class="pl-10"
+                  :is-visible-home-button="false"
                   :datasetIds="datasetIds"
               >
               </PetaPostgis>
@@ -739,6 +740,32 @@ export default {
   },
 
   methods: {
+    resetPetaDanEditState() {
+      // Reset mode toggle supaya panel Peta / Edit Data nonaktif saat dialog ditutup
+      this.togglePetaDanEditMode = null;
+      this.datasetIds = [];
+
+      // Drop UI berat yang terkait mode edit/tabel
+      this.featureColumns = [];
+      this.featureColumnsView = [];
+      this.featureRows = [];
+      this.featureFilterInput = "";
+      this.featureFilterText = "";
+      this.featureCurrentPage = 1;
+
+      // Reset flags lokal table geojson
+      this.geojsonForTableLocal = null;
+      this.hasGeojsonForTableLocal = false;
+
+      // Best-effort: bersihkan peta child kalau ada
+      try {
+        if (this.$refs.refDatasetMap) {
+          this.$refs.refDatasetMap.geojsonData = [];
+        }
+      } catch (e) {
+        console.warn("resetPetaDanEditState: reset map failed", e);
+      }
+    },
     setGeoUpdated(value){
       if(value.status === 'ok'){
         this.isGeoUpdated = true
@@ -1215,6 +1242,7 @@ export default {
 
     showDialog(selectedIndex, item) {
       this.dialogShow = !this.dialogShow;
+      this.resetPetaDanEditState();
       if (selectedIndex > -1) {
         this.selectedIndex = selectedIndex;
         this.initializeEditMode(item);
@@ -1358,6 +1386,7 @@ export default {
     async saveAndClose() {
       await this.applyChanges();
       if (this.isItemModified === false) {
+        this.resetPetaDanEditState();
         this.closeForm();
       }
     },
@@ -1402,6 +1431,7 @@ export default {
 
     closeForm() {
       if (!this.isItemModified) {
+        this.resetPetaDanEditState();
         this.dialogShow = false;
         this.$emit("eventFromFormDialog1", this.itemModified);
       } else {
@@ -1413,7 +1443,10 @@ export default {
       this.$emit('fetchDataset')
     },
     passingEventFromCloseConfirm(value) {
-      if (value === "OKE") this.dialogShow = false;
+      if (value === "OKE") {
+        this.resetPetaDanEditState();
+        this.dialogShow = false;
+      }
     },
     initializeEditMode(item) {
       this.formDialogOptions.errorMessage = "";

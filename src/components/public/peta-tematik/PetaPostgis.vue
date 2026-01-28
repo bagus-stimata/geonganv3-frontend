@@ -145,7 +145,6 @@
 import { ref, onMounted, nextTick, onBeforeUnmount, computed, watch } from 'vue'
 import { LMap, LTileLayer, LGeoJson, LControl, LControlZoom as LControlZoomComp, LControlLayers, LFeatureGroup } from '@vue-leaflet/vue-leaflet'
 import L, {Icon} from 'leaflet'
-import 'leaflet.markercluster'
 import 'leaflet.markercluster/dist/MarkerCluster.css'
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 
@@ -444,6 +443,44 @@ let markerClusterGeojsonLayer = null
 let markerPlainGeojsonLayer = null // normal points (no cluster) when zoom >= 13
 const CLUSTER_OFF_AT_ZOOM = 13
 
+let markerClusterPluginPromise = null
+
+async function ensureMarkerClusterPluginLoaded() {
+  // already available
+  if (typeof L?.markerClusterGroup === 'function') return true
+
+  // cached inflight
+  if (markerClusterPluginPromise) return markerClusterPluginPromise
+
+  markerClusterPluginPromise = (async () => {
+    try {
+      // Some builds of markercluster rely on global L
+      if (typeof window !== 'undefined' && window && !window.L) {
+        window.L = L
+      }
+
+      // Import the actual dist file to ensure side-effects run
+      await import('leaflet.markercluster/dist/leaflet.markercluster.js')
+
+      const ok = typeof L?.markerClusterGroup === 'function'
+      if (!ok) {
+        console.warn('[PetaPostgis][cluster] markercluster loaded but L.markerClusterGroup is still missing')
+      }
+      return ok
+    } catch (e) {
+      console.warn('[PetaPostgis][cluster] failed to load markercluster plugin', e)
+      return false
+    } finally {
+      // allow retry if failed
+      if (typeof L?.markerClusterGroup !== 'function') {
+        markerClusterPluginPromise = null
+      }
+    }
+  })()
+
+  return markerClusterPluginPromise
+}
+
 function clearPlainPoints() {
   try {
     const map = mapRef.value?.leafletObject
@@ -473,13 +510,13 @@ function rebuildPlainPointsFromGeojson() {
   }
 }
 
-function ensureMarkerClusterLayer() {
+async function ensureMarkerClusterLayer() {
   try {
     const map = mapRef.value?.leafletObject
     if (!map) return null
 
-    // Guard: kalau plugin belum kebaca, jangan crash
-    if (typeof L?.markerClusterGroup !== 'function') {
+    const ok = await ensureMarkerClusterPluginLoaded()
+    if (!ok || typeof L?.markerClusterGroup !== 'function') {
       console.warn('[PetaPostgis][cluster] markerCluster plugin not loaded (L.markerClusterGroup missing)')
       return null
     }
@@ -519,54 +556,57 @@ function clearMarkerClusters() {
   }
 }
 
-function rebuildMarkerClustersFromGeojson() {
+async function rebuildMarkerClustersFromGeojson() {
   const map = mapRef.value?.leafletObject
   if (!map) return
+  try {
+    const z = Number(map.getZoom?.())
+    const zoomIsClusterOff = Number.isFinite(z) ? (z >= CLUSTER_OFF_AT_ZOOM) : false
 
-  const z = Number(map.getZoom?.())
-  const zoomIsClusterOff = Number.isFinite(z) ? (z >= CLUSTER_OFF_AT_ZOOM) : false
-
-  // zoom >= 13 => normal markers; cluster OFF
-  if (zoomIsClusterOff) {
-    try {
-      clearMarkerClusters()
-      if (markerClusterGroup && map.hasLayer(markerClusterGroup)) {
-        map.removeLayer(markerClusterGroup)
+    // zoom >= 13 => normal markers; cluster OFF
+    if (zoomIsClusterOff) {
+      try {
+        clearMarkerClusters()
+        if (markerClusterGroup && map.hasLayer(markerClusterGroup)) {
+          map.removeLayer(markerClusterGroup)
+        }
+      } catch (e) {
+        console.warn('[PetaPostgis][cluster] detach failed', e)
       }
-    } catch (e) {
-      console.warn('[PetaPostgis][cluster] detach failed', e)
+
+      rebuildPlainPointsFromGeojson()
+      return
     }
 
-    rebuildPlainPointsFromGeojson()
-    return
-  }
+    // zoom < 13 => cluster ON; normal OFF
+    clearPlainPoints()
 
-  // zoom < 13 => cluster ON; normal OFF
-  clearPlainPoints()
+    const grp = await ensureMarkerClusterLayer()
+    if (!grp) {
+      // fallback: plugin cluster gak ada -> tetap tampilkan point normal
+      rebuildPlainPointsFromGeojson()
+      return
+    }
 
-  const grp = ensureMarkerClusterLayer()
-  if (!grp) {
-    // fallback: plugin cluster gak ada -> tetap tampilkan point normal
-    rebuildPlainPointsFromGeojson()
-    return
-  }
+    try {
+      if (!map.hasLayer(grp)) map.addLayer(grp)
+    } catch (e) {
+      console.warn('[PetaPostgis][cluster] attach failed', e)
+    }
 
-  try {
-    if (!map.hasLayer(grp)) map.addLayer(grp)
+    clearMarkerClusters()
+
+    try {
+      markerClusterGeojsonLayer = L.geoJSON(geojsonDataPoint.value, {
+        pointToLayer: pointToLayerOption,
+        onEachFeature: onEachFeatureOption
+      })
+      grp.addLayer(markerClusterGeojsonLayer)
+    } catch (e) {
+      console.warn('[PetaPostgis][cluster] rebuild failed', e)
+    }
   } catch (e) {
-    console.warn('[PetaPostgis][cluster] attach failed', e)
-  }
-
-  clearMarkerClusters()
-
-  try {
-    markerClusterGeojsonLayer = L.geoJSON(geojsonDataPoint.value, {
-      pointToLayer: pointToLayerOption,
-      onEachFeature: onEachFeatureOption
-    })
-    grp.addLayer(markerClusterGeojsonLayer)
-  } catch (e) {
-    console.warn('[PetaPostgis][cluster] rebuild failed', e)
+    console.warn('[PetaPostgis][cluster] rebuildMarkerClustersFromGeojson failed', e)
   }
 }
 
@@ -825,8 +865,8 @@ const pendingRefresh = ref(false)
 
 function onMapReady() {
   isMapReady.value = true
-// init cluster layer early (points use this)
-  ensureMarkerClusterLayer()
+  // preload markercluster plugin (best effort) then build layers
+  ensureMarkerClusterPluginLoaded()
   rebuildMarkerClustersFromGeojson()
 
   // reflow biar ukuran leaflet bener (flex layout / dialog)

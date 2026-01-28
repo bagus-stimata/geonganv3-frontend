@@ -474,20 +474,35 @@ function rebuildPlainPointsFromGeojson() {
 }
 
 function ensureMarkerClusterLayer() {
-  const map = mapRef.value?.leafletObject
-  if (!map) return null
+  try {
+    const map = mapRef.value?.leafletObject
+    if (!map) return null
 
-  if (markerClusterGroup) return markerClusterGroup
+    // Guard: kalau plugin belum kebaca, jangan crash
+    if (typeof L?.markerClusterGroup !== 'function') {
+      console.warn('[PetaPostgis][cluster] markerCluster plugin not loaded (L.markerClusterGroup missing)')
+      return null
+    }
 
-  markerClusterGroup = L.markerClusterGroup({
-    chunkedLoading: true,
-    showCoverageOnHover: false,
-    spiderfyOnMaxZoom: true,
-    removeOutsideVisibleBounds: true
-  })
+    if (markerClusterGroup) return markerClusterGroup
 
-  map.addLayer(markerClusterGroup)
-  return markerClusterGroup
+    markerClusterGroup = L.markerClusterGroup({
+      showCoverageOnHover: false,
+      spiderfyOnMaxZoom: true,
+      disableClusteringAtZoom: 18,
+      chunkedLoading: true,
+      removeOutsideVisibleBounds: true
+    })
+
+    if (!map.hasLayer(markerClusterGroup)) {
+      map.addLayer(markerClusterGroup)
+    }
+
+    return markerClusterGroup
+  } catch (e) {
+    console.warn('[PetaPostgis][cluster] ensureMarkerClusterLayer failed', e)
+    return null
+  }
 }
 
 function clearMarkerClusters() {
@@ -530,7 +545,11 @@ function rebuildMarkerClustersFromGeojson() {
   clearPlainPoints()
 
   const grp = ensureMarkerClusterLayer()
-  if (!grp) return
+  if (!grp) {
+    // fallback: plugin cluster gak ada -> tetap tampilkan point normal
+    rebuildPlainPointsFromGeojson()
+    return
+  }
 
   try {
     if (!map.hasLayer(grp)) map.addLayer(grp)

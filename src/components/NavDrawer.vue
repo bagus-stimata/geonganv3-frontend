@@ -166,7 +166,7 @@ export default {
           title: "Arsip (Dokumen)",
           icon: "mdi-archive",
           active: false,
-          visible: [ERole.ROLE_ADMIN].some((x) =>this.currentUser.roles.includes(x)) && this.currentUser.organizationLevel !== EOrganizationLevel.DIV,
+          visible: [ERole.ROLE_ADMIN].some((x) =>this.currentUser.roles.includes(x)),
           items: [
             {
               title: "Arsip Internal",
@@ -174,7 +174,7 @@ export default {
               icon: "",
               visible: [ERole.ROLE_ADMIN].some((x) =>
                   this.currentUser.roles.includes(x)
-              ) && this.currentUser.organizationLevel !== EOrganizationLevel.DIV,
+              ),
             },
             {
               title: "Kategori Arsip",
@@ -182,7 +182,7 @@ export default {
               icon: "",
               visible: [ERole.ROLE_ADMIN].some((x) =>
                   this.currentUser.roles.includes(x)
-              ) && this.currentUser.organizationLevel !== EOrganizationLevel.DIV,
+              ) ,
             },
 
           ],
@@ -224,7 +224,7 @@ export default {
               icon: "",
               visible: [ERole.ROLE_ADMIN].some((x) =>
                   this.currentUser.roles.includes(x)
-              ) && this.currentUser.organizationLevel !== EOrganizationLevel.DIV,
+              ),
             },
 
             {
@@ -233,7 +233,7 @@ export default {
               icon: "",
               visible: [ERole.ROLE_ADMIN].some((x) =>
                   this.currentUser.roles.includes(x)
-              ) && this.currentUser.organizationLevel !== EOrganizationLevel.DIV,
+              ),
             },
 
 
@@ -263,7 +263,7 @@ export default {
           title: "Setup",
           icon: "mdi-cog",
           active: false,
-          visible: [ERole.ROLE_ADMIN].some((x) => this.currentUser.roles.includes(x)),
+          visible: [ERole.ROLE_ADMIN].some((x) => this.currentUser.roles.includes(x) && this.currentUser.organizationLevel !== EOrganizationLevel.DIV),
           items: [
             // {
             //   title: "Sektor",
@@ -311,7 +311,7 @@ export default {
           title: "Laporan",
           icon: "mdi-note-text",
           active: false,
-          visible: [ERole.ROLE_ADMIN].some((x) => this.currentUser.roles.includes(x)),
+          visible: [ERole.ROLE_ADMIN].some((x) => this.currentUser.roles.includes(x) && this.currentUser.organizationLevel !== EOrganizationLevel.DIV),
           items: [
             {
               title: "Dataset Downloaded",

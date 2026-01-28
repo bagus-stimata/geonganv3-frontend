@@ -1,6 +1,6 @@
 <template>
 <div>
-  <h1 class="ml-4">Ubah Profile Pengguna</h1>
+  <div class="text-h4 text-center mt-4 font-weight-bold">Ubah Profile Pengguna</div>
   <FChangeProfile></FChangeProfile>
 </div>
 </template>

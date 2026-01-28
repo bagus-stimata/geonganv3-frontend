@@ -3,7 +3,7 @@
     <v-card-title>
       <v-row class="align-center">
         <v-col cols="12" sm="12" md="4">
-          <span class="font-weight-bold text-red">{{ title }}</span>
+          <span class="font-weight-bold">{{ title }}</span>
         </v-col>
         <v-col cols="12" sm="12" md="8" class="d-flex justify-center align-center">
           <v-text-field

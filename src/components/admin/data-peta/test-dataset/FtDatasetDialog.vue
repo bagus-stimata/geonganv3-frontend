@@ -97,7 +97,7 @@
                             >
                               <v-img
                                   :src="lookupImageMarkerUrl(itemModified.markerImage)"
-                                  width="140"
+                                  width="120"
                                   height="140"
                                   cover
                               >

@@ -7,6 +7,7 @@
       :dataset-ids="visibleDatasetGeojsonIds"
       :items-mapset-selected="itemsMapsetSelected"
       :draw-enabled="drawToolsOn"
+      :is-visible-home-button="false"
       :is-visible-full-screen-button="false"
       :uploaded-geojson="uploadedGeojson"
       :uploaded-geojson-visible="uploadedGeojsonVisible"
@@ -265,7 +266,7 @@ Icon.Default.mergeOptions({
 });
 
 export default {
-  name: "PetaInteraktif",
+  name: "AdminPetaInteraktif",
   components: {
     DownloadChoiceDialog,
     PetaPostgis,

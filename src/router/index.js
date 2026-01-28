@@ -115,6 +115,11 @@ const routes = [
         name: 'AdminSettingOne',
         component: () => import('../views/admin/setting/SettingOneView.vue')
     },
+    {
+        path: '/admin-peta',
+        name: 'AdminPeta',
+        component: () => import('../views/admin/data-peta/AdminPetaInteraktifView.vue')
+    },
     // ADMIN E-LIBRARY
     {
         path: '/admin-arsip-categ',

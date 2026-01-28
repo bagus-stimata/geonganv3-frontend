@@ -957,7 +957,9 @@ function onEachFeatureOption(feature, layer) {
     }
 
     // --- popup (existing behavior) ---
-    const html = `<div style="max-height:260px; overflow:auto;">${popupHtmlForProps(propsFeature)}</div>`
+    const html = `<div style="max-height:260px; overflow:auto;">
+                    ${popupHtmlForProps(propsFeature)}
+                  </div>`
     if (layer && typeof layer.bindPopup === 'function') {
       layer.bindPopup(html, {
         autoPan: false,
@@ -1918,7 +1920,28 @@ function jsonToHtmlTable(jsonValue, keys = []) {
     return `<div style="font-size:12px; opacity:0.75; padding:2px 0;">Tidak ada data.</div>`
   }
 
-  return `<table style="min-width:240px; max-width:340px; font-size:12px;"><tbody>${rows}</tbody></table>`
+  return `
+       <button
+          type="button"
+          onclick="window.openInGmap()"
+          style="
+            padding: 6px 10px;
+            border: 1px solid #bbb;
+            background: #f5f5f5;
+            color: #222;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+          "
+        >
+          Open in Gmap
+        </button>
+        <table style="min-width:240px; max-width:340px; font-size:12px;"><tbody>${rows}</tbody></table>
+        `
+}
+function openInGmap() {
+  const url = `https://www.google.com/maps/search/?api=1&query=$`
+  window.open(url, '_blank')
 }
 
 function popupHtmlForProps(props) {
@@ -2051,6 +2074,7 @@ function setDrawEnabled(enabled) {
 onMounted(async () => {
   await nextTick()
 
+  window.openInGmap = openInGmap
   // invalidate once on first paint
   invalidateMapSize()
 
@@ -2070,6 +2094,8 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  delete window.openInGmap
+
   document.removeEventListener('fullscreenchange', onFsChange)
   clearMarkerClusters()
   clearPlainPoints()

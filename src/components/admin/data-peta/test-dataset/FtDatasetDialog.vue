@@ -522,10 +522,10 @@
 
       </v-dialog>
 
-      <UploadImageDialog
+      <UploadMarkerWebp
           ref="refUploadDialogMerker1"
           @eventUploadSuccess="completeUploadSuccessMarker1"
-      ></UploadImageDialog>
+      ></UploadMarkerWebp>
 
       <v-snackbar v-model="snackbar">
         {{ snackBarMessage }}
@@ -603,9 +603,11 @@ import ETipePeta, {ETipePetas} from "@/models/e-tipe-peta";
 import * as XLSX from "xlsx";
 import PetaPostgis from "@/components/public/peta-tematik/PetaPostgis.vue";
 import FtDatasetDialogFeatures from "@/components/admin/data-peta/test-dataset/FtDatasetDialogFeatures.vue";
+import UploadMarkerWebp from "@/components/utils/UploadMarkerWebpDialog.vue";
 
 export default {
   components: {
+    UploadMarkerWebp,
     FtDatasetDialogFeatures,
     PetaPostgis,
     CloseConfirmDialog,

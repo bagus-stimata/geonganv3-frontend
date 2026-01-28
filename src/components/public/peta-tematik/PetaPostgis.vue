@@ -480,7 +480,7 @@ function getMarkerIconForFeature(feature) {
       ds?.marker
     )
 
-    console.log(markerImageRaw)
+    // console.log(markerImageRaw)
 
     const markerImageUrl = resolveMarkerImageUrl(markerImageRaw)
     if (!markerImageUrl) return null

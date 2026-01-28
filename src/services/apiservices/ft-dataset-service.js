@@ -26,6 +26,16 @@ class FtDatasetService {
             }
         );
     }
+    exportMultipleFtDatasetZipMixed(datasetIds) {
+        return axios.post(
+            API_URL + `public/exportMultipleFtDatasetZipMixed`,
+            datasetIds,
+            {
+                headers: authHeader(),
+                responseType: "blob",
+            }
+        );
+    }
 
     /**
      * Ambil satu dataset by id (private, pakai auth, role-aware).

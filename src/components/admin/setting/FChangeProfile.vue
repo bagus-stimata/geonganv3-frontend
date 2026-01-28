@@ -9,7 +9,6 @@
             sm="6"
             md="6"
           >
-            <header>
               <div class="text-subtitle-1 font-weight-bold">
                 <v-icon size="default" class="me-2" color="blue">mdi-account</v-icon><span>Username: <span class="font-weight-regular text-grey-darken-2">{{currentUser.username}}</span></span>
               </div>
@@ -26,11 +25,10 @@
                 <div>Authorities:</div>
                 <div class="ps-8">
                   <ul class="text-subtitle-2">
-                    <li v-for="(role,index) in currentUser.roles" :key="index">{{role}}</li>
+                    <li v-for="(role,index) in (currentUser.roles || [])" :key="index">{{role}}</li>
                   </ul>
                 </div>
               </div>
-            </header>
           </v-col>
         </v-row>
       </v-card-text>
@@ -108,9 +106,9 @@
         v-model="snackbar"
     >
       {{ snackBarMesage }}
-      <template v-slot:action="{ attrs }">
+      <template v-slot:actions="{ attrs }">
         <v-btn
-            text
+            variant="text"
             v-bind="attrs"
             @click="snackbar = false"
         >
@@ -146,7 +144,8 @@ export default {
       infoDialogTitle: '',
       infoDialogMessage: '',
 
-      itemModified: '',
+      itemModified: {},
+      itemDefault: {},
       itemsFDivision: [
         { id: 0, kode1: '', description: '-' },
       ],
@@ -169,7 +168,16 @@ export default {
   },
   computed:{
     currentUser() {
-      return this.$store.state.auth.user;
+      return (
+        this.$store.state.auth.user ||
+        {
+          username: "",
+          email: "",
+          fdivisionBean: 0,
+          organizationLevel: "",
+          roles: []
+        }
+      );
     },
     isItemModified() {
       const defaultItem = JSON.stringify(this.itemDefault)
@@ -194,8 +202,7 @@ export default {
       // this.itemModified.password = ''
       if (this.$refs.form.validate()){
         AuthService.updateUser(this.itemModified).then(
-            response => {
-              console.log(response.data)
+            () => {
 
               this.infoDialogTitle = 'Info'
               this.infoDialogMessage = 'Sukses simpan user'
@@ -213,7 +220,7 @@ export default {
 
 
     fetchUsers() {
-      if (this.currentUser !==undefined) {
+      if (this.currentUser !== undefined && this.currentUser.username) {
         UserService.getUserByUsername(this.currentUser.username).then(
             response => {
 

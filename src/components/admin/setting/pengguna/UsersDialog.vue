@@ -79,6 +79,7 @@
                     :type="show1 ? 'text' : 'password'"
                     label="Password"
                     hide-details
+                    :rules="rulesNotEmpty"
                     @click:append="show1 = !show1"
                     clearable
                     variant="outlined"
@@ -145,6 +146,7 @@
                   <v-autocomplete
                     v-model="itemModified.organizationLevel"
                     :items="itemsOrganizationLevel"
+                    :rules="rulesNotEmpty"
                     item-value="id"
                     item-title="description"
                     auto-select-first
@@ -165,6 +167,7 @@
                   <v-autocomplete
                     v-model="itemModified.roles"
                     :items="itemsRolesComputed"
+                    :rules="rulesNotEmpty"
                     item-value="id"
                     item-title="description"
                     auto-select-first
@@ -310,8 +313,8 @@ export default {
         this.selectedIndex = selectedIndex;
         this.initializeEditMode(item);
       } else {
-        this.itemDefault = new User(0, "", "", "");
-        this.itemModified = new User(0, "", "", "");
+        this.itemDefault = new User();
+        this.itemModified = new User();
         this.selectedIndex = -1;
       }
       this.itemsFDivision = itemsFDivision;

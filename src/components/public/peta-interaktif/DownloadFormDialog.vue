@@ -55,7 +55,7 @@
                 ></v-text-field>
               </v-col>
             </v-row>
-            <v-btn class="mt-4" block :disabled="!valid" @click="sendInfo" variant="flat" color="indigo">Download Data</v-btn>
+            <v-btn class="mt-4" block :disabled="!valid" @click="next" variant="flat" color="indigo">Selanjutnya</v-btn>
           </v-card-text>
         </v-form>
       </v-card>
@@ -66,7 +66,6 @@
 <script>
 
 import FGeoDownload from "@/models/f-geo-download";
-import FGeoDownloadService from "@/services/apiservices/f-geo-download-service";
 
 export default {
   name: "DownloadFormDialog",
@@ -108,60 +107,17 @@ export default {
       this.dialogShow = true
       this.itemsMapsetSelected = itemsMapsetSelected
     },
-    sendInfo(){
+    next(){
       if (this.$refs.form.validate()) {
-        const fdivision = this.itemsFDivision.filter(
-            (x) => x.description && x.description.toUpperCase().includes("DISKOMINFO")
-        );
-        if (fdivision.length > 0) {
-          this.itemModified.fdivisionBean = fdivision[0].id;
-        }
-
-        // Build array of FGeoDownload, satu entry per itemsMapsetSelected
-        const payload = (this.itemsMapsetSelected || []).map((item) => {
-          const entry = new FGeoDownload();
-          entry.description = this.itemModified.description;
-          entry.email = this.itemModified.email;
-          entry.instansi = this.itemModified.instansi;
-          entry.notes = item && item.description ? item.description : "";
-          entry.ftDatasetBean = item && item.id ? item.id : 0;
-          entry.fdivisionBean = this.itemModified.fdivisionBean;
-          entry.statusActive = true;
-          return entry;
-        });
-
-        if (payload.length === 0) {
-          // Tidak ada dataset terpilih, cukup simpan downloader dan keluar
-          const currentDownloader = {
-            description: this.itemModified.description,
-            email: this.itemModified.email,
-            instansi: this.itemModified.instansi,
-            dateFilled: new Date().toISOString(),
-          };
-          localStorage.setItem("currentDownloader", JSON.stringify(currentDownloader));
-          this.closeForm()
-          return;
-        }
-
-        FGeoDownloadService.createFGeoDownloadMultiple(payload).then(
-            () => {
-              const currentDownloader = {
-                description: this.itemModified.description,
-                email: this.itemModified.email,
-                instansi: this.itemModified.instansi,
-                dateFilled: new Date().toISOString(),
-              };
-              localStorage.setItem(
-                  "currentDownloader",
-                  JSON.stringify(currentDownloader)
-              );
-              this.$emit('downloadGeojsonZip')
-              this.closeForm()
-            },
-            (err) => {
-              console.log(err);
-            }
-        );
+        const currentDownloader = {
+          description: this.itemModified.description,
+          email: this.itemModified.email,
+          instansi: this.itemModified.instansi,
+          dateFilled: new Date().toISOString(),
+        };
+        localStorage.setItem("currentDownloader", JSON.stringify(currentDownloader));
+        this.$emit('showDialogDownloadChoice')
+        this.closeForm()
       }
     },
     closeForm() {

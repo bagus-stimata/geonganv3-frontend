@@ -9,6 +9,8 @@
       :draw-enabled="drawToolsOn"
       :uploaded-geojson="uploadedGeojson"
       :uploaded-geojson-visible="uploadedGeojsonVisible"
+      :uploadedGeojson="uploadedGeojson"
+      :uploadedGeojsonVisible="uploadedGeojsonVisible"
     />
     <v-card elevation="0" width="280" class="map-overlay-card bg-transparent ma-md-2 ma-1">
       <v-card-title class="bg-white py-4 rounded-lg">
@@ -193,7 +195,8 @@
         <span class="snackbar-center">{{ snackbar.text }}</span>
     </v-snackbar>
     <PickMapsetDialog @applyPeta="applyPeta" ref="refPickMapsetDialog"></PickMapsetDialog>
-    <DownloadFormDialog :itemsFDivision="itemsFDivision" @downloadGeojsonZip="downloadGeojsonZip" ref="refDownloadFormDialog"></DownloadFormDialog>
+    <DownloadFormDialog :itemsFDivision="itemsFDivision" @showDialogDownloadChoice="showDialogDownloadChoice" ref="refDownloadFormDialog"></DownloadFormDialog>
+    <DownloadChoiceDialog :itemsFDivision="itemsFDivision" @downloadGeojsonZip="downloadGeojsonZip" ref="refDownloadChoiceDialog"></DownloadChoiceDialog>
     <UploadGeojsonDialog
         ref="refUploadGeojsonDialog"
         @geojsonUploaded="onGeojsonUploaded"
@@ -259,12 +262,11 @@ import FtTematikDatasetService from "@/services/apiservices/ft-tematik-dataset-s
 import {lookupImageUrl} from "@/helpers/lookup-file-helper";
 import FileService from "@/services/apiservices/file-service";
 import DownloadFormDialog from "@/components/public/peta-interaktif/DownloadFormDialog.vue";
-import FGeoDownload from "@/models/f-geo-download";
 import FDivisionService from "@/services/apiservices/f-division-service";
-import FGeoDownloadService from "@/services/apiservices/f-geo-download-service";
 import UploadGeojsonDialog from "@/components/public/peta-interaktif/UploadGeojsonDialog.vue";
 import ETipePeta from "@/models/e-tipe-peta";
 import PetaPostgis from "@/components/public/peta-tematik/PetaPostgis.vue";
+import DownloadChoiceDialog from "@/components/public/peta-interaktif/DownloadChoiceDialog.vue";
 
 delete Icon.Default.prototype.Default;
 // Icon.Default.mergeOptions({
@@ -281,6 +283,7 @@ Icon.Default.mergeOptions({
 export default {
   name: "PetaInteraktif",
   components: {
+    DownloadChoiceDialog,
     PetaPostgis,
     UploadGeojsonDialog,
     DownloadFormDialog,
@@ -448,40 +451,6 @@ export default {
     };
   },
   computed: {
-
-    computedTileProviders(){
-      const base = Array.isArray(this.tileProviders) ? this.tileProviders.slice() : [];
-      if (this.currentUser && this.googleApiKey) {
-        const extras = [
-
-          {
-            name: "Google Satellite",
-            visible: false,
-            url: `https://maps.googleapis.com/maps/vt?lyrs=s&x={x}&y={y}&z={z}&key=${this.googleApiKey}`,
-            attribution: '&copy; Google',
-            subdomains: undefined,
-            maxNativeZoom: 21,
-          },
-        ];
-        const merged = [...base];
-        for (const p of extras) {
-          if (!merged.some(x => x && x.name === p.name)) merged.push(p);
-        }
-        return merged;
-      }
-      return base;
-    },
-    visibleDatasetGeojsonItems() {
-      const selected = Array.isArray(this.itemsMapsetSelected) ? this.itemsMapsetSelected : [];
-      const visibleIds = new Set(
-        selected
-          .filter(x => x && x.id != null && x.hasGeojson !== false)
-          .map(x => x.id)
-      );
-      // console.log(this.itemsDatasetGeojson)
-      const cache = Array.isArray(this.itemsDatasetGeojson) ? this.itemsDatasetGeojson : [];
-      return cache.filter(ds => ds && ds.id != null && visibleIds.has(ds.id));
-    },
     visibleDatasetGeojsonIds() {
       const selected = Array.isArray(this.itemsMapsetSelected) ? this.itemsMapsetSelected : [];
       return selected
@@ -496,12 +465,6 @@ export default {
       const md = this.winWidth <= 960;
       const coarse = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
       return (this.hasTouch || coarse) && (sm || md);
-    },
-    markerProps() {
-      const lat = this.singleMarker?.coords?.[0];
-      const lng = this.singleMarker?.coords?.[1];
-      if (lat == null || lng == null) return null;
-      return this.getFastPropsAtFromFeatureIndex(lat, lng);
     },
     options() {
       return {
@@ -588,7 +551,6 @@ export default {
   methods: {
     formatHectares(valueHa) {
       if (!Number.isFinite(valueHa)) return '';
-      // 4 decimals is usually enough for map drawing
       return Number(valueHa.toFixed(4));
     },
 
@@ -596,7 +558,6 @@ export default {
       try {
         if (!layer) return;
 
-        // Only show area tooltip for shapes that have area: Polygon/Rectangle/Circle
         let areaM2 = null;
 
         if (layer instanceof L.Circle && typeof layer.getRadius === 'function') {
@@ -633,41 +594,6 @@ export default {
         console.warn('[PetaInteraktif][setDrawnAreaTooltip] error', e);
       }
     },
-    initDrawTools(map) {
-      try {
-        if (!map) return;
-        if (this.drawnItems) return; // already init
-
-        this.drawnItems = new L.FeatureGroup();
-        map.addLayer(this.drawnItems);
-
-        this.drawControl = new L.Control.Draw({
-          position: 'bottomright',
-          edit: {
-            featureGroup: this.drawnItems,
-            remove: true,
-          },
-          draw: {
-            polygon: true,
-            polyline: true,
-            rectangle: true,
-            circle: true,
-            marker: true,
-            circlemarker: false,
-          }
-        });
-
-        if (!this.drawHandlers.created) this.drawHandlers.created = (ev) => this.onDrawCreated(ev);
-        if (!this.drawHandlers.edited) this.drawHandlers.edited = (ev) => this.onDrawEdited(ev);
-        if (!this.drawHandlers.deleted) this.drawHandlers.deleted = (ev) => this.onDrawDeleted(ev);
-
-        map.on(L.Draw.Event.CREATED, this.drawHandlers.created);
-        map.on(L.Draw.Event.EDITED, this.drawHandlers.edited);
-        map.on(L.Draw.Event.DELETED, this.drawHandlers.deleted);
-      } catch (e) {
-        console.error('[PetaInteraktif][initDrawTools] error', e);
-      }
-    },
 
     toggleDrawTools() {
       // Draw tools are handled inside PetaPostgis (Leaflet control)
@@ -681,79 +607,9 @@ export default {
         timeout: 1500,
       };
     },
-
-    onDrawCreated(e) {
-      try {
-        const layer = e?.layer;
-        if (!layer) return;
-
-        if (this.drawnItems && this.drawnItems.addLayer) {
-          this.drawnItems.addLayer(layer);
-        }
-        // Tooltip luas (ha) untuk shape yang punya area
-        this.setDrawnAreaTooltip(layer);
-
-        const gj = layer.toGeoJSON ? layer.toGeoJSON() : null;
-
-        // circle: simpen radius biar kepake
-        if (gj) {
-          if (!gj.properties) gj.properties = {};
-          if (layer instanceof L.Circle && typeof layer.getRadius === 'function') {
-            gj.properties.radiusMeters = layer.getRadius();
-          }
-          this.lastDrawnGeojson = gj;
-
-          // optional: emit ke parent
-          this.$emit('shapeDrawn', gj);
-        }
-
-        this.snackbar = { show: true, color: 'success', text: 'Shape berhasil digambar', timeout: 1500 };
-      } catch (err) {
-        console.error('[PetaInteraktif][onDrawCreated] error', err);
-        this.snackbar = { show: true, color: 'error', text: 'Gagal menggambar shape', timeout: 1800 };
-      }
-    },
-
-    onDrawEdited(e) {
-      try {
-        const layers = e && e.layers && typeof e.layers.eachLayer === 'function' ? e.layers : null;
-        if (layers) {
-          layers.eachLayer((layer) => {
-            this.setDrawnAreaTooltip(layer);
-          });
-        }
-
-        this.$emit('shapesEdited', this.exportDrawnGeojson());
-        this.snackbar = { show: true, color: 'info', text: 'Shape diperbarui', timeout: 1200 };
-      } catch (err) {
-        console.warn('[PetaInteraktif][onDrawEdited] error', err);
-      }
-    },
-
-    onDrawDeleted() {
-      try {
-        this.$emit('shapesDeleted', this.exportDrawnGeojson());
-        this.snackbar = { show: true, color: 'info', text: 'Shape dihapus', timeout: 1200 };
-      } catch (err) {
-        console.warn('[PetaInteraktif][onDrawDeleted] error', err);
-      }
-    },
-
-    exportDrawnGeojson() {
-      try {
-        if (!this.drawnItems) return { type: 'FeatureCollection', features: [] };
-        const fc = this.drawnItems.toGeoJSON ? this.drawnItems.toGeoJSON() : null;
-        if (fc && fc.type === 'FeatureCollection') return fc;
-        return { type: 'FeatureCollection', features: [] };
-      } catch (e) {
-        console.warn('[PetaInteraktif][exportDrawnGeojson] error', e);
-        return { type: 'FeatureCollection', features: [] };
-      }
-    },
     isPointTipePeta(tipePeta) {
       return tipePeta === ETipePeta.POINT
     },
-
     resolveMarkerImageUrl(markerImage) {
       const v = (markerImage == null) ? '' : String(markerImage).trim();
       if (!v) return '';
@@ -870,6 +726,21 @@ export default {
       }
       this.$refs.refDownloadFormDialog.showDialog(this.itemsMapsetSelected)
     },
+    showDialogDownloadChoice(){
+      const ids = Array.isArray(this.itemsMapsetSelected)
+          ? this.itemsMapsetSelected.map(x => x && x.id).filter(v => Number.isFinite(v))
+          : [];
+      if (ids.length === 0) {
+        this.snackbar = {
+          show: true,
+          color: "warning",
+          text: "Belum ada dataset yang dipilih",
+          timeout: 1500,
+        };
+        return;
+      }
+      this.$refs.refDownloadChoiceDialog.showDialog(this.itemsMapsetSelected)
+    },
     downloadOrFilledFormGeojson() {
       // Pastikan ada dataset yang dipilih dulu
       const ids = Array.isArray(this.itemsMapsetSelected)
@@ -884,10 +755,9 @@ export default {
         };
         return;
       }
-
-      // Baca currentDownloader dari localStorage
       const raw = localStorage.getItem("currentDownloader");
       let currentDownloader = null;
+      console.log(currentDownloader)
 
       if (raw) {
         try {
@@ -914,53 +784,10 @@ export default {
         this.showDialogDownloadGeojson();
         return;
       }
-        // Isi fdivisionBean default (KOMINFO) jika ketemu
-        const fdivision = this.itemsFDivision.filter(
-            (x) => x.description && x.description.toUpperCase().includes("DISKOMINFO")
-        );
-        if (fdivision.length > 0) {
-          currentDownloader.fdivisionBean = fdivision[0].id;
-        }
 
-        // Build payload FGeoDownload per dataset terpilih
-        const payload = (this.itemsMapsetSelected || []).map((item) => {
-          const entry = new FGeoDownload();
-          entry.description = currentDownloader.description;
-          entry.email = currentDownloader.email;
-          entry.instansi = currentDownloader.instansi;
-          entry.notes = item && item.description ? item.description : "";
-          entry.ftDatasetBean = item && item.id ? item.id : 0;
-          entry.fdivisionBean = currentDownloader.fdivisionBean;
-          entry.statusActive = true;
-          return entry;
-        });
-
-        if (payload.length === 0) {
-          this.snackbar = {
-            show: true,
-            color: "warning",
-            text: "Belum ada dataset yang valid untuk di-download",
-            timeout: 1500,
-          };
-          return;
-        }
-
-        // Kirim log download dulu, lalu jalankan export ZIP
-        FGeoDownloadService.createFGeoDownloadMultiple(payload)
-            .then(() => {
-              this.downloadGeojsonZip();
-            })
-            .catch((err) => {
-              console.error("createFGeoDownloadMultiple error", err);
-              this.snackbar = {
-                show: true,
-                color: "error",
-                text: "Gagal menyimpan info download",
-                timeout: 2000,
-              };
-            });
+      this.showDialogDownloadChoice()
     },
-    downloadGeojsonZip() {
+    downloadGeojsonZip(choice) {
       const ids = Array.isArray(this.itemsMapsetSelected)
           ? this.itemsMapsetSelected.map(x => x && x.id).filter(v => Number.isFinite(v))
           : [];
@@ -975,36 +802,71 @@ export default {
       }
 
       this.loadingSync = true
-      FtDatasetService.exportGeojsonFtDatasetZip(ids)
-          .then((res) => {
-            const blob = new Blob([res.data], {type: "application/zip"});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "datasets_geojson.zip";
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+      if(choice === 'FULLY GEOJSON'){
+        FtDatasetService.exportGeojsonFtDatasetZip(ids)
+            .then((res) => {
+              const blob = new Blob([res.data], {type: "application/zip"});
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = "datasets_geojson.zip";
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
 
-            this.loadingSync = false
-            this.snackbar = {
-              show: true,
-              color: "primary",
-              text: "Download dimulai",
-              timeout: 1500,
-            };
-          })
-          .catch((e) => {
-            console.error("downloadGeojsonZip error", e);
-            this.loadingSync = false
-            this.snackbar = {
-              show: true,
-              color: "error",
-              text: "Gagal membuat file ZIP",
-              timeout: 1800,
-            };
-          });
+              this.loadingSync = false
+              this.snackbar = {
+                show: true,
+                color: "primary",
+                text: "Download dimulai",
+                timeout: 1500,
+              };
+            })
+            .catch((e) => {
+              console.error("downloadGeojsonZip error", e);
+              this.loadingSync = false
+              this.snackbar = {
+                show: true,
+                color: "error",
+                text: "Gagal membuat file ZIP",
+                timeout: 1800,
+              };
+            });
+      } else if(choice === 'POINT TO EXCEL'){
+        FtDatasetService.exportMultipleFtDatasetZipMixed(ids)
+            .then((res) => {
+              const blob = new Blob([res.data], {type: "application/zip"});
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = "datasets_geojson.zip";
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+
+              this.loadingSync = false
+              this.snackbar = {
+                show: true,
+                color: "primary",
+                text: "Download dimulai",
+                timeout: 1500,
+              };
+            })
+            .catch((e) => {
+              console.error("downloadGeojsonZip error", e);
+              this.loadingSync = false
+              this.snackbar = {
+                show: true,
+                color: "error",
+                text: "Gagal membuat file ZIP",
+                timeout: 1800,
+              };
+            });
+      }
+
+
     },
     setMapToolTip() {
       this.mapToolTipOn = !this.mapToolTipOn;

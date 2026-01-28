@@ -11,6 +11,7 @@
       :uploaded-geojson-visible="uploadedGeojsonVisible"
       :uploadedGeojson="uploadedGeojson"
       :uploadedGeojsonVisible="uploadedGeojsonVisible"
+      :mapToolTipOn="mapToolTipOn"
     />
     <v-card elevation="0" width="280" class="map-overlay-card bg-transparent ma-md-2 ma-1">
       <v-card-title class="bg-white py-4 rounded-lg">

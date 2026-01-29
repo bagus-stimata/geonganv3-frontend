@@ -81,14 +81,14 @@
                           <v-row class="align-center justify-center pe-4">
                             <v-col cols="10">
                               <div>
-                                <div class="text-caption font-weight-bold text-indigo">
+                                <div class="text-caption text-capitalize font-weight-bold text-indigo">
                                   {{ dataset.description }}
                                 </div>
                                 <div
                                     style="font-size: 11px !important"
-                                    class="text-caption font-weight-light text-grey-darken-4"
+                                    class="text-caption text-capitalize font-weight-light text-grey-darken-4"
                                 >
-                                  {{ dataset.notes }} - {{dataset.tahun}}
+                                  {{ truncateNotes(dataset.notes) }} - {{dataset.tahun}}
                                 </div>
                               </div>
                             </v-col>
@@ -279,7 +279,10 @@ export default {
 
   },
   methods: {
-
+    truncateNotes(notes) {
+      if (!notes) return "";
+      return notes.length > 35 ? notes.substring(0, 34) + "…" : notes;
+    },
     deleteItem(item) {
       this.itemsMapsetSelected = this.itemsMapsetSelected.filter(
           it => it.id !== item.id

@@ -11,6 +11,7 @@
       :uploaded-geojson="uploadedGeojson"
       :uploaded-geojson-visible="uploadedGeojsonVisible"
       :mapToolTipOn="mapToolTipOn"
+      :keywordHighlight="keywordHighlight"
     />
     <v-card elevation="0" width="280" class="map-overlay-card bg-transparent ma-md-2 ma-1">
       <v-card-title class="bg-white py-4 rounded-lg">
@@ -44,7 +45,7 @@
               @blur="searchAndHighlight(searchText)"
               append-inner-icon="mdi-magnify"
               density="compact"
-              label="Cari pada peta (highlight)"
+              label="Cari peta tampil"
               hide-details
               class="rounded-lg text-caption border-opacity-25 mt-2 mx-2"
               variant="outlined"
@@ -238,7 +239,7 @@
 
 <script>
 import "leaflet/dist/leaflet.css";
-import L, {Icon} from 'leaflet';
+import {Icon} from 'leaflet';
 import 'leaflet-fullscreen';
 import 'leaflet-fullscreen/dist/leaflet.fullscreen.css';
 import 'leaflet-draw';
@@ -281,6 +282,7 @@ export default {
       ftTematik: undefined,
       loadingSync:false,
       mapToolTipOn: false,
+      keywordHighlight: '',
 
       isApply: false,
       itemsMapsetSelected:[],
@@ -750,70 +752,72 @@ export default {
       return minD;
     },
     searchAndHighlight(term) {
-      const q = String(term || '').toLowerCase().trim();
-      if (!q) {
-        this._clearHighlights();
-        return;
-      }
-      const matches = this.textIndex
-          .filter(x => x.text.includes(q))
-          .map(x => this.featureIndex.get(x.layerId))
-          .filter(Boolean);
-
-      if (matches.length === 0) {
-        this.snackbar = {
-          show: true,
-          color: 'warning',
-          text: `Tidak ditemukan: ${term}`,
-          timeout: 1500
-        };
-        this._clearHighlights();
-        return;
-      }
-
-      this._clearHighlights();
-      const bounds = L.latLngBounds();
-
-      for (const lyr of matches) {
-        const id = L.stamp(lyr);
-
-        // 1) Highlight untuk layer yang mendukung setStyle (Polygon/Line/CircleMarker)
-        if (typeof lyr.setStyle === 'function') {
-          this._highlightStyle(lyr);
-          this.highlighted.add(id);
-        }
-        // 2) Highlight untuk marker (Point) dengan icon DOM
-        else if (typeof lyr.getLatLng === 'function' && lyr._icon) {
-          lyr._icon.classList.add('marker-highlighted');
-          this.highlighted.add(id);
-        }
-
-        // 3) Kumpulkan bounds:
-        //    - Polygon/Line → pakai getBounds()
-        //    - Point (Marker / CircleMarker) → pakai getLatLng()
-        if (typeof lyr.getBounds === 'function') {
-          const b = lyr.getBounds();
-          if (b && b.isValid && b.isValid()) {
-            bounds.extend(b);
-          }
-        } else if (typeof lyr.getLatLng === 'function') {
-          const p = lyr.getLatLng();
-          if (p) bounds.extend(p);
-        }
-      }
-
-      const map = this.$refs.map?.leafletObject || this.$refs.map?.mapObject;
-      if (map && bounds.isValid && bounds.isValid()) {
-        if (matches.length === 1) {
-          // Kalau cuma 1 hasil, fokus ke titik / area itu
-          const center = bounds.getCenter();
-          const targetZoom = map.getZoom() < 16 ? 16 : map.getZoom();
-          map.setView(center, targetZoom, { animate: true });
-        } else {
-          // Kalau banyak hasil, fit semua
-          map.fitBounds(bounds.pad(0.1), { animate: true });
-        }
-      }
+      if (!term) return;
+      this.keywordHighlight = term
+      // const q = String(term || '').toLowerCase().trim();
+      // if (!q) {
+      //   this._clearHighlights();
+      //   return;
+      // }
+      // const matches = this.textIndex
+      //     .filter(x => x.text.includes(q))
+      //     .map(x => this.featureIndex.get(x.layerId))
+      //     .filter(Boolean);
+      //
+      // if (matches.length === 0) {
+      //   this.snackbar = {
+      //     show: true,
+      //     color: 'warning',
+      //     text: `Tidak ditemukan: ${term}`,
+      //     timeout: 1500
+      //   };
+      //   this._clearHighlights();
+      //   return;
+      // }
+      //
+      // this._clearHighlights();
+      // const bounds = L.latLngBounds();
+      //
+      // for (const lyr of matches) {
+      //   const id = L.stamp(lyr);
+      //
+      //   // 1) Highlight untuk layer yang mendukung setStyle (Polygon/Line/CircleMarker)
+      //   if (typeof lyr.setStyle === 'function') {
+      //     this._highlightStyle(lyr);
+      //     this.highlighted.add(id);
+      //   }
+      //   // 2) Highlight untuk marker (Point) dengan icon DOM
+      //   else if (typeof lyr.getLatLng === 'function' && lyr._icon) {
+      //     lyr._icon.classList.add('marker-highlighted');
+      //     this.highlighted.add(id);
+      //   }
+      //
+      //   // 3) Kumpulkan bounds:
+      //   //    - Polygon/Line → pakai getBounds()
+      //   //    - Point (Marker / CircleMarker) → pakai getLatLng()
+      //   if (typeof lyr.getBounds === 'function') {
+      //     const b = lyr.getBounds();
+      //     if (b && b.isValid && b.isValid()) {
+      //       bounds.extend(b);
+      //     }
+      //   } else if (typeof lyr.getLatLng === 'function') {
+      //     const p = lyr.getLatLng();
+      //     if (p) bounds.extend(p);
+      //   }
+      // }
+      //
+      // const map = this.$refs.map?.leafletObject || this.$refs.map?.mapObject;
+      // if (map && bounds.isValid && bounds.isValid()) {
+      //   if (matches.length === 1) {
+      //     // Kalau cuma 1 hasil, fokus ke titik / area itu
+      //     const center = bounds.getCenter();
+      //     const targetZoom = map.getZoom() < 16 ? 16 : map.getZoom();
+      //     map.setView(center, targetZoom, { animate: true });
+      //   } else {
+      //     // Kalau banyak hasil, fit semua
+      //     map.fitBounds(bounds.pad(0.1), { animate: true });
+      //   }
+      // }
 
       this.showSearchMenu = false;
     },

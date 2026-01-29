@@ -235,20 +235,19 @@
 
           <div v-if="isGeoJsonDeleted" class="text-caption text-orange ml-6">Batal untuk membatalkan dan Save and Close untuk menerapkan penghapusan</div>
           <v-card-text class="mt-0" v-if="! isGeoJsonDeleted">
-            <!-- Mode: pilih file baru (belum ada geojson tersimpan ATAU user sudah pilih file baru) -->
             <v-row v-if="!hasStoredGeojson || geojsonFileName">
-              <v-col cols="12" sm="8" md="8">
-                <v-file-input
-                    v-model="geojsonFile"
-                    label="Pilih File GeoJSON (.geojson) atau Excell (.xlsx)"
-                    accept=".geojson,.json,.xlsx,.xls"
-                    variant="outlined"
-                    density="compact"
-                    prepend-inner-icon="mdi-file-upload"
-                    @change="onGeojsonFileSelected"
-                    hide-details
-                ></v-file-input>
-                <div class="text-caption mt-2"  v-if="geojsonFileName">
+              <v-col cols="12" sm="8" md="3">
+                <v-btn
+                  block
+                  color="green"
+                  variant="elevated"
+                  class="rounded-lg font-weight-black"
+                  style="text-transform: none;"
+                  @click="openUploadGeojsonExcelDialog"
+                >
+                  Pilih File GeoJSON / Excel
+                </v-btn>
+                <div class="text-caption mt-2" v-if="geojsonFileName">
                   File terpilih:
                   <strong>{{ geojsonFileName }}</strong>
                 </div>
@@ -277,7 +276,7 @@
                     color="primary"
                     variant="flat"
                     class="mr-2 rounded-lg"
-                    @click="downloadInlineGeojson"
+                    @click="downloadDataset"
                 >
                   Download GeoJSON
                 </v-btn>
@@ -534,6 +533,13 @@
           <v-btn text v-bind="attrs" @click="snackbar = false"> Close </v-btn>
         </template>
       </v-snackbar>
+      <DatasetDownloadDialog ref="refDatasetDownloadDialog"></DatasetDownloadDialog>
+      <UploadGeojsonExcelDatasetDialog
+        ref="refUploadGeojsonExcelDatasetDialog"
+        :geojsonFile="geojsonFile"
+        :geojsonFileName="geojsonFileName"
+        @geojson-file-selected="handleGeojsonExcelFileSelected"
+      />
     </v-dialog>
 
     <!-- Dialog pilih kolom tampil di peta (propertiesShow) -->
@@ -586,6 +592,8 @@
           <v-btn color="primary" variant="flat" @click="applyPropertiesShow">Simpan</v-btn>
         </v-card-actions>
       </v-card>
+
+
     </v-dialog>
 
   </div>
@@ -605,14 +613,18 @@ import * as XLSX from "xlsx";
 import PetaPostgis from "@/components/public/peta-tematik/PetaPostgis.vue";
 import FtDatasetDialogFeatures from "@/components/admin/data-peta/test-dataset/FtDatasetDialogFeatures.vue";
 import UploadMarkerDialog from "@/components/utils/UploadMarkerDialog.vue";
+import DatasetDownloadDialog from "@/components/admin/data-peta/test-dataset/DatasetDownloadDialog.vue";
+import UploadGeojsonExcelDatasetDialog from "@/components/admin/data-peta/test-dataset/UploadGeojsonExcelDatasetDialog.vue";
 
 export default {
   components: {
+    DatasetDownloadDialog,
     UploadMarkerDialog: UploadMarkerDialog,
     FtDatasetDialogFeatures,
     PetaPostgis,
     CloseConfirmDialog,
     UploadImageDialog,
+    UploadGeojsonExcelDatasetDialog,
   },
   props: {
     formMode: String,
@@ -740,6 +752,22 @@ export default {
   },
 
   methods: {
+    openUploadGeojsonExcelDialog() {
+      if (this.$refs.refUploadGeojsonExcelDatasetDialog) {
+        this.$refs.refUploadGeojsonExcelDatasetDialog.showDialog();
+      }
+    },
+
+    async handleGeojsonExcelFileSelected(payload) {
+      // payload: { file, fileName }
+      this.geojsonFile = payload && payload.file ? payload.file : null;
+      this.geojsonFileName = payload && payload.fileName ? payload.fileName : "";
+      await this.$nextTick();
+      await this.onGeojsonFileSelected();
+    },
+    downloadDataset(){
+      this.$refs.refDatasetDownloadDialog.showDialog(this.itemModified)
+    },
     resetPetaDanEditState() {
       // Reset mode toggle supaya panel Peta / Edit Data nonaktif saat dialog ditutup
       this.togglePetaDanEditMode = null;
@@ -1121,8 +1149,10 @@ export default {
       }
 
       // contains match (mis: "koordinat_lat")
+      // IMPORTANT: skip single-letter candidates (like 'x'/'y') to avoid false positives
       for (const c of candidates) {
         const cc = String(c).toLowerCase();
+        if (cc.length <= 1) continue;
         const idx = lower.findIndex((h) => h.includes(cc));
         if (idx >= 0) return headers[idx];
       }
@@ -1147,12 +1177,13 @@ export default {
       const headers = Object.keys(rows[0] || {}).filter(Boolean);
 
       // auto-detect lat/lon
-      const latKey = this.findHeaderKey(headers, ["lat", "latitude", "y", "y_lat", "ycoord"]);
+      // NOTE: accept common typo 'lattitude' (double-t) because many sheets use it
+      const latKey = this.findHeaderKey(headers, ["lat", "latitude", "lattitude", "y", "y_lat", "ycoord"]);
       const lonKey = this.findHeaderKey(headers, ["lon", "lng", "longitude", "x", "x_lon", "xcoord"]);
 
       if (!latKey || !lonKey) {
         throw new Error(
-            "Kolom Latitude/Longitude tidak ditemukan. Rename kolom jadi lat/lon (atau latitude/longitude) lalu upload ulang."
+            "Kolom Latitude/Longitude tidak ditemukan. Rename kolom jadi lat/lon (atau latitude/longitude/lattitude) lalu upload ulang."
         );
       }
 

@@ -26,6 +26,28 @@ class FtDatasetService {
             }
         );
     }
+
+    // Export 1 dataset (public) -> file .geojson
+    exportGeojsonFtDatasetById(id) {
+        return axios.get(
+            API_URL + `public/exportGeojsonFtDatasetById/${id}`,
+            {
+                headers: authHeader(),
+                responseType: "blob",
+            }
+        );
+    }
+
+    // Export 1 dataset point (public) -> file .xlsx
+    exportGeojsonPointToExcel(id) {
+        return axios.get(
+            API_URL + `public/exportGeojsonPointToExcel/${id}`,
+            {
+                headers: authHeader(),
+                responseType: "blob",
+            }
+        );
+    }
     exportMultipleFtDatasetZipMixed(datasetIds) {
         return axios.post(
             API_URL + `public/exportMultipleFtDatasetZipMixed`,

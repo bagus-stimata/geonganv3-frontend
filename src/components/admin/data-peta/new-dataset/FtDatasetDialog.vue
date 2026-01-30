@@ -388,7 +388,7 @@
                   @click="openPropertyGroupDialog"
                   style="text-transform: none;"
               >
-                Kolom Yang ditampilkan pada Peta
+                Kolom yang ditampilkan pada Peta
               </v-btn>
             </div>
             <div v-if="propertyGroupChips && propertyGroupChips.length" class="mt-4 mb-4">

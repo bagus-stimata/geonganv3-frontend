@@ -1925,10 +1925,14 @@ function jsonToHtmlTable_Mobile(jsonValue, keys = []) {
   const myObj = jsonValue || {}
   const allow = Array.isArray(keys) ? keys : []
 
+  // Hide internal keys from popup/tooltip
+  const hiddenKeys = new Set(['__datasetId', '__propertiesShow'])
+
   // Default behavior: if no columns selected -> show all keys
-  const keyList = allow.length
-    ? allow
-    : Object.keys(myObj).sort((a, b) => String(a).localeCompare(String(b)))
+  const keyList = (allow.length
+      ? allow
+      : Object.keys(myObj).sort((a, b) => String(a).localeCompare(String(b))))
+      .filter((k) => !hiddenKeys.has(k))
 
   // If still empty, show a small note
   if (!keyList.length) {
@@ -1938,6 +1942,7 @@ function jsonToHtmlTable_Mobile(jsonValue, keys = []) {
   let text = "<table style='width: 240px; font-size:12px'>"
 
   for (const k of keyList) {
+    if (hiddenKeys.has(k)) continue
     if (!Object.prototype.hasOwnProperty.call(myObj, k)) continue
     const v = myObj[k]
     if (v === undefined || v === null) continue
@@ -1954,13 +1959,18 @@ function jsonToHtmlTable_Mobile(jsonValue, keys = []) {
   return text
 }
 
-function jsonToHtmlTable(jsonValue, keys = [], ll = null) {
+function jsonToHtmlTable(jsonValue, keys = []) {
   const myObj = jsonValue || {}
   const allow = Array.isArray(keys) ? keys : []
 
-  const keyList = allow.length
+  // Hide internal keys from popup/tooltip
+  const hiddenKeys = new Set(['__datasetId', '__propertiesShow'])
+
+  // Default behavior: if no columns selected -> show all keys
+  const keyList = (allow.length
       ? allow
-      : Object.keys(myObj).sort((a, b) => String(a).localeCompare(String(b)))
+      : Object.keys(myObj).sort((a, b) => String(a).localeCompare(String(b))))
+      .filter((k) => !hiddenKeys.has(k))
 
   if (!keyList.length) {
     return `<div style="font-size:12px; opacity:0.75; padding:2px 0;">Tidak ada data.</div>`
@@ -1968,6 +1978,7 @@ function jsonToHtmlTable(jsonValue, keys = [], ll = null) {
 
   let rows = ""
   for (const meta of keyList) {
+    if (hiddenKeys.has(meta)) continue
     if (!Object.prototype.hasOwnProperty.call(myObj, meta)) continue
     const val = myObj[meta]
     if (val === undefined || val === null) continue
@@ -1984,41 +1995,7 @@ function jsonToHtmlTable(jsonValue, keys = [], ll = null) {
     return `<div style="font-size:12px; opacity:0.75; padding:2px 0;">Tidak ada data.</div>`
   }
 
-  const lat = ll?.lat
-  const lng = ll?.lng
-  const disabled = !(Number.isFinite(Number(lat)) && Number.isFinite(Number(lng)))
-
-  const btnHtml = `
-    <div style="margin-bottom:10px; display:flex; justify-content:flex-end;">
-      <button
-        type="button"
-        class="btn-open-streetview"
-        data-lat="${disabled ? '' : lat}"
-        data-lng="${disabled ? '' : lng}"
-        data-zoom="20"
-        ${disabled ? 'disabled' : ''}
-        title="${disabled ? 'Koordinat tidak ditemukan' : 'Buka StreetView di Google Maps'}"
-        style="padding:4px 8px; border:1px solid #bbb; background:#f5f5f5; color:#222; border-radius:4px; cursor:pointer; font-size:11px; line-height:1.1;"
-      >
-        Cek Street View
-      </button>
-      <span style="display:inline-block; width:12px;"></span>
-      <button
-        type="button"
-        class="btn-open-gmap"
-        data-lat="${disabled ? '' : lat}"
-        data-lng="${disabled ? '' : lng}"
-        data-zoom="20"
-        ${disabled ? 'disabled' : ''}
-        title="${disabled ? 'Koordinat tidak ditemukan' : 'Buka lokasi di Google Maps'}"
-        style="padding:4px 8px; border:1px solid #bbb; background:#f5f5f5; color:#222; border-radius:4px; cursor:pointer; font-size:11px; line-height:1.1;"
-      >
-        Open in Gmap
-      </button>
-    </div>
-  `
-
-  return `${btnHtml}<table style="min-width:240px; max-width:340px; font-size:12px;"><tbody>${rows}</tbody></table>`
+  return `<table style="min-width:240px; max-width:340px; font-size:12px;"><tbody>${rows}</tbody></table>`
 }
 
 function openInGmap() {

@@ -213,7 +213,7 @@ import DataFilter from "@/models/payload/f-dayadukung-filter";
 import FtDataset from "@/models/ft-dataset";
 import FileService from "@/services/apiservices/file-service";
 import FtDatasetExtService from "@/services/apiservices/ft-dataset-ext-service";
-import PetaPostgis from "@/components/public/peta-tematik/PetaPostgis.vue";
+import PetaPostgis from "@/components/public/peta-core/PetaPostgis.vue";
 
 export default {
   name: "PickMapsetDialog",

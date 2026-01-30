@@ -83,7 +83,7 @@ const routes = [
     },
 
     {
-        path: '/admin-peta-tematik',
+        path: '/admin-peta-core',
         name: 'DataPetaTematikView',
         component: () => import('@/views/admin/data-peta/DataPetaTematikView.vue')
     },
@@ -180,7 +180,7 @@ const routes = [
         component: () => import("../views/public/DatasetView.vue"),
     },
     {
-        path: "/public-peta-tematik",
+        path: "/public-peta-core",
         name: "PetaTematikView",
         component: () => import("../views/public/PetaTematikView.vue"),
     },

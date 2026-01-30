@@ -204,7 +204,7 @@ export default {
 
             {
               title: "Peta Tematik",
-              route: "/admin-peta-tematik",
+              route: "/admin-peta-core",
               icon: "",
               visible: [ERole.ROLE_ADMIN].some((x) =>
                   this.currentUser.roles.includes(x)

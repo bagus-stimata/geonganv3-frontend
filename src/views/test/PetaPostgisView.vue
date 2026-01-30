@@ -5,7 +5,7 @@
 <script setup>
 /* eslint-env vue/setup-compiler-macros */
 
-import PetaPostgis from "@/components/public/peta-tematik/PetaPostgis.vue";
+import PetaPostgis from "@/components/public/peta-core/PetaPostgis.vue";
 
 
 

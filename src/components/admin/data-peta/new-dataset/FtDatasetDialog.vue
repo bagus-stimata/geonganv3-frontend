@@ -610,7 +610,7 @@ import UploadImageDialog from "@/components/utils/UploadImageDialog";
 import {EnumDataSpaTypeList} from "@/models/e-data-spa-type";
 import ETipePeta, {ETipePetas} from "@/models/e-tipe-peta";
 import * as XLSX from "xlsx";
-import PetaPostgis from "@/components/public/peta-tematik/PetaPostgis.vue";
+import PetaPostgis from "@/components/public/peta-core/PetaPostgis.vue";
 import FtDatasetDialogFeatures from "@/components/admin/data-peta/new-dataset/FtDatasetDialogFeatures.vue";
 import UploadMarkerDialog from "@/components/utils/UploadMarkerDialog.vue";
 import DatasetDownloadDialog from "@/components/admin/data-peta/new-dataset/DatasetDownloadDialog.vue";

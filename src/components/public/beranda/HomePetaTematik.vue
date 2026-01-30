@@ -119,7 +119,7 @@ export default {
       }
     },
     toPetaTematik(){
-      this.$router.push("/public-peta-tematik")
+      this.$router.push("/public-peta-core")
     },
     goToPetaInteraktif(item) {
       const tematikId = item.id;

@@ -255,7 +255,7 @@ import FileService from "@/services/apiservices/file-service";
 import DownloadFormDialog from "@/components/public/peta-interaktif/DownloadFormDialog.vue";
 import FDivisionService from "@/services/apiservices/f-division-service";
 import UploadGeojsonDialog from "@/components/public/peta-interaktif/UploadGeojsonDialog.vue";
-import PetaPostgis from "@/components/public/peta-tematik/PetaPostgis.vue";
+import PetaPostgis from "@/components/public/peta-core/PetaPostgis.vue";
 import DownloadChoiceDialog from "@/components/public/peta-interaktif/DownloadChoiceDialog.vue";
 
 delete Icon.Default.prototype.Default;

@@ -86,10 +86,10 @@
                 size="small"
                 :style="isHome && !scrolled?'color:white !important': ''"
                 density="comfortable"
-                :variant="isActive('/public-peta-tematik')?'elevated':'plain'"
-                :class="isActive('/public-peta-tematik')?'color-bg-primary pa-3 text-white font-weight-bold' : 'pa-3 text-black font-weight-bold hover-btn'"
+                :variant="isActive('/public-peta-core')?'elevated':'plain'"
+                :class="isActive('/public-peta-core')?'color-bg-primary pa-3 text-white font-weight-bold' : 'pa-3 text-black font-weight-bold hover-btn'"
                 elevation="0"
-                :to="{ path: '/public-peta-tematik' }"
+                :to="{ path: '/public-peta-core' }"
                 v-if="!currentUser"
             >
               <span>Peta Tematik</span>

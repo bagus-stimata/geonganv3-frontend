@@ -67,7 +67,7 @@
 
 <script>
 import SearchPublicService from "@/services/apiservices/search-public-service";
-// import DatasetContentDataDialog from "@/components/public-dataset-content/dataset-content-dialog/DatasetContentDataDialog.vue";
+// import DatasetContentDataDialog from "@/components/public-dataset-old-content/dataset-old-content-dialog/DatasetContentDataDialog.vue";
 // import IndikatorResult from "@/components/public/indikator/IndikatorResult.vue";
 
 export default {

@@ -303,7 +303,7 @@ export default {
         borderWeight = 3.5;
       }
 
-      // Khusus NAMOBJ = KPI kasih sedikit penekanan (jika relevan di dataset ini)
+      // Khusus NAMOBJ = KPI kasih sedikit penekanan (jika relevan di dataset-old ini)
       const namobj = props.NAMOBJ || '';
       if (namobj === 'Kawasan Peruntukan Industri' || namobj === 'KPI') {
         fillOpacity = 0.8;

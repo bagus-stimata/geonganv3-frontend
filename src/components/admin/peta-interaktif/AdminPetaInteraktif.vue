@@ -433,7 +433,7 @@ export default {
         this.snackbar = {
           show: true,
           color: "warning",
-          text: "Belum ada dataset yang dipilih",
+          text: "Belum ada dataset-old yang dipilih",
           timeout: 1500,
         };
         return;
@@ -448,7 +448,7 @@ export default {
         this.snackbar = {
           show: true,
           color: "warning",
-          text: "Belum ada dataset yang dipilih",
+          text: "Belum ada dataset-old yang dipilih",
           timeout: 1500,
         };
         return;
@@ -456,7 +456,7 @@ export default {
       this.$refs.refDownloadChoiceDialog.showDialog(this.itemsMapsetSelected)
     },
     downloadOrFilledFormGeojson() {
-      // Pastikan ada dataset yang dipilih dulu
+      // Pastikan ada dataset-old yang dipilih dulu
       const ids = Array.isArray(this.itemsMapsetSelected)
           ? this.itemsMapsetSelected.map(x => x && x.id).filter(v => Number.isFinite(v))
           : [];
@@ -464,7 +464,7 @@ export default {
         this.snackbar = {
           show: true,
           color: "warning",
-          text: "Belum ada dataset yang dipilih",
+          text: "Belum ada dataset-old yang dipilih",
           timeout: 1500,
         };
         return;
@@ -509,7 +509,7 @@ export default {
         this.snackbar = {
           show: true,
           color: "warning",
-          text: "Belum ada dataset yang dipilih",
+          text: "Belum ada dataset-old yang dipilih",
           timeout: 1500,
         };
         return;
@@ -1008,7 +1008,7 @@ export default {
         }
       }
 
-      // 3) Lepas mapping dataset
+      // 3) Lepas mapping dataset-old
       this.datasetIndex.delete(dsid);
 
       // 4) Rebuild RBush sekali (lebih cepat dari .remove berulang)
@@ -1149,7 +1149,7 @@ export default {
           this.ftTematik = undefined
         })
         .catch((error) => {
-          console.error('Gagal mengambil data dataset peta: ', error);
+          console.error('Gagal mengambil data dataset-old peta: ', error);
         });
     }
 
@@ -1170,7 +1170,7 @@ export default {
           this.ftTematik = ftTematik
         })
         .catch((error) => {
-          console.error('Gagal mengambil data dataset peta berdasarkan tema: ', error);
+          console.error('Gagal mengambil data dataset-old peta berdasarkan tema: ', error);
         });
     }
     if(this.$vuetify.display.smAndDown){

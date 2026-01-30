@@ -915,7 +915,7 @@ export default {
       const list = Array.isArray(this.itemsMapsetSelected) ? this.itemsMapsetSelected : [];
       const ds = list.find(x => x && x.id === dsid);
       if (!ds) return null;
-      // only POINT dataset + markerImage not empty
+      // only POINT dataset-old + markerImage not empty
       if (!this.isPointTipePeta(ds.tipePeta)) return null;
 
       const url = this.resolveMarkerImageUrl(ds.markerImage);
@@ -1002,7 +1002,7 @@ export default {
         this.snackbar = {
           show: true,
           color: "warning",
-          text: "Belum ada dataset yang dipilih",
+          text: "Belum ada dataset-old yang dipilih",
           timeout: 1500,
         };
         return;
@@ -1010,7 +1010,7 @@ export default {
       this.$refs.refDownloadFormDialog.showDialog(this.itemsMapsetSelected)
     },
     downloadOrFilledFormGeojson() {
-      // Pastikan ada dataset yang dipilih dulu
+      // Pastikan ada dataset-old yang dipilih dulu
       const ids = Array.isArray(this.itemsMapsetSelected)
           ? this.itemsMapsetSelected.map(x => x && x.id).filter(v => Number.isFinite(v))
           : [];
@@ -1018,7 +1018,7 @@ export default {
         this.snackbar = {
           show: true,
           color: "warning",
-          text: "Belum ada dataset yang dipilih",
+          text: "Belum ada dataset-old yang dipilih",
           timeout: 1500,
         };
         return;
@@ -1061,7 +1061,7 @@ export default {
           currentDownloader.fdivisionBean = fdivision[0].id;
         }
 
-        // Build payload FGeoDownload per dataset terpilih
+        // Build payload FGeoDownload per dataset-old terpilih
         const payload = (this.itemsMapsetSelected || []).map((item) => {
           const entry = new FGeoDownload();
           entry.description = currentDownloader.description;
@@ -1078,7 +1078,7 @@ export default {
           this.snackbar = {
             show: true,
             color: "warning",
-            text: "Belum ada dataset yang valid untuk di-download",
+            text: "Belum ada dataset-old yang valid untuk di-download",
             timeout: 1500,
           };
           return;
@@ -1107,7 +1107,7 @@ export default {
         this.snackbar = {
           show: true,
           color: "warning",
-          text: "Belum ada dataset yang dipilih",
+          text: "Belum ada dataset-old yang dipilih",
           timeout: 1500,
         };
         return;
@@ -1770,7 +1770,7 @@ export default {
         const index = this.itemsDatasetGeojson.findIndex((item) => item.id === value.id);
         if (index !== -1) this.itemsDatasetGeojson.splice(index, 1);
 
-        // bersihkan semua indeks terkait dataset ini
+        // bersihkan semua indeks terkait dataset-old ini
         this.cleanupByDataset(value.id);
         // Leave bulk mode
         this.isBulkCleanup = false;
@@ -1896,7 +1896,7 @@ export default {
         }
       }
 
-      // 3) Lepas mapping dataset
+      // 3) Lepas mapping dataset-old
       this.datasetIndex.delete(dsid);
 
       // 4) Rebuild RBush sekali (lebih cepat dari .remove berulang)
@@ -2066,7 +2066,7 @@ export default {
           this.ftTematik = undefined
         })
         .catch((error) => {
-          console.error('Gagal mengambil data dataset peta: ', error);
+          console.error('Gagal mengambil data dataset-old peta: ', error);
         });
     }
 
@@ -2085,7 +2085,7 @@ export default {
           this.ftTematik = ftTematik
         })
         .catch((error) => {
-          console.error('Gagal mengambil data dataset peta berdasarkan tema: ', error);
+          console.error('Gagal mengambil data dataset-old peta berdasarkan tema: ', error);
         });
     }
 
@@ -2101,7 +2101,7 @@ export default {
     }
 
     /**
-     * Tidak perlu dinyalakan karena dataset peta diambil saat user menagktikna dialog Datase
+     * Tidak perlu dinyalakan karena dataset-old peta diambil saat user menagktikna dialog Datase
      */
     // this.fetchDatasetPeta();
 

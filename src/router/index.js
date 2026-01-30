@@ -72,7 +72,7 @@ const routes = [
         component: () => import('@/views/admin/data-peta/DataDukungPetaView.vue')
     },
     {
-        path: '/admin-data-peta-dataset',
+        path: '/admin-data-peta-dataset-old',
         name: 'AdminDataPetaDatasetView',
         component: () => import('@/views/admin/data-peta/DataPetaDatasetView.vue')
     },
@@ -138,7 +138,7 @@ const routes = [
         component: () => import('../views/test/PetaPostgisView.vue')
     },
     {
-        path: '/test-admin-data-peta-dataset',
+        path: '/test-admin-data-peta-dataset-old',
         name: 'TestDataPetaDatasetView',
         component: () => import('../views/admin/data-peta/TestDataPetaDatasetView.vue')
     },
@@ -175,7 +175,7 @@ const routes = [
         component: () => import('../views/public/e-library/ElibraryView.vue')
     },
     {
-        path: "/public-dataset",
+        path: "/public-dataset-old",
         name: "DatasetView",
         component: () => import("../views/public/DatasetView.vue"),
     },

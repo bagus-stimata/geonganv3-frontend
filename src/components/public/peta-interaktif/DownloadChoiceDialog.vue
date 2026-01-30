@@ -114,7 +114,7 @@ export default {
         this.snackbar = {
           show: true,
           color: "warning",
-          text: "Belum ada dataset yang valid untuk di-download",
+          text: "Belum ada dataset-old yang valid untuk di-download",
           timeout: 1500,
         };
         return;

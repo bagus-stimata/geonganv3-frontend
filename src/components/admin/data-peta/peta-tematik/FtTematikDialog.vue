@@ -703,7 +703,7 @@ export default {
       if (a !== b) {
         return true;
       }
-      // compare detail list (dataset terkait)
+      // compare detail list (dataset-old terkait)
       const d1 = JSON.stringify(this.listFtTematikDatasetDefault || []);
       const d2 = JSON.stringify(this.listFtTematikDataset || []);
       return d1 !== d2;

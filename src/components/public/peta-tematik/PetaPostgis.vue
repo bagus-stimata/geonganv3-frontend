@@ -173,7 +173,7 @@ const props = defineProps({
   minHeight: { type: String, default: '420px' },
   width: { type: String, default: '100%' },
 
-  // IDs dataset yang mau ditampilkan (di-drive dari parent)
+  // IDs dataset-old yang mau ditampilkan (di-drive dari parent)
   datasetIds: { type: Array, default: () => [] },
   itemsMapsetSelected: { type: Array, default: () => [] },
   showZoomButton: { type: Boolean, default: true },
@@ -830,13 +830,13 @@ function injectDatasetIdIntoGeojson(gj, dsId) {
 }
 
 /**
- * Marker harus punya dataset __datasetId
+ * Marker harus punya dataset-old __datasetId
  */
 function getMarkerIconForFeature(feature) {
   try {
     const propsFeature = feature?.properties || {}
 
-    // dataset id can be injected by fetchViewportData (preferred)
+    // dataset-old id can be injected by fetchViewportData (preferred)
     const dsIdRaw = (
       propsFeature.__datasetId ??
       propsFeature.__datasetBean ??
@@ -855,7 +855,7 @@ function getMarkerIconForFeature(feature) {
 
     const list = Array.isArray(props.itemsMapsetSelected) ? props.itemsMapsetSelected : []
 
-    // If only one dataset is selected, we can safely use it without dsId
+    // If only one dataset-old is selected, we can safely use it without dsId
     let ds = null
     if ((!Number.isFinite(dsId) || dsId == null || dsId <= 0) && list.length === 1) {
       ds = list[0]
@@ -1395,7 +1395,7 @@ function safeByteSizeOf(v) {
 }
 
 function triggerViewportFetch(reason = 'unknown', { debounce = false } = {}) {
-  // kalau belum ada dataset dipilih, jangan request
+  // kalau belum ada dataset-old dipilih, jangan request
   if (!datasetIdsNorm.value.length) {
     // parent cleared selection -> clear map
     geojsonData.value = []
@@ -1479,7 +1479,7 @@ function hashStringFNV1a(str) {
 }
 
 async function fetchViewportData({ minX, minY, maxX, maxY, z, reason, startedAt }) {
-  // kalau belum ada dataset dipilih, jangan spam request
+  // kalau belum ada dataset-old dipilih, jangan spam request
   if (!datasetIdsNorm.value.length) {
     geojsonData.value = []
     return

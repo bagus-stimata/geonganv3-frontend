@@ -6,7 +6,7 @@
 
   <script>
 
-  import FtDatasetTable from "@/components/admin/data-peta/test-dataset/FtDatasetTable.vue"
+  import FtDatasetTable from "@/components/admin/data-peta/new-dataset/FtDatasetTable.vue"
 
   export default {
     name: "DataPetaDatasetView",

@@ -220,7 +220,7 @@ export default {
             // },
             {
               title: "Dataset",
-              route: "/test-admin-data-peta-dataset",
+              route: "/test-admin-data-peta-dataset-old",
               icon: "",
               visible: [ERole.ROLE_ADMIN].some((x) =>
                   this.currentUser.roles.includes(x)
@@ -239,7 +239,7 @@ export default {
 
             // {
             //   title: "Test Dataset",
-            //   route: "/test-admin-data-peta-dataset",
+            //   route: "/test-admin-data-peta-dataset-old",
             //   icon: "",
             //   visible: [ERole.ROLE_ADMIN].some((x) =>
             //       this.currentUser.roles.includes(x)

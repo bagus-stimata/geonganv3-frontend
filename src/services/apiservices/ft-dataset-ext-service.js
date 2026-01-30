@@ -64,7 +64,7 @@ class FtDatasetExtService {
 
 
     /**
-     * Update dataset.
+     * Update dataset-old.
      * Catatan:
      * - Kalau lo TIDAK kirim field `geojson` di `item`, maka backend akan
      *   mempertahankan geojson lama + geom + centroid (sesuai aturan prepareForSave).

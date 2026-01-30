@@ -159,7 +159,7 @@ const props = defineProps({
   minHeight: { type: String, default: '420px' },
   width: { type: String, default: '100%' },
 
-  // IDs dataset yang mau ditampilkan (di-drive dari parent)
+  // IDs dataset-old yang mau ditampilkan (di-drive dari parent)
   datasetIds: { type: Array, default: () => [] },
   showZoomButton: { type: Boolean, default: true },
   drawEnabled: { type: Boolean, default: true }
@@ -620,7 +620,7 @@ function safeByteSizeOf(v) {
 }
 
 function triggerViewportFetch(reason = 'unknown', { debounce = false } = {}) {
-  // kalau belum ada dataset dipilih, jangan request
+  // kalau belum ada dataset-old dipilih, jangan request
   if (!datasetIdsNorm.value.length) {
     // keep last render to avoid flicker; clear only on explicit parent reset if needed
     return
@@ -701,7 +701,7 @@ function hashStringFNV1a(str) {
 }
 
 async function fetchViewportData({ minX, minY, maxX, maxY, z, reason, startedAt }) {
-  // kalau belum ada dataset dipilih, jangan spam request
+  // kalau belum ada dataset-old dipilih, jangan spam request
   if (!datasetIdsNorm.value.length) {
     geojsonData.value = []
     return

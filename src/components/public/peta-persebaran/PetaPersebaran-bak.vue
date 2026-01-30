@@ -715,7 +715,7 @@ export default {
         this.featureIndex.set(id, layer);
         if (text) this.textIndex.push({ text, layerId: id });
 
-        // 2) Group per dataset untuk cleanup cepat saat unselect
+        // 2) Group per dataset-old untuk cleanup cepat saat unselect
         const dsid = props.__dsid;
         if (dsid != null) {
           if (!this.datasetIndex.has(dsid)) this.datasetIndex.set(dsid, new Set());
@@ -1215,7 +1215,7 @@ export default {
         const index = this.itemSpaDayaDukungGeojson.findIndex((item) => item.id === value.id);
         if (index !== -1) this.itemSpaDayaDukungGeojson.splice(index, 1);
 
-        // bersihkan semua indeks terkait dataset ini
+        // bersihkan semua indeks terkait dataset-old ini
         this.cleanupByDataset(value.id);
         // Leave bulk mode
         this.isBulkCleanup = false;
@@ -1337,7 +1337,7 @@ export default {
         }
       }
 
-      // 3) Lepas mapping dataset
+      // 3) Lepas mapping dataset-old
       this.datasetIndex.delete(dsid);
 
       // 4) Rebuild RBush sekali (lebih cepat dari .remove berulang)

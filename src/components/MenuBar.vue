@@ -69,10 +69,10 @@
                 size="small"
                 :style="isHome && !scrolled?'color:white !important': ''"
                 density="comfortable"
-                :variant="isActive('/public-dataset')?'elevated':'plain'"
-                :class="isActive('/public-dataset')?'color-bg-primary pa-3 text-white font-weight-bold' : 'pa-3 text-black font-weight-bold hover-btn'"
+                :variant="isActive('/public-dataset-old')?'elevated':'plain'"
+                :class="isActive('/public-dataset-old')?'color-bg-primary pa-3 text-white font-weight-bold' : 'pa-3 text-black font-weight-bold hover-btn'"
                 elevation="0"
-                :to="{ path: '/public-dataset' }"
+                :to="{ path: '/public-dataset-old' }"
                 v-if="!currentUser"
             >
               <span>Dataset</span>

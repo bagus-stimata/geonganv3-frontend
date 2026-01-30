@@ -15,7 +15,7 @@
             <v-btn icon dark @click="closeForm">
               <v-icon>mdi-arrow-left</v-icon>
             </v-btn>
-            <v-toolbar-title class="text-subtitle-2 text-red">{{title}}
+            <v-toolbar-title class="text-subtitle-2">{{title}}
               <span v-if="formMode === 'EDIT_FORM'" class="text-caption ml-1"><v-icon color="orange" size="small">mdi-pencil</v-icon></span>
               <span v-if="formMode === 'NEW_FORM'" class="text-caption ml-1"><v-icon color="success" size="small">mdi-plus-circle</v-icon></span>
             </v-toolbar-title>
@@ -236,7 +236,7 @@
           <v-card-text class="mt-0">
             <!-- Mode: pilih file baru (belum ada geojson tersimpan ATAU user sudah pilih file baru) -->
             <v-row v-if="!hasStoredGeojson || geojsonFileName">
-              <v-col cols="12" sm="8" md="8">
+              <v-col cols="12" sm="12" md="5">
                 <v-file-input
                     v-model="geojsonFile"
                     label="Pilih File GeoJSON (.geojson) atau Excell (.xlsx)"
@@ -268,10 +268,21 @@
                     hide-details
                 ></v-autocomplete>
               </v-col>
+              <v-col cols="12" sm="12" md="3">
+                <v-btn
+                    block
+                    color="green"
+                    variant="flat"
+                    class="mr-2 rounded-lg"
+                    @click="showDialogUploadShpToGeojson"
+                >
+                  Upload SHP
+                </v-btn>
+              </v-col>
             </v-row>
             <!-- Mode: sudah ada GeoJSON tersimpan dari backend, tampilkan tombol download & hapus -->
             <v-row v-else>
-              <v-col cols="12" sm="4" md="6" class="d-flex align-center">
+              <v-col cols="12" sm="4" md="4" class="d-flex align-center">
                 <v-btn
                     color="primary"
                     variant="flat"
@@ -289,7 +300,7 @@
                   Hapus GeoJSON
                 </v-btn>
               </v-col>
-              <v-col cols="12" sm="12" md="6">
+              <v-col cols="12" sm="12" md="4">
                 <v-autocomplete
                     v-model="itemModified.tipePeta"
                     :items="itemsTipePeta"
@@ -369,6 +380,7 @@
           <v-card-text v-if="propertyMetaRows && propertyMetaRows.length">
             <div class="d-flex align-center mb-1">
               <v-btn
+                  v-if="propertyMetaRows && propertyMetaRows.length"
                   small
                   variant="elevated"
                   color="primary"
@@ -419,7 +431,7 @@
               <v-btn
                   value="EDIT_DATA_GEOJSON"
                   color="orange-darken-1"
-                  @click="loadTableDataAndEdit"
+                  @click="loadDataEdit"
                   style="text-transform: none;"
               >
                 <span class="d-flex align-center">
@@ -431,14 +443,12 @@
           </v-card-text>
 
 
-
-          <v-card-text v-if="togglePetaDanEditMode==='LOAD_PETA_GEOJSON'">
-              <PetaPostgis
-                  ref="refDatasetMap"
-                  class="pl-10"
-                  :datasetIds="datasetIds"
-              >
-              </PetaPostgis>
+          <!-- Load Peta GeoJSON -->
+          <v-card-text v-if="hasGeojsonForPreview && togglePetaDanEditMode==='LOAD_PETA_GEOJSON'">
+            <FtDatasetMap
+                ref="refFDayaDukungPetaMap"
+            >
+            </FtDatasetMap>
           </v-card-text>
 
           <!-- Load & Edit Data -->
@@ -470,7 +480,6 @@
           </v-card-text>
 
           <!-- Tabel data per feature (editable seperti QGIS attribute table) -->
-
           <v-card-text v-if="featureRows && featureRows.length" class="mt-n4 mb-4">
             <div class="feature-table-scroll">
               <v-table density="compact" class="feature-attr-table">
@@ -616,7 +625,10 @@
         ref="refUploadDialog"
         @eventUploadSuccess="completeUploadSuccess"
       ></UploadImageDialog>
-
+      <UploadShpToGeojsonDialog
+          ref="refShpToGeojsonDialog"
+          @eventGeojsonZipReady="onGeojsonZipReady"
+      ></UploadShpToGeojsonDialog>
 
       <v-dialog v-model="dialogLoading" hide-overlay persistent width="300">
         <v-card color="primary" dark>
@@ -701,21 +713,22 @@
 </template>
 
 <script>
-import FtDatasetExtService from "@/services/apiservices/ft-dataset-ext-service";
+import FtDatasetService from "@/services/apiservices/ft-dataset-service";
 
 import CloseConfirmDialog from "@/components/utils/CloseConfirmDialog";
 import FormMode from "@/models/form-mode";
 import FtDataset from "@/models/ft-dataset";
 import FileService from "@/services/apiservices/file-service";
 import UploadImageDialog from "@/components/utils/UploadImageDialog";
+import FtDatasetMap from "@/components/admin/data-peta/dataset-old/FtDatasetMap.vue";
 import {EnumDataSpaTypeList} from "@/models/e-data-spa-type";
 import ETipePeta, {ETipePetas} from "@/models/e-tipe-peta";
 import * as XLSX from "xlsx";
-import PetaPostgis from "@/components/public/peta-tematik/PetaPostgis.vue";
-
+import UploadShpToGeojsonDialog from "@/components/admin/data-peta/dataset-old/UploadShpToGeojsonDialog.vue";
 export default {
   components: {
-    PetaPostgis,
+    UploadShpToGeojsonDialog,
+    FtDatasetMap,
     CloseConfirmDialog,
     UploadImageDialog,
   },
@@ -727,7 +740,7 @@ export default {
   data() {
 
     return {
-      title: "TEST DATASET",
+      title: "Dataset Peta",
       snackBarMessage: "",
       snackbar: false,
 
@@ -776,12 +789,10 @@ export default {
       dialogPropertyGroupShow: false,
       localPropertiesShow: [],
 
-      /**
-       *  Variable untuk Table
-       */
       featureColumns: [],
       featureColumnsView: [],
       featureRows: [],
+      // Batas aman agar tabel edit tidak terlalu berat untuk GeoJSON besar
       maxFeatureTableGeojsonChars: 30 * 1024 * 1024, // ~30 MB (perkiraan dari panjang string)
       maxFeatureTableRows: 8000,
       featureShowOnlyMapColumns: true,
@@ -793,18 +804,6 @@ export default {
       featureColWidths: {},
       featureResizeCtx: null,
       togglePetaDanEditMode: null,
-
-// ✅ GeoJSON khusus untuk tabel (full). Map tetap pakai viewport dari server.
-      geojsonForTableLocal: null,
-      hasGeojsonForTableLocal: false,
-
-      /**
-       * Untuk peta Map Postgis cuma buatuh ini
-       */
-      datasetIds: [],
-
-
-
     };
   },
   computed: {
@@ -830,10 +829,11 @@ export default {
     },
 
     hasGeojsonForPreview() {
-      // Untuk mode EDIT_DATA_GEOJSON, tabel hanya boleh tampil kalau GeoJSON full sudah dimuat ke table-local.
-      return this.hasStoredGeojson && this.hasGeojsonForTableLocal;
+      // Hanya tampilkan tombol & komponen peta kalau:
+      // - dataset-old sudah punya GeoJSON tersimpan di backend (hasStoredGeojson)
+      // - dan konten GeoJSON sudah benar-benar dimuat ke memory (hasGeojsonLoaded)
+      return this.hasStoredGeojson && this.hasGeojsonLoaded;
     },
-
     hasGeojsonLoaded() {
       return (
           this.itemModified &&
@@ -906,6 +906,35 @@ export default {
   },
 
   methods: {
+    showDialogUploadShpToGeojson() {
+      if (this.$refs.refShpToGeojsonDialog && typeof this.$refs.refShpToGeojsonDialog.showDialog === "function") {
+        this.$refs.refShpToGeojsonDialog.showDialog();
+      }
+    },
+
+    onGeojsonZipReady(val) {
+      // val: { fileName, fileBlob }
+      const fileName = val && val.fileName ? String(val.fileName) : "";
+      if (!fileName) {
+        this.snackBarMessage = "Convert SHP gagal: nama file kosong";
+        this.snackbar = true;
+        return;
+      }
+
+      // Simpan sesuai permintaan: itemModified.geojson berisi nama file geojson.zip
+      if (this.itemModified) {
+        this.itemModified.geojson = fileName;
+        // Jangan kirim field geojson sebagai konten pada Apply/Save
+        this.itemModified.withGeojson = false;
+        this.itemModified.hasGeojson = false;
+      }
+
+      // Update UI label file terpilih
+      this.geojsonFileName = fileName;
+
+      this.snackBarMessage = "SHP berhasil dikonversi: " + fileName;
+      this.snackbar = true;
+    },
     isMapTypePoint(item){
       return item === ETipePeta.POINT
     },
@@ -995,46 +1024,50 @@ export default {
       }
       this.featureCurrentPage = 1;
     },
-    setGeojsonForTableLocal(src) {
-      this.geojsonForTableLocal = src;
-      const s = typeof src === "string" ? src.trim() : "";
-      this.hasGeojsonForTableLocal = !!(s && s !== "{}" && s !== "null");
-    },
     async refreshFeatureRowsFromGeojson() {
       this.featureRows = [];
       this.featureColumns = [];
 
-      const src = this.geojsonForTableLocal;
-      if (!src) return;
+      if (!this.itemModified || !this.itemModified.geojson) {
+        return;
+      }
 
-      // Guard 1: batasi berdasarkan ukuran string GeoJSON
-      if (typeof src === "string") {
-        const approxMb = src.length / (1024 * 1024);
+      // Guard 1: batasi berdasarkan ukuran string GeoJSON (batas soft sekitar 10 MB untuk UI tabel)
+      if (typeof this.itemModified.geojson === "string") {
+        const approxMb = this.itemModified.geojson.length / (1024 * 1024);
         if (approxMb > 10) {
-          console.warn("[FtTematikDialog] skip build feature table: geojson string too large (~" + approxMb.toFixed(1) + " MB)");
+          console.warn(
+            "[FtTematikDialog] skip build feature table: geojson string too large for table view (~" +
+              approxMb.toFixed(1) +
+              " MB)"
+          );
           this.snackBarMessage = "GeoJSON terlalu besar untuk ditampilkan sebagai tabel.";
           this.snackbar = true;
           return;
         }
       }
 
-      let geoObj;
+      let geo;
       try {
         if (typeof this.itemModified.geojson === "string") {
           const trimmed = this.itemModified.geojson.trim();
-          if (!trimmed || trimmed === "{}") return;
-          geoObj = JSON.parse(trimmed);
+          if (!trimmed || trimmed === "{}") {
+            return;
+          }
+          geo = JSON.parse(trimmed);
         } else {
-          geoObj = this.itemModified.geojson;
+          geo = this.itemModified.geojson;
         }
       } catch (e) {
-        console.warn("[FtTematikDialog] gagal parse geojson saat sync dari feature table", e);
+        console.warn("[FtTematikDialog] gagal parse geojson untuk feature table", e);
         return;
       }
 
-      if (!geoObj || !Array.isArray(geoObj.features) || !geoObj.features.length) return;
+      if (!geo || !Array.isArray(geo.features) || !geo.features.length) {
+        return;
+      }
 
-      const totalFeatures = geoObj.features.length;
+      const totalFeatures = geo.features.length;
       // Guard 2: batasi jumlah feature yang diizinkan untuk mode edit tabel
       if (this.maxFeatureTableRows && totalFeatures > this.maxFeatureTableRows) {
         console.warn(
@@ -1055,14 +1088,14 @@ export default {
       if (this.propertyMetaRows && this.propertyMetaRows.length) {
         cols = this.propertyMetaRows.map((row) => row.name);
       } else {
-        const firstProps = geoObj.features[0].properties || {};
+        const firstProps = geo.features[0].properties || {};
         cols = Object.keys(firstProps);
       }
 
       this.featureColumns = cols;
       this.ensureFeatureColWidthDefaults();
 
-      this.featureRows = geoObj.features.map((f) => {
+      this.featureRows = geo.features.map((f) => {
         const props = (f && f.properties) ? f.properties : {};
         const row = {};
         cols.forEach((name) => {
@@ -1073,7 +1106,7 @@ export default {
       });
     },
 
-    ensureTableGeojsonSyncedFromServer() {
+    ensureGeojsonSyncedFromTable() {
       if (!this.featureRows || !this.featureRows.length) return;
       if (!this.itemModified || !this.itemModified.geojson) return;
 
@@ -1155,57 +1188,28 @@ export default {
       }
     },
     async ensureGeojsonLoaded() {
-      // Untuk tabel: pastikan geojson full ada di geojsonForTableLocal.
-      if (this.hasStoredGeojson && !this.hasGeojsonForTableLocal) {
-        await this.loadGeojsonForTableFromServer();
+      // Kalau dataset-old sudah ditandai punya GeoJSON di server tetapi konten belum dimuat,
+      // baru panggil backend untuk load GeoJSON berat.
+      if (this.hasStoredGeojson && !this.hasGeojsonLoaded) {
+        await this.loadGeojsonFromServer();
       }
     },
 
-    async loadTampilanPeta() {
+    async loadTampilanPeta(){
       try {
-        // 1) pastiin komponen peta ter-render
-        this.togglePetaDanEditMode = "LOAD_PETA_GEOJSON";
-
-        const id = this.itemModified?.id ? Number(this.itemModified.id) : 0;
-        if (!id) {
-          this.snackBarMessage = "Dataset belum punya ID";
-          this.snackbar = true;
-          return;
-        }
-
-        // 2) update props
-        this.datasetIds = [id];
-
-        // 3) tunggu render
-        await this.$nextTick();
-
-        // 4) optional: paksa reload sekarang juga (biar responsif)
-        // const petaComp = this.$refs.refDatasetMap;
-        // if (petaComp && typeof petaComp.refreshDataForViewPort === "function") {
-        //   await petaComp.refreshDataForViewPort();
-        // }
-
-        // console.log("Done Load Tampilan Peta");
-
+        await this.ensureGeojsonLoaded();
+        this.$refs.refFDayaDukungPetaMap.tampilkanPeta(this.itemModified);
+        console.log("Done Load Tampilan Peta");
       } catch (e) {
         console.error(e);
         this.snackBarMessage = "Gagal menampilkan peta";
         this.snackbar = true;
       }
     },
-
-    async loadTableDataAndEdit(){
-      /**
-       * 1. Cek apakah geojsonForTableLocal sudah ada isinya?
-       * 2. Jika belum, load dari server (pastikan itemModified.geojson (data ori) ada isinya) dari FtDatasetExt.getFtDatasetGeojsonOriById
-       * 3. Jika sudah ada, set visibilitas tabel
-       */
+    async loadDataEdit(){
       try {
         this.dialogLoading = true;
         await this.ensureGeojsonLoaded();
-        if (!this.hasGeojsonForTableLocal && this.itemModified && typeof this.itemModified.geojson === "string") {
-          this.setGeojsonForTableLocal(this.itemModified.geojson);
-        }
         await this.refreshFeatureRowsFromGeojson();
         // Sinkronkan kolom tabel dengan opsi "Kolom yang Ditampilkan pada Peta Saja"
         this.syncFeatureColumnsView();
@@ -1217,14 +1221,14 @@ export default {
       }
     },
 
-    async loadGeojsonForTableFromServer() {
+    async loadGeojsonFromServer() {
       if (!this.itemModified || !this.itemModified.id) return;
 
       try {
         this.dialogLoading = true;
 
         // Wajib includeGeojson=true supaya backend mengirim field geojson
-        const resp = await FtDatasetExtService.getFtDatasetById(this.itemModified.id, true);
+        const resp = await FtDatasetService.getFtDatasetById(this.itemModified.id, true);
         const incoming = resp && resp.data ? resp.data : null;
 
         if (!incoming) {
@@ -1250,10 +1254,8 @@ export default {
           this.itemModified.fileNameLow = incoming.fileNameLow;
         }
 
-        /**
-         * - kebutuhan saat ini hanya untuk tabel, sebelum dibuatkan paging dari Backend
-         * - Peta tetap menggunakan View Port saja
-         */
+        // Backend bisa kirim geojson sebagai String ATAU sebagai object/JsonNode.
+        // Di sini kita normalisasi ke String supaya konsisten di frontend.
         let incomingGeo = incoming.geojson;
         let hasGeoContent = false;
 
@@ -1283,7 +1285,6 @@ export default {
         }
 
         if (hasGeoContent) {
-          this.setGeojsonForTableLocal(this.itemModified.geojson);
           // Load hanya untuk preview/download; jangan otomatis anggap akan di-save ulang
           this.itemModified.withGeojson = false;
         } else {
@@ -1644,7 +1645,7 @@ export default {
       this.dialogShow = value;
     },
     buildPayload() {
-      this.ensureTableGeojsonSyncedFromServer();
+      this.ensureGeojsonSyncedFromTable();
       // Deep clone supaya nggak ngacak reactive object
       const payload = JSON.parse(JSON.stringify(this.itemModified || {}));
 
@@ -1742,9 +1743,9 @@ export default {
       const payload = this.buildPayload();
       if (this.formMode === FormMode.EDIT_FORM) {
         const includeGeojson = !!payload.withGeojson;
-        FtDatasetExtService.updateFtDataset(payload, includeGeojson).then(
+        FtDatasetService.updateFtDataset(payload, includeGeojson).then(
           () => {
-            console.log("=== masuk update dataset (applyChanges) ===");
+            console.log("=== masuk update dataset-old (applyChanges) ===");
             if (payload.withGeojson) {
               this.itemModified.hasGeojson = true;
               this.itemModified.withGeojson = false;
@@ -1772,8 +1773,8 @@ export default {
           }
         );
       } else {
-        console.log("=== masuk create dataset (applyChanges) ===");
-        FtDatasetExtService.createFtDataset(payload).then(
+        console.log("=== masuk create dataset-old (applyChanges) ===");
+        FtDatasetService.createFtDataset(payload).then(
           (response) => {
             this.itemModified = response.data;
             if (
@@ -1818,7 +1819,7 @@ export default {
         if (!this.valid) return;
 
         // kalau user edit table, sync balik ke geojson sebelum save
-        this.ensureTableGeojsonSyncedFromServer();
+        this.ensureGeojsonSyncedFromTable();
 
         this.dialogLoading = true;
 
@@ -1852,7 +1853,7 @@ export default {
     saveCreateOnly() {
       const payload = this.buildPayload();
       return new Promise((resolve, reject) => {
-        FtDatasetExtService.createFtDataset(payload).then(
+        FtDatasetService.createFtDataset(payload).then(
             (response) => {
               this.$emit("update:formMode", FormMode.EDIT_FORM);
               if (response?.data?.id) this.itemModified.id = response.data.id;
@@ -1872,7 +1873,7 @@ export default {
       const includeGeojson = !!payload.withGeojson;
 
       return new Promise((resolve, reject) => {
-        FtDatasetExtService.updateFtDataset(payload, includeGeojson).then(
+        FtDatasetService.updateFtDataset(payload, includeGeojson).then(
             (resp) => resolve(resp),
             (error) => {
               this.formDialogOptions.errorMessage =
@@ -1902,12 +1903,10 @@ export default {
       this.formDialogOptions.errorMessage = "";
 
       // Saat edit, ambil data TANPA geojson dulu (ringan)
-      FtDatasetExtService.getFtDatasetById(item.id, false).then(
+      FtDatasetService.getFtDatasetById(item.id, false).then(
           (response) => {
             // Ambil data ringan dari server
             this.itemModified = response.data || {};
-
-            // console.log(JSON.stringify(this.itemModified));
 
             // Normalisasi datasetType: pastikan selalu string (enum code)
             if (
@@ -1957,9 +1956,8 @@ export default {
             this.itemDefault = JSON.parse(JSON.stringify(this.itemModified));
 
             try {
-              if (this.$refs.refDatasetMap) {
-                // this.$refs.refDatasetMap.resetTampilanPeta();
-                this.$refs.refDatasetMap.geojsonData = []
+              if (this.$refs.refFDayaDukungPetaMap) {
+                this.$refs.refFDayaDukungPetaMap.resetTampilanPeta();
               }
             } catch (e) {
               console.warn("resetTampilanPeta failed:", e);
@@ -2047,14 +2045,20 @@ export default {
 
     async downloadInlineGeojson() {
       /**
-       * Gunakan  inline download GeoJSON ini hanya kalau dataset sudah
+       * Gunakan  inline download GeoJSON ini hanya kalau dataset-old sudah
        */
-      const resp = await FtDatasetExtService.getFtDatasetById(this.itemModified.id, true);
-      const respGeo = resp && resp.data ? resp.data.geojson : null;
+      const resp = await FtDatasetService.getFtDatasetById(this.itemModified.id, true);
+      this.itemModified = resp && resp.data ? resp.data : null;
 
+      if (!this.itemModified) {
+        this.$root.$emit('show-snackbar', 'Data FtDataset belum dimuat');
+        return;
+      }
+
+      const geo = this.itemModified.geojson;
 
       // 1) Kalau belum ada geojson sama sekali
-      if (!respGeo) {
+      if (!geo) {
         console.warn('[FtTematikDialog] downloadInlineGeojson: geojson is null/undefined');
         this.$root.$emit('show-snackbar', 'GeoJSON belum dimuat / tidak tersedia');
         return;
@@ -2063,8 +2067,8 @@ export default {
       let geoString;
 
       // 2) Jika dari backend berupa STRING (kasus paling umum)
-      if (typeof respGeo === 'string') {
-        const trimmed = respGeo.trim();
+      if (typeof geo === 'string') {
+        const trimmed = geo.trim();
         if (trimmed === '' || trimmed === '{}') {
           console.warn('[FtTematikDialog] downloadInlineGeojson: geojson string kosong / {}');
           this.$root.$emit('show-snackbar', 'GeoJSON belum dimuat / tidak tersedia');
@@ -2074,7 +2078,7 @@ export default {
       } else {
         // 3) Kalau somehow sudah berupa OBJECT (misal sudah di-parse di tempat lain)
         try {
-          geoString = JSON.stringify(respGeo, null, 2);
+          geoString = JSON.stringify(geo, null, 2);
         } catch (e) {
           console.error('[FtTematikDialog] downloadInlineGeojson: gagal stringify geojson object', e);
           this.$root.$emit('show-snackbar', 'Gagal memproses GeoJSON untuk diunduh');
@@ -2101,7 +2105,6 @@ export default {
         console.error('[FtTematikDialog] downloadInlineGeojson: error creating download blob', e);
         this.$root.$emit('show-snackbar', 'Gagal membuat file GeoJSON untuk diunduh');
       }
-
     },
 
     clearStoredGeojson() {
@@ -2137,9 +2140,8 @@ export default {
       document.body.style.cursor = "";
 
       try {
-        if (this.$refs.refDatasetMap) {
-          // this.$refs.refDatasetMap.resetTampilanPeta();
-          this.$refs.refDatasetMap.geojsonData = []
+        if (this.$refs.refFDayaDukungPetaMap) {
+          this.$refs.refFDayaDukungPetaMap.resetTampilanPeta();
         }
       } catch (e) {
         console.error(e);
@@ -2148,7 +2150,7 @@ export default {
     async reloadLightDatasetById() {
       if (!this.itemModified?.id) return;
 
-      const resp = await FtDatasetExtService.getFtDatasetById(this.itemModified.id, false);
+      const resp = await FtDatasetService.getFtDatasetById(this.itemModified.id, false);
       const incoming = resp?.data;
       if (!incoming) return;
 
@@ -2185,8 +2187,7 @@ export default {
       this.itemDefault = JSON.parse(JSON.stringify(this.itemModified));
 
       try {
-        // this.$refs.refDatasetMap?.resetTampilanPeta();
-        this.$refs.refDatasetMap.geojsonData = []
+        this.$refs.refFDayaDukungPetaMap?.resetTampilanPeta();
       } catch (e) {
         console.warn(e);
       }

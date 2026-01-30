@@ -27,7 +27,7 @@ class FtDatasetService {
         );
     }
 
-    // Export 1 dataset (public) -> file .geojson
+    // Export 1 dataset-old (public) -> file .geojson
     exportGeojsonFtDatasetById(id) {
         return axios.get(
             API_URL + `public/exportGeojsonFtDatasetById/${id}`,
@@ -38,7 +38,7 @@ class FtDatasetService {
         );
     }
 
-    // Export 1 dataset point (public) -> file .xlsx
+    // Export 1 dataset-old point (public) -> file .xlsx
     exportGeojsonPointToExcel(id) {
         return axios.get(
             API_URL + `public/exportGeojsonPointToExcel/${id}`,
@@ -60,7 +60,7 @@ class FtDatasetService {
     }
 
     /**
-     * Ambil satu dataset by id (private, pakai auth, role-aware).
+     * Ambil satu dataset-old by id (private, pakai auth, role-aware).
      */
     getFtDatasetById(id, includeGeojson = false) {
         return axios.get(
@@ -70,7 +70,7 @@ class FtDatasetService {
     }
 
     /**
-     * Ambil satu dataset by id (public).
+     * Ambil satu dataset-old by id (public).
      */
     getFtDatasetByIdPublic(id, includeGeojson = false) {
         return axios.get(
@@ -87,7 +87,7 @@ class FtDatasetService {
 
 
     /**
-     * Utility: copy dataset per tahun.
+     * Utility: copy dataset-old per tahun.
      */
     createCopyYearFtDataset(toYear) {
         return axios.post(API_URL + `createCopyYearFtDataset`, toYear, {
@@ -96,7 +96,7 @@ class FtDatasetService {
     }
 
     /**
-     * Update dataset.
+     * Update dataset-old.
      * Catatan:
      * - Kalau lo TIDAK kirim field `geojson` di `item`, maka backend akan
      *   mempertahankan geojson lama + geom + centroid (sesuai aturan prepareForSave).
@@ -120,7 +120,7 @@ class FtDatasetService {
     }
 
     /**
-     * Create dataset baru (id = 0).
+     * Create dataset-old baru (id = 0).
      */
     createFtDataset(item) {
         return axios.post(API_URL + `createFtDataset`, item, {

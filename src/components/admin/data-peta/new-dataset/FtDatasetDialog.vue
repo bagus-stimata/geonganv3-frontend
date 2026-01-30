@@ -611,10 +611,10 @@ import {EnumDataSpaTypeList} from "@/models/e-data-spa-type";
 import ETipePeta, {ETipePetas} from "@/models/e-tipe-peta";
 import * as XLSX from "xlsx";
 import PetaPostgis from "@/components/public/peta-tematik/PetaPostgis.vue";
-import FtDatasetDialogFeatures from "@/components/admin/data-peta/test-dataset/FtDatasetDialogFeatures.vue";
+import FtDatasetDialogFeatures from "@/components/admin/data-peta/new-dataset/FtDatasetDialogFeatures.vue";
 import UploadMarkerDialog from "@/components/utils/UploadMarkerDialog.vue";
-import DatasetDownloadDialog from "@/components/admin/data-peta/test-dataset/DatasetDownloadDialog.vue";
-import UploadGeojsonExcelDatasetDialog from "@/components/admin/data-peta/test-dataset/UploadGeojsonExcelDatasetDialog.vue";
+import DatasetDownloadDialog from "@/components/admin/data-peta/new-dataset/DatasetDownloadDialog.vue";
+import UploadGeojsonExcelDatasetDialog from "@/components/admin/data-peta/new-dataset/UploadGeojsonExcelDatasetDialog.vue";
 
 export default {
   components: {
@@ -1628,7 +1628,7 @@ export default {
 
     async downloadInlineGeojson() {
       /**
-       * Gunakan  inline download GeoJSON ini hanya kalau dataset sudah
+       * Gunakan  inline download GeoJSON ini hanya kalau dataset-old sudah
        */
       const resp = await FtDatasetExtService.getFtDatasetById(this.itemModified.id, true);
       const respGeo = resp && resp.data ? resp.data.geojson : null;

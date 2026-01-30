@@ -47,7 +47,7 @@ export default class FtDataset {
         this.sumberData = sumberData;
         this.tahun = tahun;
 
-        // Satuan & tipe dataset
+        // Satuan & tipe dataset-old
         this.fsatuanBean = fsatuanBean;       // Int di backend
         this.datasetType = datasetType;       // EnumDataSpaType.GEOJSON
 

@@ -969,20 +969,46 @@ function onEachFeatureOption(feature, layer) {
           const el = e?.popup?.getElement?.()
           if (!el) return
 
-          const btn = el.querySelector('.btn-open-gmap')
-          if (!btn) return
+          const btnGmap = el.querySelector('.btn-open-gmap')
+          const btnStreetview = el.querySelector('.btn-open-streetview')
+          if (!btnGmap && !btnStreetview) return
 
-          // overwrite handler biar gak dobel kalau popup dibuka berkali-kali
-          btn.onclick = (ev) => {
-            ev.preventDefault()
-            ev.stopPropagation()
+          const parseLatLng = (btn) => {
+            const latRaw = (btn?.getAttribute('data-lat') ?? '').trim()
+            const lngRaw = (btn?.getAttribute('data-lng') ?? '').trim()
+            if (!latRaw || !lngRaw) return null
 
-            const lat = Number(btn.getAttribute('data-lat'))
-            const lng = Number(btn.getAttribute('data-lng'))
-            const z = Number(btn.getAttribute('data-zoom')) || 20
-
-            openGMapsAt(lat, lng, z)
+            const lat = Number(latRaw)
+            const lng = Number(lngRaw)
+            if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+            return { lat, lng }
           }
+
+          if (btnGmap) {
+            btnGmap.onclick = (ev) => {
+              ev.preventDefault()
+              ev.stopPropagation()
+
+              const ll = parseLatLng(btnGmap)
+              if (!ll) return
+              const z = Number(btnGmap.getAttribute('data-zoom')) || 20
+
+              openGMapsAt(ll.lat, ll.lng, z)
+            }
+          }
+
+          if (btnStreetview) {
+            btnStreetview.onclick = (ev) => {
+              ev.preventDefault()
+              ev.stopPropagation()
+
+              const ll = parseLatLng(btnStreetview)
+              if (!ll) return
+
+              openGMapsStreetViewAt(ll.lat, ll.lng)
+            }
+          }
+
         } catch (err) {
           console.warn('[PetaPostgis][popup] popupopen handler error', err)
         }
@@ -1947,13 +1973,26 @@ function jsonToHtmlTable(jsonValue, keys = [], ll = null) {
     <div style="margin-bottom:10px; display:flex; justify-content:flex-end;">
       <button
         type="button"
+        class="btn-open-streetview"
+        data-lat="${disabled ? '' : lat}"
+        data-lng="${disabled ? '' : lng}"
+        data-zoom="20"
+        ${disabled ? 'disabled' : ''}
+        title="${disabled ? 'Koordinat tidak ditemukan' : 'Buka StreetView di Google Maps'}"
+        style="padding:4px 8px; border:1px solid #bbb; background:#f5f5f5; color:#222; border-radius:4px; cursor:pointer; font-size:11px; line-height:1.1;"
+      >
+        Cek Street View
+      </button>
+      <span style="display:inline-block; width:12px;"></span>
+      <button
+        type="button"
         class="btn-open-gmap"
         data-lat="${disabled ? '' : lat}"
         data-lng="${disabled ? '' : lng}"
         data-zoom="20"
         ${disabled ? 'disabled' : ''}
         title="${disabled ? 'Koordinat tidak ditemukan' : 'Buka lokasi di Google Maps'}"
-        style="padding:6px 10px; border:1px solid #bbb; background:#f5f5f5; color:#222; border-radius:4px; cursor:pointer; font-size:12px;"
+        style="padding:4px 8px; border:1px solid #bbb; background:#f5f5f5; color:#222; border-radius:4px; cursor:pointer; font-size:11px; line-height:1.1;"
       >
         Open in Gmap
       </button>
@@ -2028,6 +2067,29 @@ function openGMapsAt(lat, lng, zoom = 20) {
   } catch (e) {
     console.error('openGMapsAt error', e)
     snackbar.value = { show: true, color: 'error', text: 'Gagal membuka Google Maps', timeout: 1800 }
+  }
+}
+
+function openGMapsStreetViewAt(lat, lng, radiusMeters = 70) {
+  try {
+    const latNum = Number(lat)
+    const lngNum = Number(lng)
+    if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
+      snackbar.value = { show: true, color: 'warning', text: 'Koordinat tidak valid', timeout: 1500 }
+      return
+    }
+
+    // Radius ini hanya sebagai "preferensi" (Google Maps akan cari pano terdekat otomatis).
+    const r = Math.max(5, Math.min(200, Number(radiusMeters) || 50))
+
+    // Primary: Google Maps URL scheme for Street View (pano) at/near the coordinate.
+    // Note: parameter `radius` is not guaranteed by Google, but is harmless if ignored.
+    const url = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${latNum},${lngNum}&radius=${r}`
+
+    window.open(url, '_blank', 'noopener')
+  } catch (e) {
+    console.error('openGMapsStreetViewAt error', e)
+    snackbar.value = { show: true, color: 'error', text: 'Gagal membuka Street View', timeout: 1800 }
   }
 }
 

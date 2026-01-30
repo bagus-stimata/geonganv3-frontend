@@ -172,7 +172,7 @@
                   <v-tooltip
                       activator="parent"
                       location="bottom"
-                  >Download Data Geojson</v-tooltip>
+                  >Download File Spasial</v-tooltip>
                   <v-icon size="large" :class="{ 'text-white': isHovering }">mdi-download-outline</v-icon>
                 </v-btn>
               </v-hover>

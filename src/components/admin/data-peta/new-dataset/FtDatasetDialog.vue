@@ -230,6 +230,18 @@
                   </v-row>
                 </v-col>
               </v-row>
+              <v-row>
+                <v-col>
+                  <v-switch
+                      v-model="itemModified.privateData"
+                      :label="itemModified.privateData ? 'Data Private' : 'Tampil Publik'"
+                      class="pa-3"
+                      density="compact"
+                      hide-details
+                      color="primary"
+                  ></v-switch>
+                </v-col>
+              </v-row>
             </v-container>
           </v-card-title>
 
@@ -278,7 +290,7 @@
                     class="mr-2 rounded-lg"
                     @click="downloadDataset"
                 >
-                  Download GeoJSON
+                  Download File Geospasial
                 </v-btn>
                 <v-btn
                     color="error"

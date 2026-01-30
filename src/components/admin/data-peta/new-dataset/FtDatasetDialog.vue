@@ -1279,9 +1279,11 @@ export default {
         this.initializeEditMode(item);
 
       } else {
-          this.itemDefault = new FtDataset(0, "", "");
-          this.itemModified = new FtDataset(0, "", "");
-          this.itemModified.fileType = "geojson-gzip";
+          const newItem = new FtDataset(0, "", "");
+          newItem.statusActive = false
+          this.itemDefault = Object.assign({}, newItem);
+          this.itemModified = Object.assign({}, newItem);
+
           this.selectedIndex = -1;
           this.itemModified.propertiesShow = "[]"
           this.propertyMetaRows = []

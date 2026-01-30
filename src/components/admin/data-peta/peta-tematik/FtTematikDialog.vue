@@ -638,6 +638,7 @@ import FtTematik from "@/models/ft-tematik";
 import FtTematikDataset from "@/models/ft-tematik-dataset";
 import DataFilter from "@/models/payload/f-dayadukung-filter";
 import FtDatasetExtService from "@/services/apiservices/ft-dataset-ext-service";
+import FtDataset from "@/models/ft-dataset";
 
 export default {
   components: {
@@ -733,7 +734,7 @@ export default {
       this.formDialogOptions.errorMessage = "";
       this.selectedIndex = selectedIndex;
 
-      if (selectedIndex > -1 && item && item.id) {
+      if (selectedIndex > 1 && item && item.id) {
         await this.initializeEditMode(item.id);
       } else {
         this.initializeNewMode();
@@ -741,8 +742,14 @@ export default {
     },
 
     initializeNewMode() {
-      this.itemModified = new FtTematik();
-      this.itemDefault = JSON.parse(JSON.stringify(this.itemModified));
+      const newItem = new FtDataset(0, "", "");
+      newItem.statusActive = false
+      this.itemDefault = Object.assign({}, newItem);
+      this.itemModified = Object.assign({}, newItem);
+
+      // this.itemModified = new FtTematik();
+      // this.itemDefault = JSON.parse(JSON.stringify(this.itemModified));
+
       this.listFtTematikDataset = [];
       this.listFtTematikDatasetDefault = [];
     },

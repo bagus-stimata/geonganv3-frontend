@@ -61,18 +61,18 @@ const routes = [
         component: () => import('@/views/admin/setup/DinCarouselView.vue')
     },
 
+    // {
+    //     path: '/admin-dayadukung-type',
+    //     name: 'AdminDayaDukungType',
+    //     component: () => import('@/views/admin/data-peta/DayaDukungTypeView.vue')
+    // },
+    // {
+    //     path: '/data-peta-peta',
+    //     name: 'AdminDataDukungPetaView',
+    //     component: () => import('@/views/admin/data-peta/DataDukungPetaView.vue')
+    // },
     {
-        path: '/admin-dayadukung-type',
-        name: 'AdminDayaDukungType',
-        component: () => import('@/views/admin/data-peta/DayaDukungTypeView.vue')
-    },
-    {
-        path: '/data-peta-peta',
-        name: 'AdminDataDukungPetaView',
-        component: () => import('@/views/admin/data-peta/DataDukungPetaView.vue')
-    },
-    {
-        path: '/admin-data-peta-dataset-old',
+        path: '/admin-data-peta-dataset',
         name: 'AdminDataPetaDatasetView',
         component: () => import('@/views/admin/data-peta/DataPetaDatasetView.vue')
     },

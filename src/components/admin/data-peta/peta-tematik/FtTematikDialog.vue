@@ -734,7 +734,7 @@ export default {
       this.formDialogOptions.errorMessage = "";
       this.selectedIndex = selectedIndex;
 
-      if (selectedIndex > 1 && item && item.id) {
+      if (selectedIndex > 0 && item && item.id) {
         await this.initializeEditMode(item.id);
       } else {
         this.initializeNewMode();

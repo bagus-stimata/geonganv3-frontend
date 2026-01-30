@@ -396,16 +396,8 @@ function setMarkerDomHighlight(marker, on) {
   try {
     const el = marker?._icon
     if (!el || !el.classList) return
-
-    if (on) {
-      el.classList.add('marker-highlight')
-      // neon pink glow (works for img markers too)
-      el.style.filter = 'drop-shadow(0 0 8px rgba(255,0,204,0.95))'
-    } else {
-      el.classList.remove('marker-highlight')
-      // remove inline filter only if we set it
-      if (el.style && el.style.filter) el.style.filter = ''
-    }
+    if (on) el.classList.add('marker-highlight')
+    else el.classList.remove('marker-highlight')
   } catch (e) {
     console.warn('[PetaPostgis][highlight] setMarkerDomHighlight failed', e)
   }
@@ -413,28 +405,17 @@ function setMarkerDomHighlight(marker, on) {
 
 function applyLayerHighlight(layer) {
   try {
-    // Single highlight color (neon pink) for all types
-    const hl = '#ff00cc'
-
     // polygons/lines
     if (layer && typeof layer.setStyle === 'function') {
       layer.setStyle({
-        color: hl,
         weight: 6,
         opacity: 1,
-        fillColor: hl,
         fillOpacity: 0.65
       })
     }
 
     // markers
     setMarkerDomHighlight(layer, true)
-
-    // If marker icon is an HTML element (DivIcon), also color it
-    const el = layer?._icon
-    if (el && el.style) {
-      el.style.filter = 'drop-shadow(0 0 8px rgba(255,0,204,0.95))'
-    }
   } catch (e) {
     console.warn('[PetaPostgis][highlight] applyLayerHighlight failed', e)
   }

@@ -1921,56 +1921,83 @@ function goHome() {
   router.push("/")
 }
 
-function jsonToHtmlTable_Mobile(jsonValue, keys = []) {
+function jsonToHtmlTable_Mobile(jsonValue, keys = [], ll = null) {
   const myObj = jsonValue || {}
   const allow = Array.isArray(keys) ? keys : []
 
-  // Hide internal keys from popup/tooltip
-  const hiddenKeys = new Set(['__datasetId', '__propertiesShow'])
-
   // Default behavior: if no columns selected -> show all keys
-  const keyList = (allow.length
-      ? allow
-      : Object.keys(myObj).sort((a, b) => String(a).localeCompare(String(b))))
-      .filter((k) => !hiddenKeys.has(k))
+  const keyList = allow.length
+    ? allow
+    : Object.keys(myObj).sort((a, b) => String(a).localeCompare(String(b)))
 
   // If still empty, show a small note
   if (!keyList.length) {
     return `<div style="font-size:12px; opacity:0.75; padding:2px 0;">Tidak ada data.</div>`
   }
 
-  let text = "<table style='width: 240px; font-size:12px'>"
-
-  for (const k of keyList) {
-    if (hiddenKeys.has(k)) continue
-    if (!Object.prototype.hasOwnProperty.call(myObj, k)) continue
-    const v = myObj[k]
+  let rows = ""
+  for (const meta of keyList) {
+    if (!Object.prototype.hasOwnProperty.call(myObj, meta)) continue
+    const v = myObj[meta]
     if (v === undefined || v === null) continue
-
-    text += `
+    if (! escapeHtml(meta).includes('__datasetId') && ! escapeHtml(meta).includes('__propertiesShow')) {
+      rows += `
       <tr>
         <td style="padding:4px 0; word-break:break-word;">
-          <b>${escapeHtml(k)}</b>: ${escapeHtml(v)}
+          <b>${escapeHtml(meta)}</b>: ${escapeHtml(v)}
         </td>
       </tr>`
+    }
   }
 
-  text += "</table>"
-  return text
+  if (!rows) {
+    return `<div style="font-size:12px; opacity:0.75; padding:2px 0;">Tidak ada data.</div>`
+  }
+
+  const lat = ll?.lat
+  const lng = ll?.lng
+  const disabled = !(Number.isFinite(Number(lat)) && Number.isFinite(Number(lng)))
+
+  const btnHtml = `
+    <div style="margin-bottom:10px; display:flex; justify-content:flex-end;">
+      <button
+        type="button"
+        class="btn-open-streetview"
+        data-lat="${disabled ? '' : lat}"
+        data-lng="${disabled ? '' : lng}"
+        data-zoom="20"
+        ${disabled ? 'disabled' : ''}
+        title="${disabled ? 'Koordinat tidak ditemukan' : 'Buka StreetView di Google Maps'}"
+        style="padding:4px 8px; border:1px solid #bbb; background:#f5f5f5; color:#222; border-radius:4px; cursor:pointer; font-size:11px; line-height:1.1;"
+      >
+        Cek Street View
+      </button>
+      <span style="display:inline-block; width:12px;"></span>
+      <button
+        type="button"
+        class="btn-open-gmap"
+        data-lat="${disabled ? '' : lat}"
+        data-lng="${disabled ? '' : lng}"
+        data-zoom="20"
+        ${disabled ? 'disabled' : ''}
+        title="${disabled ? 'Koordinat tidak ditemukan' : 'Buka lokasi di Google Maps'}"
+        style="padding:4px 8px; border:1px solid #bbb; background:#f5f5f5; color:#222; border-radius:4px; cursor:pointer; font-size:11px; line-height:1.1;"
+      >
+        Open in Gmap
+      </button>
+    </div>
+  `
+
+  return `${btnHtml}<table style="width: 240px; font-size:12px"><tbody>${rows}</tbody></table>`
 }
 
-function jsonToHtmlTable(jsonValue, keys = []) {
+function jsonToHtmlTable(jsonValue, keys = [], ll = null) {
   const myObj = jsonValue || {}
   const allow = Array.isArray(keys) ? keys : []
 
-  // Hide internal keys from popup/tooltip
-  const hiddenKeys = new Set(['__datasetId', '__propertiesShow'])
-
-  // Default behavior: if no columns selected -> show all keys
-  const keyList = (allow.length
+  const keyList = allow.length
       ? allow
-      : Object.keys(myObj).sort((a, b) => String(a).localeCompare(String(b))))
-      .filter((k) => !hiddenKeys.has(k))
+      : Object.keys(myObj).sort((a, b) => String(a).localeCompare(String(b)))
 
   if (!keyList.length) {
     return `<div style="font-size:12px; opacity:0.75; padding:2px 0;">Tidak ada data.</div>`
@@ -1978,24 +2005,60 @@ function jsonToHtmlTable(jsonValue, keys = []) {
 
   let rows = ""
   for (const meta of keyList) {
-    if (hiddenKeys.has(meta)) continue
     if (!Object.prototype.hasOwnProperty.call(myObj, meta)) continue
     const val = myObj[meta]
     if (val === undefined || val === null) continue
 
-    rows += `
+    if (! escapeHtml(meta).includes('__datasetId') && ! escapeHtml(meta).includes('__propertiesShow')) {
+      rows += `
       <tr>
         <td style="font-weight:600; padding:2px 6px 2px 0; vertical-align:top;">${escapeHtml(meta)}</td>
         <td style="padding:2px 6px; vertical-align:top;">:</td>
         <td style="padding:2px 0; word-break:break-word;">${escapeHtml(val)}</td>
       </tr>`
+
+    }
   }
 
   if (!rows) {
     return `<div style="font-size:12px; opacity:0.75; padding:2px 0;">Tidak ada data.</div>`
   }
 
-  return `<table style="min-width:240px; max-width:340px; font-size:12px;"><tbody>${rows}</tbody></table>`
+  const lat = ll?.lat
+  const lng = ll?.lng
+  const disabled = !(Number.isFinite(Number(lat)) && Number.isFinite(Number(lng)))
+
+  const btnHtml = `
+    <div style="margin-bottom:10px; display:flex; justify-content:flex-end;">
+      <button
+        type="button"
+        class="btn-open-streetview"
+        data-lat="${disabled ? '' : lat}"
+        data-lng="${disabled ? '' : lng}"
+        data-zoom="20"
+        ${disabled ? 'disabled' : ''}
+        title="${disabled ? 'Koordinat tidak ditemukan' : 'Buka StreetView di Google Maps'}"
+        style="padding:4px 8px; border:1px solid #bbb; background:#f5f5f5; color:#222; border-radius:4px; cursor:pointer; font-size:11px; line-height:1.1;"
+      >
+        Cek Street View
+      </button>
+      <span style="display:inline-block; width:12px;"></span>
+      <button
+        type="button"
+        class="btn-open-gmap"
+        data-lat="${disabled ? '' : lat}"
+        data-lng="${disabled ? '' : lng}"
+        data-zoom="20"
+        ${disabled ? 'disabled' : ''}
+        title="${disabled ? 'Koordinat tidak ditemukan' : 'Buka lokasi di Google Maps'}"
+        style="padding:4px 8px; border:1px solid #bbb; background:#f5f5f5; color:#222; border-radius:4px; cursor:pointer; font-size:11px; line-height:1.1;"
+      >
+        Open in Gmap
+      </button>
+    </div>
+  `
+
+  return `${btnHtml}<table style="min-width:240px; max-width:340px; font-size:12px;"><tbody>${rows}</tbody></table>`
 }
 
 function openInGmap() {

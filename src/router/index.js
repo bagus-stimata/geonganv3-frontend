@@ -175,12 +175,12 @@ const routes = [
         component: () => import('../views/public/e-library/ElibraryView.vue')
     },
     {
-        path: "/public-dataset-old",
+        path: "/public-dataset",
         name: "DatasetView",
         component: () => import("../views/public/DatasetView.vue"),
     },
     {
-        path: "/public-peta-core",
+        path: "/public-peta-tematik",
         name: "PetaTematikView",
         component: () => import("../views/public/PetaTematikView.vue"),
     },

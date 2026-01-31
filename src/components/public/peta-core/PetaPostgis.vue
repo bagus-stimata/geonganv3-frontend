@@ -2129,7 +2129,7 @@ function openGMapsAt(lat, lng, zoom = 20) {
   }
 }
 
-function openGMapsStreetViewAt(lat, lng, radiusMeters = 70) {
+function openGMapsStreetViewAt(lat, lng, radiusMeters = 55) {
   try {
     const latNum = Number(lat)
     const lngNum = Number(lng)

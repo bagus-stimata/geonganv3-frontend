@@ -22,7 +22,7 @@
         <v-divider class="mx-4"></v-divider>
         <v-card-text class="px-6">
           <div class="text-grey font-weight-light text-subtitle-1 mb-1">
-            <span class="font-weight-bold text-green">1. Download Convert To Excel</span>, akan menghasilkan data export yang dimana geojson bertipe point akan di convert ke excell
+            Data yang di convert ke <span class="font-weight-bold text-green">Excel</span> hanya data yang berupa titik (Koordinat)
           </div>
           <v-chip size="small" color="green" variant="outlined" density="comfortable" class="text-caption mb-2 font-weight-bold" v-if="pointDatasetCount !== 0">
             <v-icon class="me-1" color="green">mdi-check-circle</v-icon>
@@ -31,8 +31,6 @@
           <v-chip size="small" color="orange" variant="outlined" density="comfortable" class="text-caption mb-2 font-weight-bold" v-if="pointDatasetCount === 0">
             Tidak ada dataset point (titik koordinat) yang bisa dikonversi ke excel
           </v-chip>
-          <div class="text-grey font-weight-light text-subtitle-1 mb-2"><span class="font-weight-bold text-indigo">2. Download Fully Geojson</span>, akan menghasilkan semua data export berupa geojson</div>
-
           <v-btn class="mt-4" block @click="download('POINT TO EXCEL')" variant="flat" color="green" :disabled="pointDatasetCount === 0">
             Download Convert To Excel
           </v-btn>

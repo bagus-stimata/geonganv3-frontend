@@ -280,6 +280,17 @@
                     hide-details
                 ></v-autocomplete>
               </v-col>
+              <v-col cols="12" sm="12" md="3">
+                <v-btn
+                    block
+                    color="green"
+                    variant="flat"
+                    class="mr-2 rounded-lg"
+                    @click="openUploadGeojsonShpDialog"
+                >
+                  Upload SHP
+                </v-btn>
+              </v-col>
             </v-row>
             <!-- Mode: sudah ada GeoJSON tersimpan dari backend, tampilkan tombol download & hapus -->
             <v-row v-else>
@@ -546,11 +557,17 @@
         </template>
       </v-snackbar>
       <DatasetDownloadDialog ref="refDatasetDownloadDialog"></DatasetDownloadDialog>
-      <UploadGeojsonExcelDatasetDialog
-        ref="refUploadGeojsonExcelDatasetDialog"
+      <UploadShpToGeojsonDialog
+        ref="refUploadGeojsonShpDatasetDialog"
         :geojsonFile="geojsonFile"
         :geojsonFileName="geojsonFileName"
-        @geojson-file-selected="handleGeojsonExcelFileSelected"
+        @geojson-file-selected="handleGeojsonShpFileSelected"
+      />
+      <UploadGeojsonExcelDatasetDialog
+          ref="refUploadGeojsonExcelDatasetDialog"
+          :geojsonFile="geojsonFile"
+          :geojsonFileName="geojsonFileName"
+          @geojson-file-selected="handleGeojsonExcelFileSelected"
       />
     </v-dialog>
 
@@ -627,9 +644,11 @@ import FtDatasetDialogFeatures from "@/components/admin/data-peta/new-dataset/Ft
 import UploadMarkerDialog from "@/components/utils/UploadMarkerDialog.vue";
 import DatasetDownloadDialog from "@/components/admin/data-peta/new-dataset/DatasetDownloadDialog.vue";
 import UploadGeojsonExcelDatasetDialog from "@/components/admin/data-peta/new-dataset/UploadGeojsonExcelDatasetDialog.vue";
+import UploadShpToGeojsonDialog from "./UploadShpToGeojsonDialog.vue";
 
 export default {
   components: {
+    UploadShpToGeojsonDialog,
     DatasetDownloadDialog,
     UploadMarkerDialog: UploadMarkerDialog,
     FtDatasetDialogFeatures,
@@ -769,8 +788,20 @@ export default {
         this.$refs.refUploadGeojsonExcelDatasetDialog.showDialog();
       }
     },
+    openUploadGeojsonShpDialog() {
+      if (this.$refs.refUploadGeojsonShpDatasetDialog) {
+        this.$refs.refUploadGeojsonShpDatasetDialog.showDialog();
+      }
+    },
 
     async handleGeojsonExcelFileSelected(payload) {
+      // payload: { file, fileName }
+      this.geojsonFile = payload && payload.file ? payload.file : null;
+      this.geojsonFileName = payload && payload.fileName ? payload.fileName : "";
+      await this.$nextTick();
+      await this.onGeojsonFileSelected();
+    },
+    async handleGeojsonShpFileSelected(payload) {
       // payload: { file, fileName }
       this.geojsonFile = payload && payload.file ? payload.file : null;
       this.geojsonFileName = payload && payload.fileName ? payload.fileName : "";

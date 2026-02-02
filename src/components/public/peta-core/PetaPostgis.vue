@@ -1049,8 +1049,31 @@ function onEachFeatureOption(feature, layer) {
         // if parent turns it off, ensure old tooltip removed
         if (typeof layer.unbindTooltip === 'function') layer.unbindTooltip()
       }
-
     }
+
+    // --- Click highlight for polygons (single active highlight) ---
+    try {
+      const geomType = feature?.geometry?.type || ''
+      const isPolygon = (geomType === 'Polygon' || geomType === 'MultiPolygon')
+
+      if (isPolygon && layer && typeof layer.on === 'function') {
+        layer.on('click', () => {
+          try {
+            // reset previous highlights
+            clearHighlights()
+
+            // highlight clicked polygon layer
+            highlighted.value.add(layerId)
+            applyLayerHighlight(layer)
+          } catch (e) {
+            console.warn('[PetaPostgis][highlight] click highlight failed', e)
+          }
+        })
+      }
+    } catch (e) {
+      console.warn('[PetaPostgis][highlight] setup click highlight failed', e)
+    }
+    // --- end click highlight ---
 
   } catch (e) {
     console.warn('[PetaPostgis][onEachFeatureOption] failed', e)

@@ -23,16 +23,17 @@
           :visible="bm.id === activeBasemapId"
       />
 
-      <!-- GeoJSON overlay -->
+
+      <!-- GeoJSON overlay (NON-POINT only; points are rendered via MarkerClusterGroup) -->
       <LGeoJson
-          v-for="(g, idx) in geojsonData"
+          v-for="(g, idx) in geojsonDataNonPoint"
           :key="g?.properties?.id ?? idx"
           :geojson="g"
           :options="options"
           :options-style="styleOption"
       />
 
-      <LControl position="topleft" v-if="showZoomButton && !isFullscreen">
+      <LControl v-if="isVisibleHomeButton && showZoomButton && !isFullscreen" position="topright">
         <v-btn
             variant="elevated"
             class="rounded-lg text-white ma-1 color-bg-second"
@@ -50,7 +51,7 @@
       <LControlLayers position="topright"></LControlLayers>
 
       <LControlZoomComp position="bottomright"></LControlZoomComp>
-      <l-control position="bottomright" class="control-offset-br">
+      <l-control v-if="isVisibleSsButton" position="bottomright" class="control-offset-br">
         <v-btn
             color="pink-lighten-2"
             icon
@@ -64,7 +65,7 @@
         </v-btn>
       </l-control>
 
-      <l-control position="bottomright" class="control-offset-br">
+      <l-control v-if="isVisibleFullScreenButton" position="bottomright" class="control-offset-br">
         <v-btn
             color="indigo"
             icon
@@ -78,7 +79,7 @@
         </v-btn>
       </l-control>
 
-      <l-control position="bottomright" class="control-offset-br">
+      <l-control v-if="isVisibleCenterButton" position="bottomright" class="control-offset-br">
         <v-btn
             color="primary"
             icon
@@ -94,10 +95,10 @@
 
 
       <!-- Drawn shapes layer for Leaflet.Draw (mounted always; enabled via props) -->
-      <LFeatureGroup ref="drawGroupRef" />
+      <LFeatureGroup v-if="isVisibleFeatureGroup" ref="drawGroupRef" />
 
       <!-- Bottom-left host to force Leaflet.Draw toolbar to be horizontal and aligned with attribution -->
-      <l-control position="bottomleft" class="draw-host">
+      <l-control v-if="isVisibleDrawTools" position="bottomleft" class="draw-host">
         <div ref="drawHostRef" class="draw-host-inner"></div>
       </l-control>
 
@@ -143,15 +144,28 @@
 /* global defineProps */
 import { ref, onMounted, nextTick, onBeforeUnmount, computed, watch } from 'vue'
 import { LMap, LTileLayer, LGeoJson, LControl, LControlZoom as LControlZoomComp, LControlLayers, LFeatureGroup } from '@vue-leaflet/vue-leaflet'
-import L from 'leaflet'
+import L, {Icon} from 'leaflet'
+import 'leaflet.markercluster/dist/MarkerCluster.css'
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 
 import FtDatasetExtService from "@/services/apiservices/ft-dataset-ext-service";
+import FileService from "@/services/apiservices/file-service";
 import ZonaColorMapper from "@/helpers/zona-color-mapper";
 import router from "@/router";
 
 import 'leaflet/dist/leaflet.css'
 import 'leaflet-draw'
+import 'leaflet-draw/dist/leaflet.draw.js'
 import 'leaflet-draw/dist/leaflet.draw.css'
+import * as turf from '@turf/turf'
+import ETipePeta from "@/models/e-tipe-peta";
+
+delete Icon.Default.prototype.Default;
+Icon.Default.mergeOptions({
+  iconRetinaUrl: require("@/assets/images/my-marker.webp"),
+  iconUrl: require("@/assets/images/my-marker.webp"),
+  shadowUrl: require("@/assets/images/my-marker.webp"),
+});
 
 // ---- component sizing (container-based, reusable across pages) ----
 const props = defineProps({
@@ -161,8 +175,22 @@ const props = defineProps({
 
   // IDs dataset-old yang mau ditampilkan (di-drive dari parent)
   datasetIds: { type: Array, default: () => [] },
+  itemsMapsetSelected: { type: Array, default: () => [] },
   showZoomButton: { type: Boolean, default: true },
-  drawEnabled: { type: Boolean, default: true }
+  drawEnabled: { type: Boolean, default: true },
+
+  isVisibleHomeButton: { type: Boolean, default: true },
+  isVisibleSsButton: { type: Boolean, default: true },
+  isVisibleFullScreenButton: { type: Boolean, default: true },
+  isVisibleCenterButton: { type: Boolean, default: true },
+  isVisibleFeatureGroup: { type: Boolean, default: true },
+  isVisibleDrawTools: { type: Boolean, default: true },
+
+  // --- highlight/search (client-side) ---
+  keywordHighlight: { type: String, default: '' },               // filter/highlight by text
+  highlightFeatureKey: { type: String, default: '' },    // highlight by feature key/id
+  // --- tooltip on hover (popup-like) ---
+  mapToolTipOn: { type: Boolean, default: false }
 })
 
 const isFullscreen = ref(false)
@@ -218,9 +246,15 @@ let drawHostObserver = null
 let drawControl = null
 let drawnItems = null
 let onDrawCreatedHandler = null
+let onDrawEditedHandler = null
+const DRAW_EVT_EDITED = (L?.Draw?.Event?.EDITED) || 'draw:edited'
 
 // state peta
 const mapRef = ref(null)
+
+// Leaflet.Draw event names (string fallbacks so we don't rely on L.Draw.Event existing)
+const DRAW_EVT_CREATED = (L?.Draw?.Event?.CREATED) || 'draw:created'
+
 
 // Leaflet needs invalidateSize() when its container changes (dialog/tab/sidebar/resize)
 let resizeObserver = null
@@ -261,7 +295,13 @@ const userLocation = ref(null)
 const activeBasemapId = ref('googleHybrid')
 const basemapList = Object.values(basemaps)
 
-
+// template visibility flags (computed aliases)
+const isVisibleHomeButton = computed(() => props.isVisibleHomeButton !== false)
+const isVisibleSsButton = computed(() => props.isVisibleSsButton !== false)
+const isVisibleFullScreenButton = computed(() => props.isVisibleFullScreenButton !== false)
+const isVisibleCenterButton = computed(() => props.isVisibleCenterButton !== false)
+const isVisibleFeatureGroup = computed(() => props.isVisibleFeatureGroup !== false)
+const isVisibleDrawTools = computed(() => props.isVisibleDrawTools !== false)
 function setBasemap(id) {
   if (basemaps[id]) {
     activeBasemapId.value = id
@@ -281,6 +321,255 @@ function setBasemap(id) {
 }
 // GeoJSON dari backend
 const geojsonData = ref([])
+
+// =======================
+// Highlight + Indexing (client-side)
+// =======================
+const featureIndex = ref(new Map()) // layerId -> Leaflet layer
+const textIndex = ref([])           // { text, layerId }
+const highlighted = ref(new Set())  // Set<layerId>
+
+function cleanupHighlightIndices() {
+  try {
+    clearHighlights()
+    featureIndex.value = new Map()
+    textIndex.value = []
+  } catch (e) {
+    console.warn('[PetaPostgis][highlight] cleanupHighlightIndices failed', e)
+  }
+}
+
+function normalizeText(v) {
+  return String(v ?? '').toLowerCase().trim()
+}
+
+function buildSearchTextForFeatureProps(props = {}) {
+  try {
+    const parts = []
+
+    // include zona desc candidate if available
+    try {
+      const desc = ZonaColorMapper.getDescCandidate(props)
+      if (desc) parts.push(String(desc))
+    } catch (e) {
+      console.warn('[PetaPostgis][highlight] ZonaColorMapper.getDescCandidate failed (ignored)', e)
+    }
+
+    // include stable-ish keys
+    const fk = props.featureKey ?? props.feature_key ?? props.FEATURE_KEY ?? ''
+    if (fk) parts.push(String(fk))
+
+    const id = props.id ?? props.ID ?? ''
+    if (id) parts.push(String(id))
+
+    for (const [k, val] of Object.entries(props)) {
+      if (val == null) continue
+      if (typeof val === 'string') {
+        const s = val.trim()
+        if (s) parts.push(s)
+      } else if (typeof val === 'number' && Number.isFinite(val)) {
+        parts.push(String(val))
+      } else if (typeof val === 'boolean') {
+        parts.push(`${k}:${val}`)
+      }
+    }
+
+    return parts.join(' ').toLowerCase()
+  } catch (e) {
+    console.warn('[PetaPostgis][highlight] buildSearchTextForFeatureProps failed', e)
+    return ''
+  }
+}
+
+function resetLayerStyle(layer) {
+  try {
+    if (layer && typeof layer.setStyle === 'function') {
+      const style = styleOption(layer?.feature)
+      layer.setStyle(style)
+    }
+  } catch (e) {
+    console.warn('[PetaPostgis][highlight] resetLayerStyle failed', e)
+  }
+}
+
+function setMarkerDomHighlight(marker, on) {
+  try {
+    const el = marker?._icon
+    if (!el || !el.classList) return
+
+    if (on) {
+      el.classList.add('marker-highlight')
+      // neon pink glow (works for img markers too)
+      el.style.filter = 'drop-shadow(0 0 8px rgba(255,0,204,0.95))'
+    } else {
+      el.classList.remove('marker-highlight')
+      // remove inline filter only if we set it
+      if (el.style && el.style.filter) el.style.filter = ''
+    }
+  } catch (e) {
+    console.warn('[PetaPostgis][highlight] setMarkerDomHighlight failed', e)
+  }
+}
+
+function applyLayerHighlight(layer) {
+  try {
+    // Single highlight color (neon pink) for all types
+    const hl = '#ff00cc'
+
+    // polygons/lines
+    if (layer && typeof layer.setStyle === 'function') {
+      layer.setStyle({
+        color: hl,
+        weight: 6,
+        opacity: 1,
+        fillColor: hl,
+        fillOpacity: 0.65
+      })
+    }
+
+    // markers
+    setMarkerDomHighlight(layer, true)
+
+    // If marker icon is an HTML element (DivIcon), also color it
+    const el = layer?._icon
+    if (el && el.style) {
+      el.style.filter = 'drop-shadow(0 0 8px rgba(255,0,204,0.95))'
+    }
+  } catch (e) {
+    console.warn('[PetaPostgis][highlight] applyLayerHighlight failed', e)
+  }
+}
+
+function clearHighlights() {
+  try {
+    for (const id of highlighted.value) {
+      const lyr = featureIndex.value.get(id)
+      if (!lyr) continue
+
+      if (typeof lyr.setStyle === 'function') resetLayerStyle(lyr)
+      setMarkerDomHighlight(lyr, false)
+    }
+    highlighted.value.clear()
+  } catch (e) {
+    console.warn('[PetaPostgis][highlight] clearHighlights failed', e)
+  }
+}
+
+function highlightByKeyword(keywordRaw) {
+  const q = normalizeText(keywordRaw)
+  if (!q) {
+    clearHighlights()
+    return
+  }
+
+  clearHighlights()
+
+  try {
+    const matches = textIndex.value
+      .filter(x => x?.text && x.text.includes(q))
+      .slice(0, 250)
+
+    for (const m of matches) {
+      const lyr = featureIndex.value.get(m.layerId)
+      if (!lyr) continue
+      highlighted.value.add(m.layerId)
+      applyLayerHighlight(lyr)
+    }
+  } catch (e) {
+    console.warn('[PetaPostgis][highlight] highlightByKeyword failed', e)
+  }
+}
+
+function highlightByFeatureKey(featureKeyRaw) {
+  const key = normalizeText(featureKeyRaw)
+  if (!key) {
+    clearHighlights()
+    return
+  }
+
+  clearHighlights()
+
+  try {
+    for (const [id, lyr] of featureIndex.value.entries()) {
+      const props = lyr?.feature?.properties || {}
+      const fk = normalizeText(
+        props.featureKey ??
+        props.feature_key ??
+        props.FEATURE_KEY ??
+        props.id ??
+        props.ID ??
+        ''
+      )
+
+      if (fk && fk.includes(key)) {
+        highlighted.value.add(id)
+        applyLayerHighlight(lyr)
+      }
+    }
+  } catch (e) {
+    console.warn('[PetaPostgis][highlight] highlightByFeatureKey failed', e)
+  }
+}
+// Split GeoJSON: NON-POINT rendered by <LGeoJson>, POINT/MultiPoint rendered by MarkerClusterGroup
+const geojsonDataNonPoint = computed(() => {
+  const src = Array.isArray(geojsonData.value) ? geojsonData.value : []
+
+  const isPointGeom = (geom) => {
+    const t = geom?.type
+    return t === 'Point' || t === 'MultiPoint'
+  }
+
+  return src
+      .map(g => {
+        if (!g || typeof g !== 'object') return null
+
+        if (g.type === 'Feature') {
+          return isPointGeom(g.geometry) ? null : g
+        }
+
+        if (g.type === 'FeatureCollection' && Array.isArray(g.features)) {
+          const nonPoint = g.features.filter(f => {
+            if (!f || f.type !== 'Feature') return false
+            return !isPointGeom(f.geometry)
+          })
+          if (!nonPoint.length) return null
+          return { type: 'FeatureCollection', features: nonPoint }
+        }
+
+        return null
+      })
+      .filter(Boolean)
+})
+
+const geojsonDataPoint = computed(() => {
+  const src = Array.isArray(geojsonData.value) ? geojsonData.value : []
+
+  const isPointGeom = (geom) => {
+    const t = geom?.type
+    return t === 'Point' || t === 'MultiPoint'
+  }
+
+  return src
+      .map(g => {
+        if (!g || typeof g !== 'object') return null
+
+        if (g.type === 'Feature') {
+          return isPointGeom(g.geometry) ? g : null
+        }
+
+        if (g.type === 'FeatureCollection' && Array.isArray(g.features)) {
+          const onlyPoint = g.features.filter(f => {
+            if (!f || f.type !== 'Feature') return false
+            return isPointGeom(f.geometry)
+          })
+          if (!onlyPoint.length) return null
+          return { type: 'FeatureCollection', features: onlyPoint }
+        }
+
+        return null
+      })
+      .filter(Boolean)
+})
 
 // --- GeoJSON styling (match PetaInteraktif styleFunction) ---
 // NOTE: vue-leaflet `LGeoJson` supports `:options-style` which can be a function(feature) => style
@@ -327,29 +616,442 @@ function escapeHtml(str) {
     .replace(/'/g, '&#039;')
 }
 
+// NOTE: Leaflet GeoJSON pointToLayer signature: (feature, latlng) => Layer
 function pointToLayerOption(feature, latlng) {
-  // Points: pakai circleMarker biar consistent & ringan (canvas-friendly)
-  return L.circleMarker(latlng, {
-    radius: 6,
-    weight: 1.2,
-    opacity: 0.9,
-    fillOpacity: 0.85
-  })
+  try {
+    const icon = getMarkerIconForFeature(feature)
+
+    return icon ? L.marker(latlng, { icon }) : L.marker(latlng)
+  } catch (e) {
+    console.warn('[PetaPostgis][pointToLayer] fallback default marker', e)
+    return L.marker(latlng)
+  }
 }
 
-function onEachFeatureOption(feature, layer) {
+// cache icon biar gak recreate terus
+const markerIconCache = ref(new Map())
+
+// --- Marker clustering layer for POINT/MultiPoint ---
+let markerClusterGroup = null
+let markerClusterGeojsonLayer = null
+
+let markerPlainGeojsonLayer = null // normal points (no cluster) when zoom >= 13
+const CLUSTER_OFF_AT_ZOOM = 13
+
+let markerClusterPluginPromise = null
+
+async function ensureMarkerClusterPluginLoaded() {
+  // already available
+  if (typeof L?.markerClusterGroup === 'function') return true
+
+  // cached inflight
+  if (markerClusterPluginPromise) return markerClusterPluginPromise
+
+  markerClusterPluginPromise = (async () => {
+    try {
+      // Some builds of markercluster rely on global L
+      if (typeof window !== 'undefined' && window && !window.L) {
+        window.L = L
+      }
+
+      // Import the actual dist file to ensure side-effects run
+      await import('leaflet.markercluster/dist/leaflet.markercluster.js')
+
+      const ok = typeof L?.markerClusterGroup === 'function'
+      if (!ok) {
+        console.warn('[PetaPostgis][cluster] markercluster loaded but L.markerClusterGroup is still missing')
+      }
+      return ok
+    } catch (e) {
+      console.warn('[PetaPostgis][cluster] failed to load markercluster plugin', e)
+      return false
+    } finally {
+      // allow retry if failed
+      if (typeof L?.markerClusterGroup !== 'function') {
+        markerClusterPluginPromise = null
+      }
+    }
+  })()
+
+  return markerClusterPluginPromise
+}
+
+function clearPlainPoints() {
   try {
-    const props = feature?.properties || {}
-    // ringan & aman: render JSON props dalam <pre>
-    // const pretty = JSON.stringify(props, null, 2)
-    // const html = `<pre style="max-height:260px; overflow:auto; min-width:260px; white-space:pre-wrap; margin:0">${escapeHtml(pretty)}</pre>`
-    const html = `<div style="max-height:260px; overflow:auto;">${popupHtmlForProps(props)}</div>`
-    if (layer && typeof layer.bindPopup === 'function') {
-      layer.bindPopup(html, {
-        autoPan: false, // <- ini biang geser
-        closeButton: true,
+    const map = mapRef.value?.leafletObject
+    if (map && markerPlainGeojsonLayer && map.hasLayer(markerPlainGeojsonLayer)) {
+      map.removeLayer(markerPlainGeojsonLayer)
+    }
+    markerPlainGeojsonLayer = null
+  } catch (e) {
+    console.warn('[PetaPostgis][plainPoints] clear failed', e)
+  }
+}
+
+function rebuildPlainPointsFromGeojson() {
+  const map = mapRef.value?.leafletObject
+  if (!map) return
+
+  clearPlainPoints()
+
+  try {
+    markerPlainGeojsonLayer = L.geoJSON(geojsonDataPoint.value, {
+      pointToLayer: pointToLayerOption,
+      onEachFeature: onEachFeatureOption
+    })
+    markerPlainGeojsonLayer.addTo(map)
+  } catch (e) {
+    console.warn('[PetaPostgis][plainPoints] rebuild failed', e)
+  }
+}
+
+async function ensureMarkerClusterLayer() {
+  try {
+    const map = mapRef.value?.leafletObject
+    if (!map) return null
+
+    const ok = await ensureMarkerClusterPluginLoaded()
+    if (!ok || typeof L?.markerClusterGroup !== 'function') {
+      console.warn('[PetaPostgis][cluster] markerCluster plugin not loaded (L.markerClusterGroup missing)')
+      return null
+    }
+
+    if (markerClusterGroup) return markerClusterGroup
+
+    markerClusterGroup = L.markerClusterGroup({
+      showCoverageOnHover: false,
+      spiderfyOnMaxZoom: true,
+      disableClusteringAtZoom: 18,
+      chunkedLoading: true,
+      removeOutsideVisibleBounds: true
+    })
+
+    if (!map.hasLayer(markerClusterGroup)) {
+      map.addLayer(markerClusterGroup)
+    }
+
+    return markerClusterGroup
+  } catch (e) {
+    console.warn('[PetaPostgis][cluster] ensureMarkerClusterLayer failed', e)
+    return null
+  }
+}
+
+function clearMarkerClusters() {
+  try {
+    if (markerClusterGeojsonLayer && markerClusterGroup) {
+      markerClusterGroup.removeLayer(markerClusterGeojsonLayer)
+      markerClusterGeojsonLayer = null
+    }
+    if (markerClusterGroup && typeof markerClusterGroup.clearLayers === 'function') {
+      markerClusterGroup.clearLayers()
+    }
+  } catch (e) {
+    console.warn('[PetaPostgis][cluster] clear failed', e)
+  }
+}
+
+async function rebuildMarkerClustersFromGeojson() {
+  const map = mapRef.value?.leafletObject
+  if (!map) return
+  try {
+    const z = Number(map.getZoom?.())
+    const zoomIsClusterOff = Number.isFinite(z) ? (z >= CLUSTER_OFF_AT_ZOOM) : false
+
+    // zoom >= 13 => normal markers; cluster OFF
+    if (zoomIsClusterOff) {
+      try {
+        clearMarkerClusters()
+        if (markerClusterGroup && map.hasLayer(markerClusterGroup)) {
+          map.removeLayer(markerClusterGroup)
+        }
+      } catch (e) {
+        console.warn('[PetaPostgis][cluster] detach failed', e)
+      }
+
+      rebuildPlainPointsFromGeojson()
+      return
+    }
+
+    // zoom < 13 => cluster ON; normal OFF
+    clearPlainPoints()
+
+    const grp = await ensureMarkerClusterLayer()
+    if (!grp) {
+      // fallback: plugin cluster gak ada -> tetap tampilkan point normal
+      rebuildPlainPointsFromGeojson()
+      return
+    }
+
+    try {
+      if (!map.hasLayer(grp)) map.addLayer(grp)
+    } catch (e) {
+      console.warn('[PetaPostgis][cluster] attach failed', e)
+    }
+
+    clearMarkerClusters()
+
+    try {
+      markerClusterGeojsonLayer = L.geoJSON(geojsonDataPoint.value, {
+        pointToLayer: pointToLayerOption,
+        onEachFeature: onEachFeatureOption
+      })
+      grp.addLayer(markerClusterGeojsonLayer)
+    } catch (e) {
+      console.warn('[PetaPostgis][cluster] rebuild failed', e)
+    }
+  } catch (e) {
+    console.warn('[PetaPostgis][cluster] rebuildMarkerClustersFromGeojson failed', e)
+  }
+}
+
+function resolveMarkerImageUrl(markerImage) {
+  const v = (markerImage == null) ? '' : String(markerImage).trim()
+  if (!v) return ''
+  if (/^https?:\/\//i.test(v)) return v
+
+  try {
+    // kalau markerImage itu key/filename dari backend
+    return FileService.fileMarker(v)
+  } catch (e) {
+    console.warn('[PetaPostgis][resolveMarkerImageUrl] fallback raw value', e)
+    return v
+  }
+}
+
+// Helper: inject datasetId into GeoJSON Feature(s)
+function injectDatasetIdIntoGeojson(gj, dsId) {
+  try {
+    const did = Number(dsId)
+    if (!Number.isFinite(did) || did <= 0) return gj
+    if (!gj || typeof gj !== 'object') return gj
+
+    if (gj.type === 'Feature') {
+      gj.properties = gj.properties || {}
+      if (gj.properties.__datasetId == null) gj.properties.__datasetId = did
+      return gj
+    }
+
+    if (gj.type === 'FeatureCollection' && Array.isArray(gj.features)) {
+      gj.features.forEach(f => {
+        if (!f || f.type !== 'Feature') return
+        f.properties = f.properties || {}
+        if (f.properties.__datasetId == null) f.properties.__datasetId = did
+      })
+      return gj
+    }
+
+    return gj
+  } catch (e) {
+    console.warn('[PetaPostgis][injectDatasetIdIntoGeojson] failed', e)
+    return gj
+  }
+}
+
+/**
+ * Marker harus punya dataset-old __datasetId
+ */
+function getMarkerIconForFeature(feature) {
+  try {
+    const propsFeature = feature?.properties || {}
+
+    // dataset-old id can be injected by fetchViewportData (preferred)
+    const dsIdRaw = (
+      propsFeature.__datasetId ??
+      propsFeature.__datasetBean ??
+      // fallback aliases (if backend embeds it per-feature)
+      propsFeature.ftDatasetBean ??
+      propsFeature.ft_dataset_bean ??
+      propsFeature.datasetId ??
+      propsFeature.dataset_id ??
+      propsFeature.ftDatasetId ??
+      propsFeature.datasetBean ??
+      propsFeature.idDataset ??
+      propsFeature.id_dataset
+    )
+
+    const dsId = (dsIdRaw == null || String(dsIdRaw).trim() === '') ? null : Number(dsIdRaw)
+
+    const list = Array.isArray(props.itemsMapsetSelected) ? props.itemsMapsetSelected : []
+
+    // If only one dataset-old is selected, we can safely use it without dsId
+    let ds = null
+    if ((!Number.isFinite(dsId) || dsId == null || dsId <= 0) && list.length === 1) {
+      ds = list[0]
+    }
+
+    // If dsId exists, match it
+    if (!ds && dsId != null && Number.isFinite(dsId) && dsId > 0) {
+      ds = list.find(x => {
+        const xid = Number(
+          x?.id ??
+          x?.datasetId ??
+          x?.dataset_id ??
+          x?.ftDatasetBean ??
+          x?.ft_dataset_bean ??
+          x?.ftDatasetId ??
+          x?.datasetBean
+        )
+        return Number.isFinite(xid) && xid === dsId
       })
     }
+
+    if (!ds) return null
+
+
+    // Resolve marker image field (support multiple naming styles)
+    const markerImageRaw = (
+      ds?.markerImage ??
+      ds?.marker_image ??
+      ds?.markerIcon ??
+      ds?.marker_icon ??
+      ds?.iconUrl ??
+      ds?.icon_url ??
+      ds?.icon ??
+      ds?.marker
+    )
+
+    // console.log(markerImageRaw)
+
+    const markerImageUrl = resolveMarkerImageUrl(markerImageRaw)
+    if (!markerImageUrl) return null
+
+    // Only apply custom icon for POINT datasets if tipePeta is provided
+    const tipePeta = ds?.tipePeta ?? ds?.tipe_peta
+    if (tipePeta != null && !isPointTipePeta(tipePeta)) {
+      return null
+    }
+
+    // cache by URL + size
+    const iconSize = [32, 32]
+    const iconAnchor = [16, 32]
+    const popupAnchor = [0, -32]
+    const cacheKey = `${markerImageUrl}|${iconSize[0]}x${iconSize[1]}`
+
+    const cached = markerIconCache.value.get(cacheKey)
+    if (cached) return cached
+
+    const icon = L.icon({
+      iconUrl: markerImageUrl,
+      iconSize,
+      iconAnchor,
+      popupAnchor,
+      shadowUrl: undefined,
+      shadowSize: undefined,
+      shadowAnchor: undefined
+    })
+
+    markerIconCache.value.set(cacheKey, icon)
+    return icon
+  } catch (e) {
+    console.warn('[PetaPostgis][getMarkerIconForFeature] failed, fallback default marker', e)
+    return null
+  }
+}
+
+function isPointTipePeta(tipePeta) {
+  return tipePeta === ETipePeta.POINT
+}
+function onEachFeatureOption(feature, layer) {
+  try {
+    // --- indexing for highlight/search ---
+    const layerId = L.stamp(layer)
+    featureIndex.value.set(layerId, layer)
+
+    const propsFeature = feature?.properties || {}
+    const text = buildSearchTextForFeatureProps(propsFeature)
+    if (text) textIndex.value.push({ text, layerId })
+
+    // Cleanup when layer removed (viewport refresh / re-render)
+    if (layer && typeof layer.on === 'function') {
+      layer.on('remove', () => {
+        try {
+          setMarkerDomHighlight(layer, false)
+          highlighted.value.delete(layerId)
+          featureIndex.value.delete(layerId)
+        } catch (e) {
+          console.warn('[PetaPostgis][highlight] layer remove cleanup failed', e)
+        }
+      })
+    }
+
+    // --- popup (existing behavior) ---
+    const html = `<div style="max-height:260px; overflow:auto;">${popupHtmlForFeature(feature, layer)}</div>`
+
+    if (layer && typeof layer.bindPopup === 'function') {
+      layer.bindPopup(html, {
+        autoPan: false,
+        closeButton: true,
+      })
+      layer.on('popupopen', (e) => {
+        try {
+          const el = e?.popup?.getElement?.()
+          if (!el) return
+
+          const btnGmap = el.querySelector('.btn-open-gmap')
+          const btnStreetview = el.querySelector('.btn-open-streetview')
+          if (!btnGmap && !btnStreetview) return
+
+          const parseLatLng = (btn) => {
+            const latRaw = (btn?.getAttribute('data-lat') ?? '').trim()
+            const lngRaw = (btn?.getAttribute('data-lng') ?? '').trim()
+            if (!latRaw || !lngRaw) return null
+
+            const lat = Number(latRaw)
+            const lng = Number(lngRaw)
+            if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+            return { lat, lng }
+          }
+
+          if (btnGmap) {
+            btnGmap.onclick = (ev) => {
+              ev.preventDefault()
+              ev.stopPropagation()
+
+              const ll = parseLatLng(btnGmap)
+              if (!ll) return
+              const z = Number(btnGmap.getAttribute('data-zoom')) || 20
+
+              openGMapsAt(ll.lat, ll.lng, z)
+            }
+          }
+
+          if (btnStreetview) {
+            btnStreetview.onclick = (ev) => {
+              ev.preventDefault()
+              ev.stopPropagation()
+
+              const ll = parseLatLng(btnStreetview)
+              if (!ll) return
+
+              openGMapsStreetViewAt(ll.lat, ll.lng)
+            }
+          }
+
+        } catch (err) {
+          console.warn('[PetaPostgis][popup] popupopen handler error', err)
+        }
+      })
+
+      // --- Tooltip (hover) driven by parent prop ---
+      if (props.mapToolTipOn === true) {
+        // Use same popup html, but as tooltip content
+        layer.bindTooltip(
+          `<div style="max-height:350px; overflow:auto; min-width:300px;">${html}</div>`,
+          {
+            permanent: false,
+            sticky: true,
+            direction: 'top',
+            opacity: 0.95
+          }
+        )
+      } else {
+        // if parent turns it off, ensure old tooltip removed
+        if (typeof layer.unbindTooltip === 'function') layer.unbindTooltip()
+      }
+
+    }
+
   } catch (e) {
     console.warn('[PetaPostgis][onEachFeatureOption] failed', e)
   }
@@ -427,6 +1129,52 @@ const datasetIdsNorm = computed(() => {
   return Array.from(new Set(ids))
 })
 
+// highlight watchers (driven by parent props)
+
+watch(
+  () => props.keywordHighlight,
+  (v) => { highlightByKeyword(v) },
+  { immediate: true }
+)
+
+watch(
+  () => props.highlightFeatureKey,
+  (v) => { highlightByFeatureKey(v) },
+  { immediate: true }
+)
+
+watch(
+  () => props.mapToolTipOn,
+  (on) => {
+    try {
+      // Re-bind tooltips for existing layers
+      for (const lyr of featureIndex.value.values()) {
+        if (!lyr) continue
+        const html = `<div style="max-height:260px; overflow:auto;">${popupHtmlForFeature(lyr?.feature, lyr)}</div>`
+
+        if (on === true) {
+          if (typeof lyr.bindTooltip === 'function') {
+            lyr.bindTooltip(
+              `<div style="max-height:350px; overflow:auto; min-width:300px;">${html}</div>`,
+              {
+                permanent: false,
+                sticky: true,
+                direction: 'top',
+                opacity: 0.95
+              }
+            )
+          }
+        } else {
+          if (typeof lyr.unbindTooltip === 'function') lyr.unbindTooltip()
+        }
+      }
+    } catch (e) {
+      console.warn('[PetaPostgis][tooltip] toggle update failed', e)
+    }
+  },
+  { immediate: true }
+)
+
 const lastZoom = ref(zoom.value)
 const showZoomInfo = ref(false)
 const zoomInfoMessage = ref('')
@@ -442,8 +1190,12 @@ const MAX_VP_RETRY = 6
 const isMapReady = ref(false)
 const pendingRefresh = ref(false)
 
+
 function onMapReady() {
   isMapReady.value = true
+  // preload markercluster plugin (best effort) then build layers
+  ensureMarkerClusterPluginLoaded()
+  rebuildMarkerClustersFromGeojson()
 
   // reflow biar ukuran leaflet bener (flex layout / dialog)
   requestAnimationFrame(() => invalidateMapSize())
@@ -503,7 +1255,50 @@ function rehomeDrawToolbar(map) {
     console.warn('[draw] rehomeDrawToolbar failed', e)
   }
 }
+function formatHectares(valueHa) {
+  if (!Number.isFinite(valueHa)) return ''
+  return Number(valueHa.toFixed(4))
+}
 
+function setDrawnAreaTooltip(layer) {
+  try {
+    if (!layer) return
+
+    // Only show area tooltip for shapes that have area: Polygon/Rectangle/Circle
+    let areaM2 = null
+
+    if (layer instanceof L.Circle && typeof layer.getRadius === 'function') {
+      const r = layer.getRadius()
+      if (Number.isFinite(r)) areaM2 = Math.PI * r * r
+    } else if (typeof layer.toGeoJSON === 'function') {
+      const gj = layer.toGeoJSON()
+      const t = gj && gj.geometry ? gj.geometry.type : ''
+      if (t === 'Polygon' || t === 'MultiPolygon') {
+        areaM2 = turf.area(gj)
+      }
+    }
+
+    if (!Number.isFinite(areaM2)) return
+
+    const areaHa = areaM2 / 10000
+    const haText = formatHectares(areaHa)
+    if (haText === '') return
+
+    const html = `<div style='font-weight:700'>Luas: ${haText} ha</div>`
+
+    if (typeof layer.unbindTooltip === 'function') layer.unbindTooltip()
+    if (typeof layer.bindTooltip === 'function') {
+      layer.bindTooltip(html, {
+        permanent: false,
+        sticky: true,
+        direction: 'top',
+        opacity: 0.95,
+      })
+    }
+  } catch (e) {
+    console.warn('[PetaPostgis][setDrawnAreaTooltip] error', e)
+  }
+}
 function setupDrawHostObserver(map) {
   try {
     if (drawHostObserver) return
@@ -525,8 +1320,10 @@ function setupDrawHostObserver(map) {
 function onMapUpdate() {
   const map = mapRef.value?.leafletObject
   if (!map) return
+  // If Leaflet.Draw didn't register (bundle/import issues), do not cras
 
   const z = map.getZoom()
+  rebuildMarkerClustersFromGeojson()
 
   // Zoom info overlay logic
   if (z !== lastZoom.value) {
@@ -570,12 +1367,35 @@ watch(
     // avoid redundant refresh if content identical
     if (sameIntArray(nextIds, prevIds)) return
 
+    // If parent clears selection, clear map immediately (no fetch)
+    if (!Array.isArray(nextIds) || nextIds.length === 0) {
+      geojsonData.value = []
+      propertiesShowKeys.value = []
+      responseBefore.value = { hash: null, sizeBytes: 0 }
+      pendingRefresh.value = false
+      vpRetryCount = 0
+      clearTimeout(debounceTimer)
+      // also clear clustered points
+      clearMarkerClusters()
+      clearPlainPoints()
+
+      return
+    }
+
     await nextTick()
     triggerViewportFetch('datasetIds-change', { debounce: false })
   },
   { immediate: true }
 )
-
+// rebuild clustered points every time viewport data changes
+watch(
+    geojsonData,
+    async () => {
+      await nextTick()
+      rebuildMarkerClustersFromGeojson()
+    },
+    { deep: true }
+)
 
 function getViewportFromMap() {
   const map = mapRef.value?.leafletObject
@@ -622,7 +1442,10 @@ function safeByteSizeOf(v) {
 function triggerViewportFetch(reason = 'unknown', { debounce = false } = {}) {
   // kalau belum ada dataset-old dipilih, jangan request
   if (!datasetIdsNorm.value.length) {
-    // keep last render to avoid flicker; clear only on explicit parent reset if needed
+    // parent cleared selection -> clear map
+    geojsonData.value = []
+    propertiesShowKeys.value = []
+    responseBefore.value = { hash: null, sizeBytes: 0 }
     return
   }
 
@@ -777,8 +1600,6 @@ async function fetchViewportData({ minX, minY, maxX, maxY, z, reason, startedAt 
       ? (endedAt - startedAt)
       : null
 
-
-
     console.log('[viewport] response metrics', {
       reason,
       z,
@@ -787,6 +1608,9 @@ async function fetchViewportData({ minX, minY, maxX, maxY, z, reason, startedAt 
       sizeBytes: rawSizeBytes
     })
     // --- End metrics ---
+
+    // reset indices before applying new GeoJSON (viewport refresh)
+    cleanupHighlightIndices()
 
     // Backend bisa return: Array<row> (punya geojsonForMap), atau langsung GeoJSON (Feature/FeatureCollection)
     // Jadi kita normalisasi dulu biar `.map` tidak meledak.
@@ -801,7 +1625,30 @@ async function fetchViewportData({ minX, minY, maxX, maxY, z, reason, startedAt 
     // CASE A: sudah array of rows
     if (Array.isArray(payload)) {
       geojsonData.value = payload
-        .map(item => safeParseGeojson(item?.geojsonForMap, item?.id))
+        .map(item => {
+          const parsed = safeParseGeojson(item?.geojsonForMap, item?.id)
+          if (!parsed) return null
+
+          // IMPORTANT: when multiple datasets are requested, each row may contain a FeatureCollection
+          // that already has datasetId at root. Use that first.
+          const dsIdRaw = (
+            parsed?.datasetId ??
+            parsed?.dataset_id ??
+            parsed?.ftDatasetBean ??
+            parsed?.ft_dataset_bean ??
+            // then wrapper fields
+            item?.datasetId ??
+            item?.dataset_id ??
+            item?.ftDatasetBean ??
+            item?.ft_dataset_bean ??
+            item?.ftDatasetId ??
+            item?.datasetBean ??
+            item?.idDataset ??
+            item?.id_dataset
+          )
+
+          return injectDatasetIdIntoGeojson(parsed, dsIdRaw)
+        })
         .filter(Boolean)
       return
     }
@@ -810,15 +1657,44 @@ async function fetchViewportData({ minX, minY, maxX, maxY, z, reason, startedAt 
     const maybeArr = payload?.items || payload?.data
     if (Array.isArray(maybeArr)) {
       geojsonData.value = maybeArr
-        .map(item => safeParseGeojson(item?.geojsonForMap, item?.id))
+        .map(item => {
+          const parsed = safeParseGeojson(item?.geojsonForMap, item?.id)
+          if (!parsed) return null
+
+          const dsIdRaw = (
+            parsed?.datasetId ??
+            parsed?.dataset_id ??
+            parsed?.ftDatasetBean ??
+            parsed?.ft_dataset_bean ??
+            item?.datasetId ??
+            item?.dataset_id ??
+            item?.ftDatasetBean ??
+            item?.ft_dataset_bean ??
+            item?.ftDatasetId ??
+            item?.datasetBean ??
+            item?.idDataset ??
+            item?.id_dataset
+          )
+
+          return injectDatasetIdIntoGeojson(parsed, dsIdRaw)
+        })
         .filter(Boolean)
       return
     }
 
     // CASE C: backend balikin GeoJSON langsung (FeatureCollection/Feature)
+    // IMPORTANT: some endpoints return datasetId at root (not inside feature.properties)
     if (payload && typeof payload === 'object') {
       const t = payload.type
       if (t === 'FeatureCollection' || t === 'Feature') {
+        const dsIdRootRaw = payload?.datasetId ?? payload?.dataset_id ?? payload?.ftDatasetBean ?? payload?.ft_dataset_bean
+        const dsIdRoot = Number(dsIdRootRaw)
+        const hasDsIdRoot = Number.isFinite(dsIdRoot) && dsIdRoot > 0
+
+        if (hasDsIdRoot) {
+          injectDatasetIdIntoGeojson(payload, dsIdRoot)
+        }
+
         geojsonData.value = [payload]
         return
       }
@@ -1045,7 +1921,7 @@ function goHome() {
   router.push("/")
 }
 
-function jsonToHtmlTable_Mobile(jsonValue, keys = []) {
+function jsonToHtmlTable_Mobile(jsonValue, keys = [], ll = null) {
   const myObj = jsonValue || {}
   const allow = Array.isArray(keys) ? keys : []
 
@@ -1059,33 +1935,69 @@ function jsonToHtmlTable_Mobile(jsonValue, keys = []) {
     return `<div style="font-size:12px; opacity:0.75; padding:2px 0;">Tidak ada data.</div>`
   }
 
-  let text = "<table style='width: 240px; font-size:12px'>"
-
-  for (const k of keyList) {
-    if (!Object.prototype.hasOwnProperty.call(myObj, k)) continue
-    const v = myObj[k]
+  let rows = ""
+  for (const meta of keyList) {
+    if (!Object.prototype.hasOwnProperty.call(myObj, meta)) continue
+    const v = myObj[meta]
     if (v === undefined || v === null) continue
-
-    text += `
+    if (! escapeHtml(meta).includes('__datasetId') && ! escapeHtml(meta).includes('__propertiesShow')) {
+      rows += `
       <tr>
         <td style="padding:4px 0; word-break:break-word;">
-          <b>${escapeHtml(k)}</b>: ${escapeHtml(v)}
+          <b>${escapeHtml(meta)}</b>: ${escapeHtml(v)}
         </td>
       </tr>`
+    }
   }
 
-  text += "</table>"
-  return text
+  if (!rows) {
+    return `<div style="font-size:12px; opacity:0.75; padding:2px 0;">Tidak ada data.</div>`
+  }
+
+  const lat = ll?.lat
+  const lng = ll?.lng
+  const disabled = !(Number.isFinite(Number(lat)) && Number.isFinite(Number(lng)))
+
+  const btnHtml = `
+    <div style="margin-bottom:10px; display:flex; justify-content:flex-end;">
+      <button
+        type="button"
+        class="btn-open-streetview"
+        data-lat="${disabled ? '' : lat}"
+        data-lng="${disabled ? '' : lng}"
+        data-zoom="20"
+        ${disabled ? 'disabled' : ''}
+        title="${disabled ? 'Koordinat tidak ditemukan' : 'Buka StreetView di Google Maps'}"
+        style="padding:4px 8px; border:1px solid #bbb; background:#f5f5f5; color:#222; border-radius:4px; cursor:pointer; font-size:11px; line-height:1.1;"
+      >
+        Cek Street View
+      </button>
+      <span style="display:inline-block; width:12px;"></span>
+      <button
+        type="button"
+        class="btn-open-gmap"
+        data-lat="${disabled ? '' : lat}"
+        data-lng="${disabled ? '' : lng}"
+        data-zoom="20"
+        ${disabled ? 'disabled' : ''}
+        title="${disabled ? 'Koordinat tidak ditemukan' : 'Buka lokasi di Google Maps'}"
+        style="padding:4px 8px; border:1px solid #bbb; background:#f5f5f5; color:#222; border-radius:4px; cursor:pointer; font-size:11px; line-height:1.1;"
+      >
+        Open in Gmap
+      </button>
+    </div>
+  `
+
+  return `${btnHtml}<table style="width: 240px; font-size:12px"><tbody>${rows}</tbody></table>`
 }
 
-function jsonToHtmlTable(jsonValue, keys = []) {
+function jsonToHtmlTable(jsonValue, keys = [], ll = null) {
   const myObj = jsonValue || {}
   const allow = Array.isArray(keys) ? keys : []
 
-  // Default behavior: if no columns selected -> show all keys
   const keyList = allow.length
-    ? allow
-    : Object.keys(myObj).sort((a, b) => String(a).localeCompare(String(b)))
+      ? allow
+      : Object.keys(myObj).sort((a, b) => String(a).localeCompare(String(b)))
 
   if (!keyList.length) {
     return `<div style="font-size:12px; opacity:0.75; padding:2px 0;">Tidak ada data.</div>`
@@ -1097,29 +2009,147 @@ function jsonToHtmlTable(jsonValue, keys = []) {
     const val = myObj[meta]
     if (val === undefined || val === null) continue
 
-    rows += `
+    if (! escapeHtml(meta).includes('__datasetId') && ! escapeHtml(meta).includes('__propertiesShow')) {
+      rows += `
       <tr>
         <td style="font-weight:600; padding:2px 6px 2px 0; vertical-align:top;">${escapeHtml(meta)}</td>
         <td style="padding:2px 6px; vertical-align:top;">:</td>
         <td style="padding:2px 0; word-break:break-word;">${escapeHtml(val)}</td>
       </tr>`
+
+    }
   }
 
-  // if nothing rendered (e.g., all values null), show note
   if (!rows) {
     return `<div style="font-size:12px; opacity:0.75; padding:2px 0;">Tidak ada data.</div>`
   }
 
-  return `<table style="min-width:240px; max-width:340px; font-size:12px;"><tbody>${rows}</tbody></table>`
+  const lat = ll?.lat
+  const lng = ll?.lng
+  const disabled = !(Number.isFinite(Number(lat)) && Number.isFinite(Number(lng)))
+
+  const btnHtml = `
+    <div style="margin-bottom:10px; display:flex; justify-content:flex-end;">
+      <button
+        type="button"
+        class="btn-open-streetview"
+        data-lat="${disabled ? '' : lat}"
+        data-lng="${disabled ? '' : lng}"
+        data-zoom="20"
+        ${disabled ? 'disabled' : ''}
+        title="${disabled ? 'Koordinat tidak ditemukan' : 'Buka StreetView di Google Maps'}"
+        style="padding:4px 8px; border:1px solid #bbb; background:#f5f5f5; color:#222; border-radius:4px; cursor:pointer; font-size:11px; line-height:1.1;"
+      >
+        Cek Street View
+      </button>
+      <span style="display:inline-block; width:12px;"></span>
+      <button
+        type="button"
+        class="btn-open-gmap"
+        data-lat="${disabled ? '' : lat}"
+        data-lng="${disabled ? '' : lng}"
+        data-zoom="20"
+        ${disabled ? 'disabled' : ''}
+        title="${disabled ? 'Koordinat tidak ditemukan' : 'Buka lokasi di Google Maps'}"
+        style="padding:4px 8px; border:1px solid #bbb; background:#f5f5f5; color:#222; border-radius:4px; cursor:pointer; font-size:11px; line-height:1.1;"
+      >
+        Open in Gmap
+      </button>
+    </div>
+  `
+
+  return `${btnHtml}<table style="min-width:240px; max-width:340px; font-size:12px;"><tbody>${rows}</tbody></table>`
 }
 
-function popupHtmlForProps(props) {
+function openInGmap() {
+  const url = `https://www.google.com/maps/search/?api=1&query=$`
+  window.open(url, '_blank')
+}
+
+function popupHtmlForFeature(feature, layer) {
+  const props = feature?.properties || {}
+
   const isMobile = typeof window !== 'undefined'
       && window.matchMedia
       && window.matchMedia('(max-width: 480px)').matches
 
   const keys = propertiesShowKeys.value || []
-  return isMobile ? jsonToHtmlTable_Mobile(props, keys) : jsonToHtmlTable(props, keys)
+  const ll = pickLatLngForPopup(feature, layer)
+
+  return isMobile
+      ? jsonToHtmlTable_Mobile(props, keys, ll)
+      : jsonToHtmlTable(props, keys, ll)
+}
+
+function pickLatLngForPopup(feature, layer) {
+  try {
+    // 1) Point GeoJSON: geometry.coordinates = [lng, lat]
+    const geom = feature?.geometry
+    if (geom?.type === 'Point' && Array.isArray(geom.coordinates)) {
+      const lng = Number(geom.coordinates[0])
+      const lat = Number(geom.coordinates[1])
+      if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng }
+    }
+
+    // 2) Any Leaflet vector layer: use bounds center
+    if (layer?.getBounds && typeof layer.getBounds === 'function') {
+      const c = layer.getBounds().getCenter()
+      const lat = Number(c?.lat)
+      const lng = Number(c?.lng)
+      if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng }
+    }
+
+    // 3) Marker layer: getLatLng
+    if (layer?.getLatLng && typeof layer.getLatLng === 'function') {
+      const c = layer.getLatLng()
+      const lat = Number(c?.lat)
+      const lng = Number(c?.lng)
+      if (Number.isFinite(lat) && Number.isFinite(lng)) return { lat, lng }
+    }
+  } catch (e) {
+    console.warn('[PetaPostgis] pickLatLngForPopup failed', e)
+  }
+  return null
+}
+
+function openGMapsAt(lat, lng, zoom = 20) {
+  try {
+    const latNum = Number(lat)
+    const lngNum = Number(lng)
+    if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
+      snackbar.value = { show: true, color: 'warning', text: 'Koordinat tidak valid', timeout: 1500 }
+      return
+    }
+    const z = Math.max(0, Math.min(22, Number(zoom) || 20))
+    const url = `https://www.google.com/maps/@${latNum},${lngNum},${z}z`
+    window.open(url, '_blank', 'noopener')
+  } catch (e) {
+    console.error('openGMapsAt error', e)
+    snackbar.value = { show: true, color: 'error', text: 'Gagal membuka Google Maps', timeout: 1800 }
+  }
+}
+
+function openGMapsStreetViewAt(lat, lng, radiusMeters = 55) {
+  try {
+    const latNum = Number(lat)
+    const lngNum = Number(lng)
+    if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
+      snackbar.value = { show: true, color: 'warning', text: 'Koordinat tidak valid', timeout: 1500 }
+      return
+    }
+
+    // Radius ini hanya sebagai "preferensi" (Google Maps akan cari pano terdekat otomatis).
+    const r = Math.max(5, Math.min(200, Number(radiusMeters) || 50))
+
+    // Primary: Google Maps URL scheme for Street View (pano) at/near the coordinate.
+    // Note: parameter `radius` is not guaranteed by Google, but is harmless if ignored.
+    const url = `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${latNum},${lngNum}&radius=${r}`
+
+    window.open(url, '_blank', 'noopener')
+  } catch (e) {
+    console.error('openGMapsStreetViewAt error', e)
+    snackbar.value = { show: true, color: 'error', text: 'Gagal membuka Street View', timeout: 1800 }
+  }
 }
 
 
@@ -1127,6 +2157,16 @@ function popupHtmlForProps(props) {
 function initDrawTools(map) {
   if (!map) return
 
+  if (!L?.Control?.Draw) {
+    // console.warn('[draw] Leaflet.Draw plugin not available (L.Control.Draw missing)')
+    snackbar.value = {
+      show: true,
+      color: 'warning',
+      text: 'Draw tools belum tersedia (Leaflet.Draw belum ter-load).',
+      timeout: 2200
+    }
+    return
+  }
   // (re)resolve FeatureGroup from vue-leaflet
   const fg = drawGroupRef.value?.leafletObject || drawGroupRef.value?.mapObject
 
@@ -1134,7 +2174,9 @@ function initDrawTools(map) {
   if (drawControl && drawnItems) {
     // ensure layer exists on map
     if (!map.hasLayer(drawnItems)) {
-      try { map.addLayer(drawnItems) } catch (_) { /* ignore */ }
+      try {
+        map.addLayer(drawnItems)
+      } catch (_) { /* ignore */ }
     }
     return
   }
@@ -1174,9 +2216,22 @@ function initDrawTools(map) {
       if (!layer) return
       if (drawnItems && typeof drawnItems.addLayer === 'function') {
         drawnItems.addLayer(layer)
+        setDrawnAreaTooltip(layer)
       }
     }
-    map.on(L.Draw.Event.CREATED, onDrawCreatedHandler)
+    map.on(DRAW_EVT_CREATED, onDrawCreatedHandler)
+  }
+  if (!onDrawEditedHandler) {
+    onDrawEditedHandler = (e) => {
+      try {
+        const layers = e?.layers
+        if (!layers || typeof layers.eachLayer !== 'function') return
+        layers.eachLayer((ly) => setDrawnAreaTooltip(ly))
+      } catch (err) {
+        console.warn('[PetaPostgis][draw:edited] handler error', err)
+      }
+    }
+    map.on(DRAW_EVT_EDITED, onDrawEditedHandler)
   }
 }
 
@@ -1218,6 +2273,7 @@ function setDrawEnabled(enabled) {
 onMounted(async () => {
   await nextTick()
 
+  window.openInGmap = openInGmap
   // invalidate once on first paint
   invalidateMapSize()
 
@@ -1237,7 +2293,10 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  delete window.openInGmap
   document.removeEventListener('fullscreenchange', onFsChange)
+  clearMarkerClusters()
+  clearPlainPoints()
 
   if (resizeObserver) {
     resizeObserver.disconnect()
@@ -1246,13 +2305,30 @@ onBeforeUnmount(() => {
   // Cleanup event handler for Leaflet.Draw
   const map = mapRef.value?.leafletObject
   if (map && onDrawCreatedHandler) {
-    map.off(L.Draw.Event.CREATED, onDrawCreatedHandler)
+    map.off(DRAW_EVT_CREATED, onDrawCreatedHandler)
     onDrawCreatedHandler = null
   }
   if (drawHostObserver) {
     try { drawHostObserver.disconnect() } catch (_) { /* ignore */ }
     drawHostObserver = null
   }
+  if (map && onDrawEditedHandler) {
+    map.off(DRAW_EVT_EDITED, onDrawEditedHandler)
+    onDrawEditedHandler = null
+  }
+  try { markerIconCache.value.clear() } catch (_) { /* ignore */ }
+
+  try {
+    const map = mapRef.value?.leafletObject
+    if (map && markerClusterGroup) {
+      map.removeLayer(markerClusterGroup)
+    }
+    markerClusterGroup = null
+    markerClusterGeojsonLayer = null
+  } catch (e) {
+    console.warn('[PetaPostgis][cluster] cleanup failed', e)
+  }
+
 })
 
 // if parent changes size via props, reflow the map
@@ -1401,5 +2477,13 @@ watch(
 /* do not let draw host add extra padding */
 .draw-host {
   padding: 0;
+}
+</style>
+
+<style scoped>
+:deep(.marker-highlight) {
+  filter: drop-shadow(0 0 10px rgba(255, 0, 128, 0.9)) drop-shadow(0 0 6px rgba(255, 255, 255, 0.75));
+  transform: scale(1.15);
+  transition: transform 120ms ease, filter 120ms ease;
 }
 </style>

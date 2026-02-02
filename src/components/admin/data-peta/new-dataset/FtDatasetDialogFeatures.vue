@@ -12,19 +12,132 @@
         >
           Save changes
         </v-btn>
+        <v-btn
+          color="warning"
+          variant="flat"
+          :disabled="loading || saving || !hasDirty"
+          @click="cancelChanges"
+          style="text-transform: none;"
+        >
+          Cancel changes
+        </v-btn>
         <span v-if="hasDirty" class="text-caption text-grey">
           {{ dirtyCount }} changed
         </span>
+
       </v-col>
 
-      <v-col cols="12" sm="12" md="6">
+      <v-col cols="12" sm="12" md="6" class="d-flex align-center justify-center ga-2">
+        <v-btn
+          v-if="isCoordinateDataset"
+          color="success"
+          variant="flat"
+          class="rounded-lg"
+          style="text-transform: none;"
+          @click="openAddCoordDialog"
+        >
+          Tambah Koordinat
+        </v-btn>
+
         <v-text-field
           v-model="search"
           label="Search"
           hint="press ⏎ to search"
+          density="comfortable"
           @keyup.enter="searchOnEnter($event)"
+          hide-details
         />
+
+        <v-menu location="bottom end" :close-on-content-click="false">
+          <template #activator="{ props: menuProps }">
+            <v-btn v-bind="menuProps" icon variant="text" title="Geom settings">
+              <v-icon>mdi-shape</v-icon>
+            </v-btn>
+          </template>
+
+          <v-card min-width="260" class="pa-2">
+            <div class="text-caption text-grey mb-2">Geom Columns</div>
+
+            <v-switch
+              v-model="showGeomCol"
+              density="compact"
+              hide-details
+              inset
+              label="Show geom (WKT)"
+            />
+
+            <v-switch
+              v-model="showCentroidCol"
+              density="compact"
+              hide-details
+              inset
+              label="Show centroid (WKT)"
+            />
+
+            <v-divider class="my-2" />
+
+            <div class="text-caption text-grey mb-1">Derive lat/lon from</div>
+            <v-radio-group v-model="coordDeriveSource" density="compact" hide-details>
+              <v-radio label="centroid" value="centroid" />
+              <v-radio label="geom" value="geom" />
+            </v-radio-group>
+          </v-card>
+        </v-menu>
       </v-col>
+    <v-dialog v-model="dialogAddCoord" max-width="560">
+      <v-card>
+        <v-card-title class="text-subtitle-1">Tambah Koordinat</v-card-title>
+
+        <v-card-text class="pt-2">
+          <v-row>
+            <v-col cols="12" md="6">
+              <v-text-field
+                v-model="addCoord.featureKey"
+                label="Feature Key (auto)"
+                density="comfortable"
+                hide-details
+                readonly
+              />
+            </v-col>
+          </v-row>
+          <v-row>
+            <v-col cols="12" md="6">
+              <v-text-field
+                  v-model="addCoord.lat"
+                  label="Latitude"
+                  type="number"
+                  density="comfortable"
+                  hide-details
+              />
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-text-field
+                  v-model="addCoord.lon"
+                  label="Longitude"
+                  type="number"
+                  density="comfortable"
+                  hide-details
+              />
+            </v-col>
+          </v-row>
+          <v-row>
+            <v-col cols="12" v-if="addCoordError" class="pt-0">
+              <v-alert type="error" density="compact" variant="tonal">
+                {{ addCoordError }}
+              </v-alert>
+            </v-col>
+          </v-row>
+
+        </v-card-text>
+
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="closeAddCoordDialog">Batal</v-btn>
+          <v-btn color="success" variant="flat" @click="confirmAddCoord">Tambah</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
+
     </v-row>
 
     <v-card-text v-if="serverRows && serverRows.length" class="mt-n2 mb-4">
@@ -62,6 +175,13 @@
                     </div>
                   </th>
 
+                  <th class="resizable-th" :style="colStyle('__actions')">
+                    <div class="th-inner">
+                      <span>Actions</span>
+                      <span class="resize-handle" @mousedown.prevent="startResize('__actions', $event)"></span>
+                    </div>
+                  </th>
+
                   <th
                     v-for="col in columns"
                     :key="col"
@@ -87,11 +207,26 @@
                     {{ item.__featureKey }}
                   </td>
 
+                  <td :style="colStyle('__actions')" class="pa-0">
+                    <v-btn
+                      icon
+                      color="red"
+                      variant="text"
+                      size="small"
+                      :disabled="loading || saving"
+                      title="Hapus feature"
+                      @click="() => deleteFeature(item)"
+                    >
+                      <v-icon>mdi-delete</v-icon>
+                    </v-btn>
+                  </td>
+
                   <td v-for="col in columns" :key="col" class="pa-0" :style="colStyle(col)">
                     <v-text-field
-                      :model-value="item[col]"
+                      :model-value="displayCellValue(item, col)"
                       @update:modelValue="(val) => onCellEdit(item, col, val)"
-                      variant="underlined"
+                      :readonly="isReadonlyCol(col)"
+                      :variant="isReadonlyCol(col) ? 'plain' : 'underlined'"
                       density="compact"
                       hide-details
                     />
@@ -116,6 +251,93 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import FtDatasetFeaturesService from "@/services/apiservices/ft-dataset-features-service";
 import DataFilter from "@/models/payload/f-dayadukung-filter";
+const dialogAddCoord = ref(false);
+const addCoordError = ref("");
+const addCoord = ref({
+  featureKey: "",
+  lat: "",
+  lon: "",
+});
+
+function getNextFeatureKey() {
+  const rows = Array.isArray(serverRows.value) ? serverRows.value : [];
+  let maxNum = 0;
+
+  for (const r of rows) {
+    const k = r && r.__featureKey != null ? String(r.__featureKey).trim() : "";
+    // expect numeric keys (like 1..64). Ignore tmp_ keys.
+    const n = Number.parseInt(k, 10);
+    if (Number.isFinite(n)) {
+      if (n > maxNum) maxNum = n;
+    }
+  }
+
+  // If empty, start at 1
+  return String(maxNum + 1);
+}
+
+function openAddCoordDialog() {
+  addCoordError.value = "";
+
+  const nextKey = getNextFeatureKey();
+
+  addCoord.value = {
+    featureKey: nextKey,
+    lat: "",
+    lon: "",
+  };
+
+  dialogAddCoord.value = true;
+}
+
+function closeAddCoordDialog() {
+  dialogAddCoord.value = false;
+}
+
+
+function isValidLatLon(lat, lon) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return false;
+  if (lat < -90 || lat > 90) return false;
+  if (lon < -180 || lon > 180) return false;
+  return true;
+}
+
+// Strong key normalizer: removes all except a-z0-9 underscore and dot
+function normKeyLoose(k) {
+  // aggressive normalizer: remove everything except a-z0-9 underscore and dot
+  // this handles hidden/invisible unicode chars in header keys (NBSP, LRM/RLM, word-joiner, etc.)
+  return String(k ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9_.]+/g, "")
+    .trim();
+}
+
+
+
+function confirmAddCoord() {
+  addCoordError.value = "";
+
+  const latNum = Number(String(addCoord.value.lat ?? "").trim());
+  const lonNum = Number(String(addCoord.value.lon ?? "").trim());
+
+  if (!isValidLatLon(latNum, lonNum)) {
+    addCoordError.value = "Latitude/Longitude tidak valid.";
+    return;
+  }
+
+  const fKey = String(addCoord.value.featureKey ?? "").trim();
+
+  // Hand off creation to parent/backend; frontend no longer creates temp rows
+  emit("geoUpdated", {
+    status: "addCoord",
+    featureKey: fKey,
+    lat: latNum,
+    lon: lonNum,
+    geom: `POINT (${lonNum} ${latNum})`,
+  });
+
+  dialogAddCoord.value = false;
+}
 
 const props = defineProps({
   ftDataset: { type: Object, required: false },
@@ -134,15 +356,54 @@ const saving = ref(false);
 const serverRows = ref([]);
 const totalItems = ref(0);
 
+const showGeomCol = ref(false);
+const showCentroidCol = ref(false);
+const coordDeriveSource = ref("centroid");
+
+const isCoordinateDataset = computed(() => {
+  const dsType = String(props?.ftDataset?.datasetType ?? props?.ftDataset?.type ?? "").toLowerCase();
+  if (dsType) {
+    if (dsType.includes("point") || dsType.includes("coordinate") || dsType.includes("koordinat")) return true;
+  }
+
+  // fallback: detect by columns/keys containing lat+lon
+  const incoming = Array.isArray(props.columns) ? props.columns : [];
+  const first = Array.isArray(serverRows.value) && serverRows.value.length ? serverRows.value[0] : null;
+
+  const keys = [
+    ...incoming,
+    ...(first && typeof first === "object" ? Object.keys(first) : []),
+  ]
+      .filter(Boolean)
+      .map((k) => String(k).trim().toLowerCase())
+      .filter((k) => k && !k.startsWith("__"));
+
+  const latKeys = new Set(["lat", "latitude", "lattitude"]);
+  const lonKeys = new Set(["lon", "lng", "longitude", "long"]);
+
+  const hasLat = keys.some((k) => latKeys.has(k));
+  const hasLon = keys.some((k) => lonKeys.has(k));
+  return hasLat && hasLon;
+});
+
 // Dirty tracking: { [__id]: { id, ftDatasetBean, featureKey, props } }
 const dirtyMap = ref({});
 const dirtyCount = computed(() => Object.keys(dirtyMap.value || {}).length);
 const hasDirty = computed(() => dirtyCount.value > 0);
 
+watch(
+    () => dirtyCount.value,
+    (n) => {
+      // Parent dialog biasanya enable Save & Close berdasarkan event ini
+      emit("geoUpdated", { status: "dirty", dirty: n > 0, dirtyCount: n });
+    }
+);
+
 // Column widths for resizing
 const colWidths = ref({
   __idx: 60,
   __featureKey: 140,
+  __actions: 90,
 });
 
 const resizing = ref({
@@ -211,17 +472,50 @@ onBeforeUnmount(() => {
 
 const autoColumns = computed(() => {
   const incoming = Array.isArray(props.columns) ? props.columns.filter(Boolean) : [];
-  if (incoming.length) {
-    incoming.forEach((c) => ensureColWidth(c));
-    return incoming;
+  const first = Array.isArray(serverRows.value) && serverRows.value.length ? serverRows.value[0] : null;
+
+  const allKeys = first && typeof first === "object"
+      ? Object.keys(first).filter((k) => k && !k.startsWith("__"))
+      : [];
+
+  // If geom/centroid toggles are OFF, don't auto-include those keys from data
+  const fromData = allKeys.filter((k) => {
+    const low = String(k).toLowerCase();
+    if (!showGeomCol.value && low === "geom") return false;
+    if (!showCentroidCol.value && low === "centroid") return false;
+    return true;
+  });
+
+  const merged = [];
+  const seen = new Set();
+  const pushUniq = (c) => {
+    const raw = String(c ?? "");
+    const norm = raw.trim();
+    if (!norm) return;
+
+    // de-dupe by trimmed lowercase, but KEEP original raw key in the merged list
+    const low = norm.toLowerCase();
+    if (seen.has(low)) return;
+    seen.add(low);
+
+    merged.push(raw);
+  };
+
+  incoming.forEach(pushUniq);
+  fromData.forEach(pushUniq);
+
+  // Force lat/lon columns when coordinate dataset
+  if (isCoordinateDataset.value) {
+    pushUniq("lat");
+    pushUniq("lon");
   }
 
-  const first = Array.isArray(serverRows.value) && serverRows.value.length ? serverRows.value[0] : null;
-  if (!first) return [];
+  // Explicitly add geom/centroid when toggled
+  if (showGeomCol.value) pushUniq("geom");
+  if (showCentroidCol.value) pushUniq("centroid");
 
-  const cols = Object.keys(first).filter((k) => k && !k.startsWith("__"));
-  cols.forEach((c) => ensureColWidth(c));
-  return cols;
+  merged.forEach((c) => ensureColWidth(c));
+  return merged;
 });
 
 const columns = computed(() => autoColumns.value);
@@ -230,9 +524,26 @@ const tableHeaders = computed(() => {
   return [
     { title: "#", key: "__idx", sortable: false, width: colWidths.value.__idx || 60 },
     { title: "Feature Key", key: "__featureKey", sortable: false, width: colWidths.value.__featureKey || 140 },
+    { title: "Actions", key: "__actions", sortable: false, width: colWidths.value.__actions || 90 },
     ...columns.value.map((c) => ({ title: c, key: c, sortable: false, width: colWidths.value[c] || 180 })),
   ];
 });
+
+function isReadonlyCol(col) {
+  const low = normKeyLoose(col);
+  return (
+      low === "geom" ||
+      low === "centroid" ||
+      low === "feature_id" ||
+      low === "featureid" ||
+      low === "geometry_type" ||
+      low === "geometrytype"
+  );
+}
+
+function displayCellValue(item, col) {
+  return item ? item[col] : "";
+}
 
 // --- Helpers for normalizing props before sending to backend ---
 function normalizePropsForBackend(p) {
@@ -250,19 +561,98 @@ function normalizePropsForBackend(p) {
 
 function normalizeUpdatePayload(upd) {
   const safe = upd && typeof upd === "object" ? upd : {};
-  return {
+  const payload = {
     id: safe.id,
     ftDatasetBean: safe.ftDatasetBean,
     featureKey: safe.featureKey,
-    // force props to string JSON
     props: normalizePropsForBackend(safe.props),
   };
+
+  if (safe.geom != null && String(safe.geom).trim()) {
+    payload.geom = String(safe.geom).trim();
+  }
+
+  return payload;
 }
 
 function normalizeFeatures(rawItems) {
   const items = Array.isArray(rawItems) ? rawItems : [];
+
+  const toPropsObject = (p) => {
+    if (p == null) return {};
+    if (typeof p === "object") return p;
+    if (typeof p === "string") {
+      const s = p.trim();
+      if (!s) return {};
+      try {
+        const parsed = JSON.parse(s);
+        return parsed && typeof parsed === "object" ? parsed : {};
+      } catch (e) {
+        console.error("Failed to parse props JSON string", e);
+        return {};
+      }
+    }
+    return {};
+  };
+
+  const parsePointWkt = (wkt) => {
+    if (!wkt || typeof wkt !== "string") return null;
+    const s = wkt.trim();
+    if (!s) return null;
+
+    // Strip optional SRID prefix: SRID=4326;POINT(x y)
+    const noSrid = s.includes(";") ? s.split(";").slice(-1)[0].trim() : s;
+
+    // Match POINT (x y) or POINT(x y)
+    const m = noSrid.match(/POINT\s*\(\s*([+-]?(?:\d+\.?\d*|\d*\.?\d+))\s+([+-]?(?:\d+\.?\d*|\d*\.?\d+))\s*\)/i);
+    if (!m) return null;
+
+    const lon = Number(m[1]);
+    const lat = Number(m[2]);
+    if (!Number.isFinite(lon) || !Number.isFinite(lat)) return null;
+    if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
+
+    return { lat, lon };
+  };
+
+  const hasLat = (o) => o && (o.lat != null || o.latitude != null || o.lattitude != null);
+  const hasLon = (o) => o && (o.lon != null || o.lng != null || o.longitude != null || o.long != null);
+
   return items.map((it) => {
-    const propsObj = it && typeof it.props === "object" && it.props != null ? it.props : {};
+    const baseProps = toPropsObject(it?.props);
+
+    // Create an alias map that also exposes trimmed-key variants
+    const propsObj = { ...baseProps };
+    try {
+      for (const [k, v] of Object.entries(baseProps || {})) {
+        const kt = String(k ?? "").trim();
+        if (!kt) continue;
+        // Only add alias if it doesn't already exist
+        if (!(kt in propsObj)) propsObj[kt] = v;
+      }
+    } catch (e) {
+      console.error("Failed to alias props keys", e);
+    }
+
+    // Derive lat/lon if missing (from centroid/geom WKT)
+    if (!(hasLat(propsObj) && hasLon(propsObj))) {
+      const fromCentroid = parsePointWkt(it?.centroid);
+      const fromGeom = parsePointWkt(it?.geom);
+
+      const derived = coordDeriveSource.value === "geom"
+        ? (fromGeom || fromCentroid)
+        : (fromCentroid || fromGeom);
+
+      if (derived) {
+        if (propsObj.lat == null) propsObj.lat = derived.lat;
+        if (propsObj.lon == null) propsObj.lon = derived.lon;
+      }
+    }
+
+    // Expose geom/centroid WKT as columns (for menu toggles)
+    if (it?.geom != null) propsObj.geom = it.geom;
+    if (it?.centroid != null) propsObj.centroid = it.centroid;
+
     return {
       __id: it?.id,
       __featureKey: it?.featureKey,
@@ -271,12 +661,41 @@ function normalizeFeatures(rawItems) {
   });
 }
 
+
 function onCellEdit(row, col, val) {
   if (!row || !col) return;
 
   // update UI
   row[col] = val;
+  // UI-only preview for Point geometry when lat/lon edited
+  if (showGeomCol.value) {
+    const low = String(col).toLowerCase();
+    const isLat = low === "lat" || low === "latitude" || low === "lattitude";
+    const isLon = low === "lon" || low === "lng" || low === "longitude" || low === "long";
 
+    if (isLat || isLon) {
+      const latRaw = row.lat ?? row.latitude ?? row.lattitude;
+      const lonRaw = row.lon ?? row.lng ?? row.longitude ?? row.long;
+
+      const latNum = Number(String(latRaw ?? "").trim());
+      const lonNum = Number(String(lonRaw ?? "").trim());
+
+      if (Number.isFinite(latNum) && Number.isFinite(lonNum)) {
+        row.geom = `POINT (${lonNum} ${latNum})`;
+      }
+      // also keep dirty payload geom in sync when lat/lon changes
+      const rid = row.__id;
+      if (rid != null && dirtyMap.value && dirtyMap.value[rid]) {
+        dirtyMap.value[rid].geom = row.geom;
+      }
+
+    }
+  }
+
+  // don't track readonly/system columns to backend props
+  if (isReadonlyCol(col)) {
+    return;
+  }
   const id = row.__id;
   if (id == null) return;
 
@@ -357,10 +776,75 @@ function onOptionsChanged(options) {
   runExtendedFilter();
 }
 
+async function cancelChanges() {
+  // discard all unsaved edits
+  try {
+    dialogAddCoord.value = false;
+    addCoordError.value = "";
+    dirtyMap.value = {};
+    await runExtendedFilter();
+  } catch (e) {
+    console.error(e);
+    // even if reload fails, at least clear dirty state
+    dirtyMap.value = {};
+  }
+}
+
+async function deleteFeature(item) {
+  try {
+    const id = item && item.__id != null ? Number(item.__id) : null;
+    if (!id) {
+      alert("ID feature tidak valid.");
+      return;
+    }
+
+    const ok = window.confirm(`Hapus feature ID ${id}?`);
+    if (!ok) return;
+
+    saving.value = true;
+    loading.value = true;
+
+    const svc = FtDatasetFeaturesService;
+    const tryFns = [
+      "deleteFtDatasetFeatures",
+      "deleteFtDatasetFeaturesById",
+      "deleteFtDatasetFeaturesExt",
+      "deleteById",
+      "delete",
+      "remove",
+    ];
+
+    let called = false;
+    for (const fn of tryFns) {
+      if (svc && typeof svc[fn] === "function") {
+        called = true;
+        await svc[fn](id);
+        break;
+      }
+    }
+
+    if (!called) {
+      console.error("No delete method found on FtDatasetFeaturesService");
+      alert("API delete belum tersedia di FtDatasetFeaturesService.");
+      return;
+    }
+
+    emit("geoUpdated", { status: "deleted", id });
+    await runExtendedFilter();
+  } catch (e) {
+    console.error(e);
+    alert("Gagal menghapus feature.");
+  } finally {
+    saving.value = false;
+    loading.value = false;
+  }
+}
+
 async function saveChanges() {
   if (!hasDirty.value) return;
 
-  const updates = Object.values(dirtyMap.value || {});
+  const allUpdates = Object.values(dirtyMap.value || {});
+  const updates = allUpdates.filter(Boolean);
   if (!updates.length) return;
 
   saving.value = true;
@@ -373,17 +857,14 @@ async function saveChanges() {
 
       try {
         await FtDatasetFeaturesService.updateFtDatasetFeatures(payload);
-        // const res = await FtDatasetFeaturesService.updateFtDatasetFeatures(payload);
-        // console.log("Updated feature:", payload.id, res?.data?.data || res?.data || {});
-        // notify parent so it can refresh map/table if needed
         emit("geoUpdated", { status: "ok", id: payload.id });
-
       } catch (err) {
         console.error("Error updating feature:", payload.id, err);
-        // keep going for other rows
+        // keep going
       }
     }
 
+    // after successful save attempt, refresh and clear dirty
     dirtyMap.value = {};
     await runExtendedFilter();
   } catch (e) {
@@ -393,6 +874,7 @@ async function saveChanges() {
     loading.value = false;
   }
 }
+
 
 onMounted(() => {
   runExtendedFilter();

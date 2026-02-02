@@ -77,7 +77,7 @@
         <v-card-text class="px-4" v-if="previewHeaders.length">
           <div class="d-flex align-center justify-space-between">
             <div class="text-subtitle-2 font-weight-bold">
-              Preview Tabel ({{ previewRows.length }} baris)
+              Preview Tabel ({{ previewRows.length }} baris, valid: {{ validRowCount }})
             </div>
             <div class="text-caption text-grey">
               Header otomatis dari file yang diupload
@@ -86,7 +86,7 @@
 
           <div class="preview-table mt-2">
             <v-data-table
-              :headers="tableHeaders"
+              :headers="tableHeadersWithStatus"
               :items="previewRows"
               :items-per-page="10"
               density="compact"
@@ -96,6 +96,18 @@
             >
               <template #item="{ item }">
                 <tr>
+                  <td class="text-center" style="width:44px;">
+                    <v-icon
+                      v-if="item && item.__rowValid"
+                      size="18"
+                      color="success"
+                    >mdi-check-circle</v-icon>
+                    <v-icon
+                      v-else
+                      size="18"
+                      color="error"
+                    >mdi-close-circle</v-icon>
+                  </td>
                   <td v-for="h in previewHeaders" :key="h">
                     {{ formatCell(item[h]) }}
                   </td>
@@ -130,8 +142,12 @@ export default {
   data() {
     return {
       sourceType: "",
+      latKeyDetected: "",
+      lonKeyDetected: "",
+      validRowCount: 0,
       previewHeaders: [],
       previewRows: [],
+      rawGeojsonFeatures: [],
       warningMessage: "",
       infoMessage: "",
       canUseFile: false,
@@ -159,6 +175,12 @@ export default {
         sortable: false,
       }));
     },
+    tableHeadersWithStatus() {
+      return [
+        { title: "OK", key: "__rowValid", sortable: false, align: "center", width: 44 },
+        ...this.tableHeaders,
+      ];
+    },
   },
   watch: {
   },
@@ -182,10 +204,14 @@ export default {
       // reset preview + messages
       this.previewHeaders = [];
       this.previewRows = [];
+      this.rawGeojsonFeatures = [];
       this.warningMessage = "";
       this.infoMessage = "";
       this.canUseFile = false;
       this.sourceType = "";
+      this.latKeyDetected = "";
+      this.lonKeyDetected = "";
+      this.validRowCount = 0;
 
       if (!file) return;
 
@@ -250,6 +276,74 @@ export default {
       const n = Number(s);
       return Number.isFinite(n) ? n : null;
     },
+    isGeojsonFeatureValidCoords(feature) {
+      try {
+        const g = feature && feature.geometry ? feature.geometry : null;
+        if (!g || !g.type) return false;
+
+        const t = String(g.type);
+        const coords = g.coordinates;
+
+        // For points, require [lon, lat] both finite numbers
+        if (t === "Point") {
+          if (!Array.isArray(coords) || coords.length < 2) return false;
+          const lon = this.toNumberSafe(coords[0]);
+          const lat = this.toNumberSafe(coords[1]);
+          if (lat === null || lon === null) return false;
+          if (lat < -90 || lat > 90) return false;
+          if (lon < -180 || lon > 180) return false;
+          return true;
+        }
+
+        // For MultiPoint, require at least one valid point
+        if (t === "MultiPoint") {
+          if (!Array.isArray(coords) || coords.length < 1) return false;
+          return coords.some((pt) => {
+            if (!Array.isArray(pt) || pt.length < 2) return false;
+            const lon = this.toNumberSafe(pt[0]);
+            const lat = this.toNumberSafe(pt[1]);
+            if (lat === null || lon === null) return false;
+            if (lat < -90 || lat > 90) return false;
+            if (lon < -180 || lon > 180) return false;
+            return true;
+          });
+        }
+
+        // For other geometry types (LineString/Polygon/etc), treat as valid (coord structure differs)
+        return true;
+      } catch (e) {
+        return false;
+      }
+    },
+    isRowValidStrict(row, headers, latKey, lonKey) {
+      // rule: ONLY coordinate columns are required (must be double + valid)
+      // other columns may be empty.
+      const r = row || {};
+
+      // When lat/lon keys are expected (Excel): both must exist and be valid numbers in range.
+      if (latKey || lonKey) {
+        if (!latKey || !lonKey) return false;
+
+        const latRaw = r[latKey];
+        const lonRaw = r[lonKey];
+
+        // treat empty string/null/undefined as missing
+        const latMissing = latRaw === null || latRaw === undefined || (typeof latRaw === "string" && latRaw.trim() === "");
+        const lonMissing = lonRaw === null || lonRaw === undefined || (typeof lonRaw === "string" && lonRaw.trim() === "");
+        if (latMissing || lonMissing) return false;
+
+        const lat = this.toNumberSafe(latRaw);
+        const lon = this.toNumberSafe(lonRaw);
+        if (lat === null || lon === null) return false;
+        if (lat < -90 || lat > 90) return false;
+        if (lon < -180 || lon > 180) return false;
+
+        return true;
+      }
+
+      // For GeoJSON preview (no explicit coord columns): don't invalidate rows based on empties.
+      return true;
+    },
     async buildPreviewFromExcel(file) {
       const buffer = await file.arrayBuffer();
       const wb = XLSX.read(buffer, { type: "array" });
@@ -271,6 +365,9 @@ export default {
       // pick a single key if unambiguous
       const latKey = latKeysAll.length === 1 ? latKeysAll[0] : "";
       const lonKey = lonKeysAll.length === 1 ? lonKeysAll[0] : "";
+
+      this.latKeyDetected = latKey;
+      this.lonKeyDetected = lonKey;
 
       // validation: ambiguous duplicates (human error)
       if (latKeysAll.length > 1 || lonKeysAll.length > 1) {
@@ -296,26 +393,29 @@ export default {
         this.canUseFile = true;
       }
 
-      // build preview table (show up to 10 rows)
-      const maxRows = 10;
-      const preview = rows.slice(0, maxRows);
+      // build preview table (ALL rows; pagination handled by v-data-table)
+      const preview = rows;
 
       this.previewHeaders = headers;
-      this.previewRows = preview.map((r) => ({ ...r }));
 
-      // extra check: ensure at least one valid coordinate row
+      // mark each row validity (coordinates must be double and valid)
+      this.previewRows = preview.map((r) => {
+        const row = { ...r };
+        row.__rowValid = this.isRowValidStrict(row, headers, latKey, lonKey);
+        return row;
+      });
+
+      this.validRowCount = this.previewRows.filter((r) => r && r.__rowValid).length;
+
+      // if file structure is OK but there is no valid row, disable
+      if (this.canUseFile && this.validRowCount < 1) {
+        this.warningMessage = "Struktur Excel valid, tapi tidak ada row yang memenuhi kriteria (koordinat wajib valid).";
+        this.infoMessage = "";
+        this.canUseFile = false;
+      }
+
       if (this.canUseFile) {
-        const hasValid = preview.some((r) => {
-          const lat = this.toNumberSafe(r[latKey]);
-          const lon = this.toNumberSafe(r[lonKey]);
-          return lat !== null && lon !== null && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
-        });
-
-        if (!hasValid) {
-          this.warningMessage = "Kolom koordinat ada, tapi tidak ada baris yang valid (lat/lon harus numeric dan dalam range).";
-          this.infoMessage = "";
-          this.canUseFile = false;
-        }
+        this.infoMessage = `Kolom koordinat terdeteksi: ${latKey} & ${lonKey}. Row valid: ${this.validRowCount}/${this.previewRows.length}`;
       }
     },
     async buildPreviewFromGeojson(file) {
@@ -333,8 +433,8 @@ export default {
 
       if (!features.length) throw new Error("GeoJSON tidak memiliki fitur");
 
-      const maxRows = 10;
-      const slice = features.slice(0, maxRows);
+      this.rawGeojsonFeatures = features;
+      const slice = features;
 
       const headerSet = new Set();
       slice.forEach((f) => {
@@ -343,18 +443,81 @@ export default {
       });
 
       this.previewHeaders = Array.from(headerSet);
-      this.previewRows = slice.map((f) => ({ ...(f.properties || {}) }));
 
-      this.canUseFile = true;
-      this.infoMessage = "GeoJSON terbaca. Preview menampilkan properties.";
+      // const headers = this.previewHeaders;
+      this.previewRows = slice.map((f) => {
+        const row = { ...(f.properties || {}) };
+        row.__rowValid = this.isGeojsonFeatureValidCoords(f);
+        return row;
+      });
+
+      this.validRowCount = this.previewRows.filter((r) => r && r.__rowValid).length;
+
+      this.canUseFile = this.validRowCount > 0;
+      if (this.canUseFile) {
+        this.infoMessage = `GeoJSON terbaca. Row valid: ${this.validRowCount}/${this.previewRows.length}`;
+        this.warningMessage = "";
+      } else {
+        this.warningMessage = "GeoJSON terbaca, tapi tidak ada row yang memenuhi kriteria.";
+        this.infoMessage = "";
+      }
     },
 
 
     confirmSelection() {
-      const file = Array.isArray(this.localFile) ? this.localFile[0] : this.localFile;
+      const fileOriginal = Array.isArray(this.localFile) ? this.localFile[0] : this.localFile;
+
+      // only send valid rows (strip helper field)
+      const validRows = (this.previewRows || [])
+        .filter((r) => r && r.__rowValid)
+        .map((r) => {
+          const rr = { ...r };
+          delete rr.__rowValid;
+          return rr;
+        });
+
+      let fileToEmit = fileOriginal || null;
+      let fileNameToEmit = (fileOriginal && fileOriginal.name) ? fileOriginal.name : "";
+
+      try {
+        // If parent re-parses file, we must emit a filtered file.
+        if (this.sourceType === "EXCEL") {
+          const wb = XLSX.utils.book_new();
+          const ws = XLSX.utils.json_to_sheet(validRows, { skipHeader: false });
+          XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+
+          const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+          const safeName = (fileNameToEmit || "data.xlsx").replace(/\.(xlsx|xls)$/i, "");
+          const newName = `${safeName}_valid.xlsx`;
+          fileToEmit = new File([out], newName, {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          });
+          fileNameToEmit = newName;
+        } else if (this.sourceType === "GEOJSON") {
+          const feats = Array.isArray(this.rawGeojsonFeatures) ? this.rawGeojsonFeatures : [];
+          const validFeatures = feats.filter((f) => this.isGeojsonFeatureValidCoords(f));
+
+          const fc = { type: "FeatureCollection", features: validFeatures };
+          const text = JSON.stringify(fc);
+
+          const safeName = (fileNameToEmit || "data.geojson").replace(/\.(geojson|json)$/i, "");
+          const newName = `${safeName}_valid.geojson`;
+          fileToEmit = new File([text], newName, { type: "application/geo+json" });
+          fileNameToEmit = newName;
+        }
+      } catch (e) {
+        // If regeneration fails, fall back to original file; rows remain filtered in payload.
+        console.error("[UploadGeojsonExcelDatasetDialog] failed to create filtered file", e);
+      }
+
       this.$emit("geojson-file-selected", {
-        file: file || null,
-        fileName: (file && file.name) ? file.name : "",
+        file: fileToEmit,
+        fileName: fileNameToEmit,
+        sourceType: this.sourceType,
+        rows: validRows,
+        headers: (this.previewHeaders || []).slice(),
+        latKey: this.latKeyDetected,
+        lonKey: this.lonKeyDetected,
       });
       this.closeForm();
     },

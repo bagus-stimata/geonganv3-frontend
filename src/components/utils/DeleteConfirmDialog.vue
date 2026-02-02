@@ -28,7 +28,7 @@
 
 <script>
 export default {
-  name: "DeleteDialog",
+  name: "DeleteConfirmDialog",
   data() {
     return {
       selectedItems:[],
@@ -52,7 +52,7 @@ export default {
   },
   methods: {
     okeConfirmed: function(){
-      if (this.selectedIndex>-1) {
+      if (this.selectedIndex>0) {
         this.$emit('eventFromDeleteConfirmDialog1', this.selectedIndex)
       }else {
         this.$emit('eventFromDeleteConfirmDialog2', this.selectedItems)

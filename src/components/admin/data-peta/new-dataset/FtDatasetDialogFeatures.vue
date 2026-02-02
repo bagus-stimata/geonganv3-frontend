@@ -242,6 +242,12 @@
     <v-card-text v-else class="text-caption text-grey">
       Tidak ada data feature untuk ditampilkan.
     </v-card-text>
+
+    <DeleteConfirmDialog
+      ref="deleteConfirmDialog"
+      @eventFromDeleteConfirmDialog1="deleteFeatureConfirmed"
+    />
+
   </v-card>
 </template>
 
@@ -251,6 +257,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import FtDatasetFeaturesService from "@/services/apiservices/ft-dataset-features-service";
 import DataFilter from "@/models/payload/f-dayadukung-filter";
+import DeleteConfirmDialog from "@/components/utils/DeleteConfirmDialog.vue";
 const dialogAddCoord = ref(false);
 const addCoordError = ref("");
 const addCoord = ref({
@@ -790,55 +797,6 @@ async function cancelChanges() {
   }
 }
 
-async function deleteFeature(item) {
-  try {
-    const id = item && item.__id != null ? Number(item.__id) : null;
-    if (!id) {
-      alert("ID feature tidak valid.");
-      return;
-    }
-
-    const ok = window.confirm(`Hapus feature ID ${id}?`);
-    if (!ok) return;
-
-    saving.value = true;
-    loading.value = true;
-
-    const svc = FtDatasetFeaturesService;
-    const tryFns = [
-      "deleteFtDatasetFeatures",
-      "deleteFtDatasetFeaturesById",
-      "deleteFtDatasetFeaturesExt",
-      "deleteById",
-      "delete",
-      "remove",
-    ];
-
-    let called = false;
-    for (const fn of tryFns) {
-      if (svc && typeof svc[fn] === "function") {
-        called = true;
-        await svc[fn](id);
-        break;
-      }
-    }
-
-    if (!called) {
-      console.error("No delete method found on FtDatasetFeaturesService");
-      alert("API delete belum tersedia di FtDatasetFeaturesService.");
-      return;
-    }
-
-    emit("geoUpdated", { status: "deleted", id });
-    await runExtendedFilter();
-  } catch (e) {
-    console.error(e);
-    alert("Gagal menghapus feature.");
-  } finally {
-    saving.value = false;
-    loading.value = false;
-  }
-}
 
 async function saveChanges() {
   if (!hasDirty.value) return;

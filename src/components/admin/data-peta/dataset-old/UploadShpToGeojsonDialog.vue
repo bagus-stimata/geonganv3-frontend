@@ -192,7 +192,7 @@ export default {
 
         // Endpoint convert: server returns geojson.zip as blob
         const resp = await axios.post(
-          "https://desgreentools.des-green.org/desgreen/tools/convert-shapefile-to-geojsonzip",
+          "https://desgreentools.des-green.com/desgreen/tools/convert-shapefile-to-geojson",
           formData,
           {
             headers: {

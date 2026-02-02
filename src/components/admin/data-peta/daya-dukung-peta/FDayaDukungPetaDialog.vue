@@ -663,7 +663,7 @@ export default {
 
       this.dialogLoading = true
 
-      axios.post("https://desgreentools.des-green.org/desgreen/tools/convert-shapefile-to-geojsongzip", formData, {
+      axios.post("https://desgreentools.des-green.com/desgreen/tools/convert-shapefile-to-geojson", formData, {
           headers: {
             "Authorization": "Basic 123Welcome123",
             "Content-Type": "multipart/form-data"

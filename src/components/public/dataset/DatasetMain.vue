@@ -40,27 +40,31 @@
       <v-card-text>
         <v-row class="ga-2">
           <v-col cols="12" class="d-flex flex-wrap ga-2">
-            <v-btn
-                v-for="cat in itemsCategComputed"
-                :key="cat.id"
-                :variant="selectedCatId === cat.id ? 'flat' : 'outlined'"
-                :color="selectedCatId === cat.id ? 'indigo' : undefined"
+            <v-chip
+                v-for="cat in datasetsCateg"
+                :key="cat.fdivisionBean"
+                :variant="datasetCategSelected === cat.fdivisionBean ? 'flat' : 'outlined'"
+                :color="datasetCategSelected === cat.fdivisionBean ? 'indigo' : undefined"
                 rounded="xl"
-                density="comfortable"
+                density="compact"
+                size="small"
                 class="text-subtitle-2 px-4"
-                @click="selectedCatId = cat.id"
+                @click="selectCategClick(cat)"
             >
-              {{ cat.description }}
-              <span class="ml-2 font-weight-bold" :class="selectedCatId === cat.id ? 'text-white' : 'text-medium-emphasis'">
-                ({{ cat.count }})
+              <span class="text-caption">
+                {{ cat.kode1 }}
               </span>
-            </v-btn>
+              <span class="ml-2 font-weight-bold" :class="datasetCategSelected === cat.fdivisionBean ? 'text-white' : 'text-medium-emphasis'">
+                {{ cat.datasetCount }}
+              </span>
+            </v-chip>
           </v-col>
         </v-row>
       </v-card-text>
       <v-card-text>
         <div class="text-h6 mb-6 font-weight-black text-indigo">
-          Katalog Dataset <span class="color-text-primary">Peta</span>
+          Katalog Dataset <span :class="datasetCategSelected.fdivisionBean>0?'': 'color-text-primary' ">Peta</span>
+          <span class="ml-1 color-text-primary" v-if="datasetCategSelected.fdivisionBean>0" >{{ datasetCategSelected.description }}</span>
         </div>
 
         <v-skeleton-loader
@@ -186,9 +190,11 @@ export default {
       pageSizes: [8, 15, 20],
       totalItems: 0,
       search: "",
-      selectedCatId: 'All',
       ftDatasets: [],
       isActiveDeepSearch: false,
+
+      datasetCategSelected: {},
+      datasetsCateg: [],
 
     };
   },
@@ -207,12 +213,7 @@ export default {
     },
   },
   computed: {
-    itemsCategComputed(){
-      const itemAll = { id: 'All', description: 'All', count: this.totalItems }
-      // const base = (this.itemsCated || []).filter(item => item.id !== 'All')
-      // return [itemAll, ...base]
-      return [itemAll]
-    },
+
     currentUser() {
       return this.$store.state.auth.user;
     },
@@ -221,12 +222,17 @@ export default {
     },
   },
   methods: {
+    selectCategClick(datasetCategSelected){
+      this.datasetCategSelected = datasetCategSelected
+      this.runExtendedFilter(this.isActiveDeepSearch, this.datasetCategSelected.fdivisionBean);
+    },
     goToPetaInteraktif(item) {
       const listIds = [item.id];
       this.$router.push("/public-peta-interaktif?itemIds=" + listIds.join(","));
     },
 
-    runExtendedFilter(deepSearchStatus) {
+    runExtendedFilter(deepSearchStatus, fdivisionBean) {
+
       const extendedFilter = new DataFilter();
       extendedFilter.fdivisionIds = [];
       extendedFilter.pageNo = this.currentPage;
@@ -234,8 +240,11 @@ export default {
       extendedFilter.sortBy = "id";
       extendedFilter.order = "DESC";
       extendedFilter.search = this.search;
+      if (fdivisionBean && fdivisionBean>0){
+        extendedFilter.fdivisionIds = [fdivisionBean];
+        // console.log(JSON.stringify(extendedFilter.fdivisionIds));
+      }
 
-      // let deepSearch = this.isActiveDeepSearch
       let deepSearch = false
       if (deepSearchStatus){
         if (deepSearchStatus===true){
@@ -244,7 +253,7 @@ export default {
       }
 
       // console.log(deepSearch);
-      
+
       this.loading = true;
       FtDatasetExtService.getPostAllFtDatasetContainingExtPublic(
           extendedFilter,
@@ -269,7 +278,24 @@ export default {
       this.$nextTick(() =>{
         this.runExtendedFilter(this.isActiveDeepSearch);
       })
-
+    },
+    fetchParent(){
+      FtDatasetExtService.getCountDatasetsPerDivExtPublic().then(
+          response =>{
+            this.datasetsCateg = []
+            this.datasetsCateg.push({
+              kode1:"All",
+              description:"All Categories",
+              fdivisionBean:0,
+              datasetCount: response.data.reduce((acc, curr) => acc + curr.datasetCount, 0),
+            })
+            this.datasetsCateg.push(...response.data)
+            // console.log(JSON.stringify(this.datasetsCateg));
+          },
+          error =>{
+            console.log(error);
+          }
+      )
     },
     lookupImageUrl(item){
       if (item.avatarImage===undefined || item.avatarImage===""){
@@ -297,10 +323,12 @@ export default {
       return notes.length > 150 ? notes.substring(0, 150) + "…" : notes;
     },
 
+
   },
   mounted() {
-
+    this.fetchParent()
     this.searchDataset()
+
   },
 };
 </script>

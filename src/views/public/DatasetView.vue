@@ -6,7 +6,7 @@
 
 <script>
 import AppFooter from "@/components/AppFooter";
-import DatasetMain from "@/components/public/dataset-search/DatasetMain.vue";
+import DatasetMain from "@/components/public/dataset/DatasetMain.vue";
 import MenuBar from "@/components/MenuBar.vue";
 
 export default {

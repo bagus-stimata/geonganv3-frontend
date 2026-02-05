@@ -6,7 +6,7 @@
 
 <script>
 import AppFooter from "@/components/AppFooter";
-import PetaTematikMain from "@/components/public/peta-core/PetaTematikMain.vue";
+import PetaTematikMain from "@/components/public/peta-tematik/PetaTematikMain.vue";
 import MenuBar from "@/components/MenuBar.vue";
 
 export default {

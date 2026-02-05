@@ -62,7 +62,12 @@ class FtDatasetExtService {
         );
     }
 
-
+    getCountDatasetsPerDivExtPublic() {
+        return axios.get(
+            `${API_URL}ext/public/countDatasetsPerDivExtPublic`,
+            { headers: authHeader() }
+        );
+    }
     /**
      * Update dataset-old.
      * Catatan:

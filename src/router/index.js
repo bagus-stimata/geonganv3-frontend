@@ -160,11 +160,6 @@ const routes = [
     },
 
     {
-        path: '/public-peta-persebaran',
-        name: 'PetaPersebaranView',
-        component: () => import('../views/public/PetaPersebaranView.vue')
-    },
-    {
         path: '/public-peta-interaktif',
         name: 'PublicPetaInteraktif',
         component: () => import('../views/public/PetaInteraktifView.vue')

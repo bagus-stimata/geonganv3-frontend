@@ -31,21 +31,25 @@
       <v-card-text>
         <v-row class="ga-2">
           <v-col cols="12" class="d-flex flex-wrap ga-2">
-            <v-btn
-                v-for="cat in itemsCategComputed"
-                :key="cat.id"
-                :variant="selectedCatId === cat.id ? 'flat' : 'outlined'"
-                :color="selectedCatId === cat.id ? 'indigo' : undefined"
+            <v-chip
+                v-for="cat in datasetsCateg"
+                :key="cat.fdivisionBean"
+                :variant="datasetCategSelected === cat.fdivisionBean ? 'flat' : 'outlined'"
+                :color="datasetCategSelected === cat.fdivisionBean ? 'indigo' : undefined"
                 rounded="xl"
-                density="comfortable"
+                density="compact"
+                size="small"
                 class="text-subtitle-2 px-4"
-                @click="selectedCatId = cat.id"
+                @click="selectCategClick(cat)"
             >
-              {{ cat.description }}
-              <span class="ml-2 font-weight-bold" :class="selectedCatId === cat.id ? 'text-white' : 'text-medium-emphasis'">
-                ({{ cat.count }})
+              <span class="text-caption">
+                {{ cat.kode1 }}
               </span>
-            </v-btn>
+              <span class="ml-2 font-weight-bold" :class="datasetCategSelected === cat.fdivisionBean ? 'text-white' : 'text-medium-emphasis'">
+                {{ cat.dataCount }}
+              </span>
+            </v-chip>
+
           </v-col>
         </v-row>
       </v-card-text>
@@ -160,7 +164,10 @@ export default {
       pageSizes: [6, 10, 20],
       totalItems: 0,
       search: "",
-      selectedCatId: 'All',
+
+      datasetCategSelected: {},
+      datasetsCateg: [],
+
       mapsetItems: [
         {
           id: 1,
@@ -168,41 +175,6 @@ export default {
           desc: 'Sebaran & kepadatan penduduk per wilayah (choropleth/polygon).',
           img: require('@/assets/images/peta-tematik.png'),
           color: 'indigo',
-        },
-        {
-          id: 2,
-          title: 'Peta Tematik Ekonomi',
-          desc: 'Indikator ekonomi wilayah: UMKM, pasar, dan pusat aktivitas (point/polygon).',
-          img: require('@/assets/images/peta-tematik.png'),
-          color: 'deep-purple',
-        },
-        {
-          id: 3,
-          title: 'Peta Tematik Infrastruktur',
-          desc: 'Jaringan jalan, jembatan, utilitas dasar & aksesibilitas (line/point).',
-          img: require('@/assets/images/peta-tematik.png'),
-          color: 'teal',
-        },
-        {
-          id: 4,
-          title: 'Peta Tematik Tata Ruang',
-          desc: 'Zonasi pemanfaatan ruang & kesesuaian lahan (polygon).',
-          img: require('@/assets/images/peta-tematik.png'),
-          color: 'blue',
-        },
-        {
-          id: 5,
-          title: 'Peta Tematik Lingkungan',
-          desc: 'Tutupan lahan, vegetasi, area rawan, dan kualitas lingkungan (polygon).',
-          img: require('@/assets/images/peta-tematik.png'),
-          color: 'cyan',
-        },
-        {
-          id: 6,
-          title: 'Peta Tematik Pelayanan Publik',
-          desc: 'Sebaran fasilitas layanan: kesehatan, pendidikan, pemerintahan (point).',
-          img: require('@/assets/images/peta-tematik.png'),
-          color: 'pink',
         },
       ],
       ftTematiks:[],
@@ -226,12 +198,6 @@ export default {
     },
   },
   computed: {
-    itemsCategComputed(){
-      const itemAll = { id: 'All', description: 'All', count: this.totalItems }
-      // const base = (this.itemsCated || []).filter(item => item.id !== 'All')
-      // return [itemAll, ...base]
-      return [itemAll]
-    },
     currentUser() {
       return this.$store.state.auth.user;
     },
@@ -240,6 +206,11 @@ export default {
     },
   },
   methods: {
+    selectCategClick(datasetCategSelected){
+      this.datasetCategSelected = datasetCategSelected
+      this.runExtendedFilter(this.datasetCategSelected.fdivisionBean);
+    },
+
     lookupImageUrl(item){
       if (item.avatarImage===undefined || item.avatarImage===""){
         return require('@/assets/images/peta-tematik.png')
@@ -261,7 +232,7 @@ export default {
     fetchTematik(){
       this.runExtendedFilter()
     },
-    runExtendedFilter() {
+    runExtendedFilter(fdivisionBean) {
       const extendedFilter = new DataFilter();
       extendedFilter.fdivisionIds = this.filterFdivisions;
       extendedFilter.pageNo = this.currentPage;
@@ -269,6 +240,10 @@ export default {
       extendedFilter.sortBy = "id";
       extendedFilter.order = "DESC";
       extendedFilter.search = this.search;
+
+      if (fdivisionBean && fdivisionBean>0){
+        extendedFilter.fdivisionIds = [fdivisionBean];
+      }
 
       this.loading = true;
       FtTematikService.getPostAllFtTematikContainingExtPublic(extendedFilter).then(
@@ -293,8 +268,29 @@ export default {
       return notes.length > 150 ? notes.substring(0, 150) + "…" : notes;
     },
 
+    fetchParent(){
+      FtTematikService.getCountTematiksPerDivPublic().then(
+          response =>{
+            this.datasetsCateg = []
+            this.datasetsCateg.push({
+              kode1:"All",
+              description:"All Categories",
+              fdivisionBean:0,
+              dataCount: response.data.reduce((acc, curr) => acc + curr.dataCount, 0),
+            })
+            this.datasetsCateg.push(...response.data)
+            // console.log(JSON.stringify(this.datasetsCateg));
+          },
+          error =>{
+            console.log(error);
+          }
+      )
+    },
+
   },
   mounted() {
+    this.fetchParent()
+
     this.fetchTematik()
   },
 };

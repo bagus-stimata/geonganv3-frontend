@@ -46,7 +46,12 @@ class FtTematikService {
         return axios.get(API_URL + `public/getFtTematikById/${id}`, { headers: authHeader() });
     }
 
-
+    getCountTematiksPerDivPublic() {
+        return axios.get(
+            `${API_URL}public/countTematiksPerDivPublic`,
+            { headers: authHeader() }
+        );
+    }
     updateFtTematik(item){
         return axios.put(API_URL + `updateFtTematik/${item.id}`, item, {headers: authHeader()})
     }

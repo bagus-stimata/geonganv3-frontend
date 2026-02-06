@@ -55,7 +55,7 @@
                 {{ cat.kode1 }}
               </span>
               <span class="ml-2 font-weight-bold" :class="datasetCategSelected === cat.fdivisionBean ? 'text-white' : 'text-medium-emphasis'">
-                {{ cat.datasetCount }}
+                {{ cat.dataCount }}
               </span>
             </v-chip>
           </v-col>
@@ -287,7 +287,7 @@ export default {
               kode1:"All",
               description:"All Categories",
               fdivisionBean:0,
-              datasetCount: response.data.reduce((acc, curr) => acc + curr.datasetCount, 0),
+              dataCount: response.data.reduce((acc, curr) => acc + curr.dataCount, 0),
             })
             this.datasetsCateg.push(...response.data)
             // console.log(JSON.stringify(this.datasetsCateg));

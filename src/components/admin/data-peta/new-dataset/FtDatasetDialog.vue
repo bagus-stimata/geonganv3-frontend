@@ -831,11 +831,18 @@ export default {
       // Best-effort: bersihkan peta child kalau ada
       this.safeResetMapGeojsonData()
     },
-    setGeoUpdated(value){
-      if(value.status === 'deleted'){
-        this.isGeoUpdated = true
+    setGeoUpdated(value) {
+      if (!value || !value.status) return;
+
+      if (value.status === "deleted") {
+        this.isGeoUpdated = true;
+        return;
+      }
+      if (value.status === "addCoord") {
+        this.isGeoUpdated = true;
       }
     },
+
     isMapTypePoint(item){
       return item === ETipePeta.POINT
     },

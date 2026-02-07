@@ -303,51 +303,6 @@ function closeAddCoordDialog() {
   dialogAddCoord.value = false;
 }
 
-async function confirmAddCoord() {
-  addCoordError.value = "";
-  const latNum = Number(String(addCoord.value.lat ?? "").trim());
-  const lonNum = Number(String(addCoord.value.lon ?? "").trim());
-  // const ftDatasetId = props?.ftDataset?.datasetType ?? props?.ftDataset?.type ?? "").toLowerCase();
-  const ftDatasetId = props?.ftDataset?.id ?? null;
-  // console.log(`Adding coord: lat=${latNum}, lon=${lonNum}`);
-  // console.log(ftDatasetId);
-
-  if (!isValidLatLon(latNum, lonNum) || !ftDatasetId) {
-    addCoordError.value = "Latitude/Longitude atau ftDatasetBean tidak valid.";
-    return;
-  }
-
-
-  const payloadLatLon = {
-    ftDatasetBean: ftDatasetId,
-    lat: latNum,
-    lon: lonNum,
-  }
-  const resp  = await FtDatasetFeaturesService.createCopyFromFirstFtDatasetFeatures(payloadLatLon)
-  // console.log(JSON.stringify(resp.data));
-
-  if (resp.data){
-    await runExtendedFilter();
-
-    emit("geoUpdated", {
-      status: "addCoord",
-      lat: latNum,
-      lon: lonNum,
-      geom: `POINT (${lonNum} ${latNum})`,
-    });
-    dialogAddCoord.value = false;
-  }
-
-}
-
-function isValidLatLon(lat, lon) {
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return false;
-  if (lat === 0 && lon === 0) return false;
-  if (lat < -90 || lat > 90) return false;
-  if (lon < -180 || lon > 180) return false;
-  return true;
-}
-
 
 function openDeleteConfirmDialog(item) {
   if (!item) return;
@@ -397,6 +352,13 @@ async function deleteFeatureConfirmed(selectedId) {
   }
 }
 
+function isValidLatLon(lat, lon) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return false;
+  if (lat < -90 || lat > 90) return false;
+  if (lon < -180 || lon > 180) return false;
+  return true;
+}
+
 // Strong key normalizer: removes all except a-z0-9 underscore and dot
 function normKeyLoose(k) {
   // aggressive normalizer: remove everything except a-z0-9 underscore and dot
@@ -405,6 +367,33 @@ function normKeyLoose(k) {
     .toLowerCase()
     .replace(/[^a-z0-9_.]+/g, "")
     .trim();
+}
+
+
+
+function confirmAddCoord() {
+  addCoordError.value = "";
+
+  const latNum = Number(String(addCoord.value.lat ?? "").trim());
+  const lonNum = Number(String(addCoord.value.lon ?? "").trim());
+
+  if (!isValidLatLon(latNum, lonNum)) {
+    addCoordError.value = "Latitude/Longitude tidak valid.";
+    return;
+  }
+
+  const fKey = String(addCoord.value.featureKey ?? "").trim();
+
+  // Hand off creation to parent/backend; frontend no longer creates temp rows
+  emit("geoUpdated", {
+    status: "addCoord",
+    featureKey: fKey,
+    lat: latNum,
+    lon: lonNum,
+    geom: `POINT (${lonNum} ${latNum})`,
+  });
+
+  dialogAddCoord.value = false;
 }
 
 const props = defineProps({
@@ -729,6 +718,7 @@ function normalizeFeatures(rawItems) {
   });
 }
 
+
 function onCellEdit(row, col, val) {
   if (!row || !col) return;
 
@@ -812,7 +802,7 @@ async function runExtendedFilter() {
   extendedFilter.pageNo = currentPage.value;
   extendedFilter.pageSize = pageSize.value;
   extendedFilter.sortBy = "id";
-  extendedFilter.order = "ASC";
+  extendedFilter.order = "DESC";
   extendedFilter.search = search.value;
 
   loading.value = true;

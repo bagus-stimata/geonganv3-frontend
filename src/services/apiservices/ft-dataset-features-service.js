@@ -33,7 +33,6 @@ class FtDatasetFeaturesFeaturesService {
         );
     }
 
-
     updateFtDatasetFeatures(payload) {
         // console.log(JSON.stringify(payload))
         return axios.put(
@@ -55,6 +54,11 @@ class FtDatasetFeaturesFeaturesService {
         });
     }
 
+    createCopyFromFirstFtDatasetFeatures(item) {
+        return axios.post(API_URL + `createCopyFromFirstFtDatasetFeatures`, item, {
+            headers: authHeader(),
+        });
+    }
 
 
 

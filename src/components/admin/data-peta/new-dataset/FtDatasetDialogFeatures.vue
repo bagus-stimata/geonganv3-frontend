@@ -215,7 +215,7 @@
                       size="small"
                       :disabled="loading || saving"
                       title="Hapus feature"
-                      @click="() => deleteFeature(item)"
+                      @click="() => openDeleteConfirmDialog(item)"
                     >
                       <v-icon>mdi-delete</v-icon>
                     </v-btn>
@@ -258,6 +258,8 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import FtDatasetFeaturesService from "@/services/apiservices/ft-dataset-features-service";
 import DataFilter from "@/models/payload/f-dayadukung-filter";
 import DeleteConfirmDialog from "@/components/utils/DeleteConfirmDialog.vue";
+const deleteConfirmDialog = ref(null);
+
 const dialogAddCoord = ref(false);
 const addCoordError = ref("");
 const addCoord = ref({
@@ -301,6 +303,54 @@ function closeAddCoordDialog() {
   dialogAddCoord.value = false;
 }
 
+
+function openDeleteConfirmDialog(item) {
+  if (!item) return;
+
+  const dlg = deleteConfirmDialog.value;
+  if (!dlg) return console.warn("DeleteConfirmDialog ref is not ready");
+
+  const id = item.__id ?? item.id;
+  if (id == null) return console.warn("missing id", item);
+
+  const msg = `Feature Key: ${item.__featureKey ?? ""} | ID: ${id}`;
+
+  // ONLY call method that exists in DeleteConfirmDialog.vue
+  dlg.showDialog(id, msg);
+}
+
+async function deleteFeatureConfirmed(selectedId) {
+  const id = selectedId;
+  const dlg = deleteConfirmDialog.value;
+
+  if (id == null || dlg == null) {
+    console.warn("deleteFeatureConfirmed: missing id", selectedId);
+    return;
+  }
+
+  // IMPORTANT: do not change DeleteConfirmDialog.vue, so we call its existing method
+
+  saving.value = true;
+  loading.value = true;
+
+  try {
+    const resp = await FtDatasetFeaturesService.deleteFtDatasetFeatures(selectedId)
+    if (typeof dlg.showDialog === "function" && selectedId >0 && resp) {
+      dlg.setDialogState(false);
+    }
+
+    // refresh table + clear dirty state
+    dirtyMap.value = {};
+    await runExtendedFilter();
+
+    emit("geoUpdated", { status: "deleted", id });
+  } catch (e) {
+    console.error("Failed to delete feature", id, e);
+  } finally {
+    saving.value = false;
+    loading.value = false;
+  }
+}
 
 function isValidLatLon(lat, lon) {
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) return false;

@@ -829,16 +829,10 @@ export default {
       this.hasGeojsonForTableLocal = false;
 
       // Best-effort: bersihkan peta child kalau ada
-      try {
-        if (this.$refs.refDatasetMap) {
-          this.$refs.refDatasetMap.geojsonData = [];
-        }
-      } catch (e) {
-        console.warn("resetPetaDanEditState: reset map failed", e);
-      }
+      this.safeResetMapGeojsonData()
     },
     setGeoUpdated(value){
-      if(value.status === 'ok'){
+      if(value.status === 'deleted'){
         this.isGeoUpdated = true
       }
     },
@@ -1585,7 +1579,7 @@ export default {
             try {
               if (this.$refs.refDatasetMap) {
                 // this.$refs.refDatasetMap.resetTampilanPeta();
-                this.$refs.refDatasetMap.geojsonData = []
+                this.safeResetMapGeojsonData()
               }
             } catch (e) {
               console.warn("resetTampilanPeta failed:", e);
@@ -1734,6 +1728,16 @@ export default {
       this.isGeoJsonDeleted = true
       this.clearStoredGeojson()
     },
+    safeResetMapGeojsonData() {
+      try {
+        const mapRef = (this.$refs && this.$refs.refDatasetMap) ? this.$refs.refDatasetMap : null;
+        if (mapRef && Object.prototype.hasOwnProperty.call(mapRef, "geojsonData")) {
+          mapRef.geojsonData = [];
+        }
+      } catch (e) {
+        console.warn("safeResetMapGeojsonData: skipped", e);
+      }
+    },
     clearStoredGeojson() {
       if (this.itemModified) {
         // Mark clear
@@ -1769,7 +1773,7 @@ export default {
       try {
         if (this.$refs.refDatasetMap) {
           // this.$refs.refDatasetMap.resetTampilanPeta();
-          this.$refs.refDatasetMap.geojsonData = []
+          this.safeResetMapGeojsonData()
         }
       } catch (e) {
         console.error(e);
@@ -1816,7 +1820,7 @@ export default {
 
       try {
         // this.$refs.refDatasetMap?.resetTampilanPeta();
-        this.$refs.refDatasetMap.geojsonData = []
+        this.safeResetMapGeojsonData()
       } catch (e) {
         console.warn(e);
       }

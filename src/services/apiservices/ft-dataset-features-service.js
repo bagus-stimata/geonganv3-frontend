@@ -35,7 +35,7 @@ class FtDatasetFeaturesFeaturesService {
 
 
     updateFtDatasetFeatures(payload) {
-        console.log(JSON.stringify(payload))
+        // console.log(JSON.stringify(payload))
         return axios.put(
             API_URL + `updateFtDatasetFeatures/${payload.id}`,
             payload,
@@ -43,6 +43,11 @@ class FtDatasetFeaturesFeaturesService {
                 headers: authHeader(),
             }
         );
+    }
+    deleteFtDatasetFeatures(id){
+        return axios.delete(API_URL + `deleteFtDatasetFeatures/${id}`, {
+            headers: authHeader()
+        });
     }
     createFtDatasetFeatures(item) {
         return axios.post(API_URL + `createFtDatasetFeatures`, item, {

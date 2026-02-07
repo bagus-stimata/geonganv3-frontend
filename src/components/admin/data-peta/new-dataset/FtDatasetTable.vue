@@ -280,7 +280,6 @@
         </v-btn>
       </template>
     </v-snackbar>
-    <FtDatasetImportDataTabularDialog ref="refImportDataTabular"></FtDatasetImportDataTabularDialog>
   </v-card>
 </template>
 
@@ -293,14 +292,11 @@ import FormMode from "@/models/form-mode";
 import FtDataset from "@/models/ft-dataset";
 import FileService from "@/services/apiservices/file-service";
 import DataFilter from "@/models/payload/data-filter";
-import FtDatasetImportDataTabularDialog
-  from "@/components/admin/data-peta/dataset-old/FtDatasetImportDataTabularDialog.vue";
 import {ETipePetas} from "@/models/e-tipe-peta";
 import FtDatasetExtService from "@/services/apiservices/ft-dataset-ext-service";
 
 export default {
   components: {
-    FtDatasetImportDataTabularDialog,
     FtDatasetDialog: FtDatasetDialog,
     DeleteConfirmDialog,
   },

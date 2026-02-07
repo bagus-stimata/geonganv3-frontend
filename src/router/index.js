@@ -60,26 +60,10 @@ const routes = [
         name: 'AdminDinCarousel',
         component: () => import('@/views/admin/setup/DinCarouselView.vue')
     },
-
-    // {
-    //     path: '/admin-dayadukung-type',
-    //     name: 'AdminDayaDukungType',
-    //     component: () => import('@/views/admin/data-peta/DayaDukungTypeView.vue')
-    // },
-    // {
-    //     path: '/data-peta-peta',
-    //     name: 'AdminDataDukungPetaView',
-    //     component: () => import('@/views/admin/data-peta/DataDukungPetaView.vue')
-    // },
     {
         path: '/admin-data-peta-dataset',
         name: 'AdminDataPetaDatasetView',
         component: () => import('@/views/admin/data-peta/DataPetaDatasetView.vue')
-    },
-    {
-        path: '/admin-data-peta-tabular',
-        name: 'AdminDataPetaTabularView',
-        component: () => import('@/views/admin/data-peta/DataPetaTabularView.vue')
     },
 
     {
@@ -136,11 +120,6 @@ const routes = [
         path: '/test-peta-postgis',
         name: 'PetaPostgisView',
         component: () => import('../views/test/PetaPostgisView.vue')
-    },
-    {
-        path: '/test-admin-data-peta-dataset-old',
-        name: 'TestDataPetaDatasetView',
-        component: () => import('../views/admin/data-peta/TestDataPetaDatasetView.vue')
     },
 
     {

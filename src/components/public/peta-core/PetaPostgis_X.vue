@@ -129,11 +129,11 @@
 
     <!-- Global snackbar (so errors/info are visible) -->
     <v-snackbar
-        v-model="snackbar.show"
-        :timeout="snackbar.timeout"
-        :color="snackbar.color"
-        location="bottom"
-        rounded="lg"
+      v-model="snackbar.show"
+      :timeout="snackbar.timeout"
+      :color="snackbar.color"
+      location="bottom"
+      rounded="lg"
     >
       {{ snackbar.text }}
     </v-snackbar>
@@ -156,6 +156,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.css'
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 
 import FtDatasetExtService from '@/services/apiservices/ft-dataset-ext-service'
+import FileService from '@/services/apiservices/file-service'
 import ZonaColorMapper from '@/helpers/zona-color-mapper'
 import router from '@/router'
 
@@ -164,6 +165,7 @@ import 'leaflet-draw'
 import 'leaflet-draw/dist/leaflet.draw.js'
 import 'leaflet-draw/dist/leaflet.draw.css'
 import * as turf from '@turf/turf'
+import ETipePeta from '@/models/e-tipe-peta'
 
 // ===== Leaflet Icon default override =====
 delete Icon.Default.prototype.Default
@@ -173,10 +175,65 @@ Icon.Default.mergeOptions({
   shadowUrl: require('@/assets/images/my-marker.webp')
 })
 
+const DEFAULT_MARKER_IMG = require('@/assets/images/my-marker.webp')
+const defaultMarkerIcon = L.icon({
+  iconUrl: DEFAULT_MARKER_IMG,
+  iconRetinaUrl: DEFAULT_MARKER_IMG,
+  iconSize: [32, 32],
+  iconAnchor: [16, 32],
+  popupAnchor: [0, -32]
+})
 
+// ===== Basemaps =====
+const googleSatellite = {
+  id: 'googleSatellite',
+  name: 'Google Sat',
+  url: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
+  attribution: '&copy; Google',
+  maxZoom: 22
+}
+const googleHybrid = {
+  id: 'googleHybrid',
+  name: 'Google Hybrid',
+  url: 'https://mt1.google.com/vt/lyrs=s,h&x={x}&y={y}&z={z}',
+  attribution: '&copy; Google',
+  maxZoom: 22
+}
+const googleRoadmap = {
+  id: 'googleRoadmap',
+  name: 'Google Roadmap',
+  url: 'https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+  attribution: '&copy; Google',
+  maxZoom: 22
+}
+const googleTerrain = {
+  id: 'googleTerrain',
+  name: 'Google Terrain',
+  url: 'https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
+  attribution: '&copy; Google',
+  maxZoom: 22
+}
 
-import {basemaps, defaultMarkerIcon, safeByteSizeOf, hashStringFNV1a} from "@/helpers/basemap-function-helper";
-import { resolveMarkerImageUrl, safeParseGeojson, normalizePropertiesShowKeys } from './peta-postgis-helper'
+const basemaps = {
+  osm: {
+    id: 'osm',
+    name: 'OSM',
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attribution: '&copy; OpenStreetMap contributors',
+    maxZoom: 19
+  },
+  esriWorldImagery: {
+    id: 'esriWorldImagery',
+    name: 'Esri Imagery',
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attribution: '&copy; Esri &mdash; Source: Esri, Maxar, Earthstar Geographics',
+    maxZoom: 18
+  },
+  googleSatellite,
+  googleHybrid,
+  googleRoadmap,
+  googleTerrain
+}
 
 const CLUSTER_OFF_AT_ZOOM = 13
 const DEBOUNCE_DELAY = 150
@@ -267,12 +324,13 @@ export default {
       return Object.values(basemaps)
     },
 
-    // _isVisibleHomeButton() { return this.isVisibleHomeButton !== false },
-    // _isVisibleSsButton() { return this.isVisibleSsButton !== false },
-    // _isVisibleFullScreenButton() { return this.isVisibleFullScreenButton !== false },
-    // _isVisibleCenterButton() { return this.isVisibleCenterButton !== false },
-    // _isVisibleFeatureGroup() { return this.isVisibleFeatureGroup !== false },
-    // _isVisibleDrawTools() { return this.isVisibleDrawTools !== false },
+    // template visibility flags
+    _isVisibleHomeButton() { return this.isVisibleHomeButton !== false },
+    _isVisibleSsButton() { return this.isVisibleSsButton !== false },
+    _isVisibleFullScreenButton() { return this.isVisibleFullScreenButton !== false },
+    _isVisibleCenterButton() { return this.isVisibleCenterButton !== false },
+    _isVisibleFeatureGroup() { return this.isVisibleFeatureGroup !== false },
+    _isVisibleDrawTools() { return this.isVisibleDrawTools !== false },
 
     datasetIdsNorm() {
       if (!Array.isArray(this.datasetIds)) return []
@@ -333,7 +391,7 @@ export default {
           })
           .filter(Boolean)
     },
-
+    
     // vue-leaflet LGeoJson options
     options() {
       return {
@@ -535,60 +593,6 @@ export default {
       }
     },
 
-    // ===== screenshot photo download =====
-    async ssPhotoDownload() {
-      try {
-        const map = this.getLeafletMap()
-        const container = map?.getContainer?.() || this.$refs.wrapperRef
-        if (!container) {
-          this.snackbar = { show: true, color: 'warning', text: 'Container peta tidak ditemukan', timeout: 1600 }
-          return
-        }
-
-        // lazy-load to avoid increasing initial bundle size
-        let html2canvas
-        try {
-          const mod = await import('html2canvas')
-          html2canvas = mod?.default || mod
-        } catch (e) {
-          console.error('[PetaPostgis][ssPhotoDownload] html2canvas import failed', e)
-          this.snackbar = { show: true, color: 'error', text: 'html2canvas belum terpasang / gagal di-load', timeout: 2200 }
-          return
-        }
-
-        // temporarily ensure attribution / tiles already rendered
-        await this.$nextTick()
-
-        const canvas = await html2canvas(container, {
-          backgroundColor: null,
-          useCORS: true,
-          allowTaint: false,
-          logging: false,
-          // a bit higher quality without going crazy
-          scale: Math.min(2, window.devicePixelRatio || 1)
-        })
-
-        const dataUrl = canvas.toDataURL('image/png')
-        const pad2 = (n) => String(n).padStart(2, '0')
-        const d = new Date()
-        const stamp = `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}_${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`
-        const filename = `peta_${stamp}.png`
-
-        const a = document.createElement('a')
-        a.href = dataUrl
-        a.download = filename
-        a.rel = 'noopener'
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-
-        this.snackbar = { show: true, color: 'success', text: `Screenshot tersimpan: ${filename}`, timeout: 1600 }
-      } catch (e) {
-        console.error('[PetaPostgis][ssPhotoDownload] failed', e)
-        this.snackbar = { show: true, color: 'error', text: 'Gagal ambil screenshot peta', timeout: 2000 }
-      }
-    },
-
     // ===== fullscreen =====
     onFsChange() {
       this.isFullscreen = !!document.fullscreenElement
@@ -720,26 +724,15 @@ export default {
       }
     },
 
-    ensureHighlightState() {
-      try {
-        if (!(this._featureIndex instanceof Map)) this._featureIndex = new Map()
-        if (!Array.isArray(this._textIndex)) this._textIndex = []
-        if (!(this._highlighted instanceof Set)) this._highlighted = new Set()
-      } catch (e) {
-        console.warn('[PetaPostgis][highlight] ensureHighlightState failed', e)
-      }
-    },
     clearHighlights() {
-      this.ensureHighlightState()
       try {
-        const ids = Array.from(this._highlighted || [])
-        for (const id of ids) {
+        for (const id of this._highlighted) {
           const lyr = this._featureIndex.get(id)
           if (!lyr) continue
           if (typeof lyr.setStyle === 'function') this.resetLayerStyle(lyr)
           this.setMarkerDomHighlight(lyr, false)
         }
-        if (this._highlighted && typeof this._highlighted.clear === 'function') this._highlighted.clear()
+        this._highlighted.clear()
       } catch (e) {
         console.warn('[PetaPostgis][highlight] clearHighlights failed', e)
       }
@@ -889,45 +882,154 @@ export default {
       }
     },
 
-    createMarkerIconForFeature(feature) {
+    // ===== marker icons =====
+    resolveMarkerImageUrl(markerImage) {
+      const v = (markerImage == null) ? '' : String(markerImage).trim()
+      if (!v) return ''
+      if (/^https?:\/\//i.test(v)) return v
       try {
-        const props = feature?.properties || {}
+        return FileService.fileMarker(v)
+      } catch (e) {
+        console.warn('[PetaPostgis][resolveMarkerImageUrl] fallback raw value', e)
+        return v
+      }
+    },
 
-        // Directly use markerImage from feature properties (backend uses markerImage)
-        const markerImageRaw = (props.markerImage ?? null)
-        if (markerImageRaw == null || String(markerImageRaw).trim() === '') {
+    isPointTipePeta(tipePeta) {
+      try {
+        if (ETipePeta?.POINT != null && tipePeta === ETipePeta.POINT) return true
+        const s = String(tipePeta ?? '').trim().toUpperCase()
+        if (s === 'POINT') return true
+        const n = Number(tipePeta)
+        return Number.isFinite(n) && n === 1
+      } catch (e) {
+        console.warn('[PetaPostgis][isPointTipePeta] failed', e)
+        return true
+      }
+    },
+
+    getMarkerIconForFeature(feature) {
+      try {
+        const debugOn = (this.$props?.debugMarkerIcon === true)
+        const debugMarker = (...args) => {
+          if (!debugOn) return
+          try { console.log('[PetaPostgis][markerIcon]', ...args) } catch (e) { console.warn('[markerIcon] debug log failed', e) }
+        }
+
+        const propsFeature = feature?.properties || {}
+        const dsIdRaw = (
+            propsFeature.__datasetId ??
+            propsFeature.__datasetBean ??
+            propsFeature.ftDatasetBean ??
+            propsFeature.ft_dataset_bean ??
+            propsFeature.datasetId ??
+            propsFeature.dataset_id ??
+            propsFeature.ftDatasetId ??
+            propsFeature.datasetBean ??
+            propsFeature.idDataset ??
+            propsFeature.id_dataset
+        )
+
+        let dsId = (dsIdRaw == null || String(dsIdRaw).trim() === '') ? null : Number(dsIdRaw)
+
+        if ((!Number.isFinite(dsId) || dsId == null || dsId <= 0) && Number.isFinite(feature?.__datasetId)) {
+          dsId = Number(feature.__datasetId)
+        }
+
+        if (!Number.isFinite(dsId) || dsId == null || dsId <= 0) {
+          debugMarker('checkpoint: dsId missing/invalid', { dsIdRaw, dsId, featureId: feature?.id, markerKey: propsFeature?.__markerKey })
+          dsId = null
+        } else {
+          debugMarker('checkpoint: dsId ok', { dsId })
+        }
+
+        const list = Array.isArray(this.itemsMapsetSelected) ? this.itemsMapsetSelected : []
+        let ds = null
+
+        if (dsId == null && list.length === 1) {
+          ds = list[0]
+          debugMarker('checkpoint: ds fallback single selected', { dsId: null, selectedCount: list.length })
+        }
+
+        if (!ds && dsId != null && list.length > 0) {
+          ds = list.find(x => {
+            const xid = Number(
+                x?.id ?? x?.datasetId ?? x?.dataset_id ?? x?.ftDatasetBean ?? x?.ft_dataset_bean ?? x?.ftDatasetId ?? x?.datasetBean
+            )
+            return Number.isFinite(xid) && xid === dsId
+          })
+          debugMarker('checkpoint: ds match by dsId', { dsId, found: Boolean(ds), selectedCount: list.length })
+        }
+
+        if (!ds) {
+          debugMarker('checkpoint: ds not found -> default marker', { dsId, selectedCount: list.length })
           return null
         }
 
-        const markerImageUrl = resolveMarkerImageUrl(markerImageRaw)
+        const tipePeta = ds?.tipePeta ?? ds?.tipe_peta
+        if (tipePeta != null && !this.isPointTipePeta(tipePeta)) {
+          debugMarker('checkpoint: tipePeta not POINT -> skip custom icon', { tipePeta, dsId: ds?.id ?? dsId })
+          return null
+        }
+
+        const markerImageFromFeature = (propsFeature?.markerImage ?? propsFeature?.marker_image ?? null)
+        const markerImageFromDataset = (ds?.markerImage ?? ds?.marker_image ?? null)
+
+        const markerImageRaw = (markerImageFromFeature != null && String(markerImageFromFeature).trim() !== '')
+            ? markerImageFromFeature
+            : markerImageFromDataset
+
+        if (markerImageRaw == null || String(markerImageRaw).trim() === '') {
+          debugMarker('checkpoint: markerImage missing -> default marker', { dsId: ds?.id ?? dsId })
+          return null
+        }
+
+        const markerImageUrl = this.resolveMarkerImageUrl(markerImageRaw)
         if (!markerImageUrl) {
+          debugMarker('checkpoint: resolveMarkerImageUrl failed -> default marker', { dsId: ds?.id ?? dsId })
           return null
         }
 
         const iconSize = [32, 32]
         const cacheKey = `${markerImageUrl}|${iconSize[0]}x${iconSize[1]}`
         const cached = this._markerIconCache.get(cacheKey)
-        if (cached) return cached
+        if (cached) {
+          debugMarker('checkpoint: icon cache hit', { cacheKey })
+          return cached
+        }
 
         const icon = L.icon({
           iconUrl: markerImageUrl,
           iconSize,
           iconAnchor: [16, 32],
           popupAnchor: [0, -32],
+          shadowUrl: undefined,
+          shadowSize: undefined,
+          shadowAnchor: undefined
         })
 
         this._markerIconCache.set(cacheKey, icon)
+        debugMarker('checkpoint: icon created', { cacheKey })
         return icon
       } catch (e) {
+        console.warn('[PetaPostgis][getMarkerIconForFeature] failed, fallback default marker', e)
         return null
       }
     },
 
+    markerIconByFeature(feature) {
+      try {
+        return this.getMarkerIconForFeature(feature) || defaultMarkerIcon
+      } catch (e) {
+        console.warn('[PetaPostgis][markerIconByFeature] failed', e)
+        return defaultMarkerIcon
+      }
+    },
 
     // Leaflet GeoJSON pointToLayer
     pointToLayerOption(feature, latlng) {
       try {
-        const icon = this.createMarkerIconForFeature(feature) || defaultMarkerIcon
+        const icon = this.markerIconByFeature(feature)
         const mk = feature?.properties?.__markerKey
         const marker = L.marker(latlng, { icon })
         if (mk) marker.options.__markerKey = mk
@@ -1309,6 +1411,62 @@ export default {
       }
     },
 
+    safeByteSizeOf(v) {
+      try {
+        if (v == null) return 0
+        if (typeof v === 'string') return new Blob([v]).size
+        return new Blob([JSON.stringify(v)]).size
+      } catch (e) {
+        try { return String(v).length } catch (err) { console.warn('[byteSize] fallback failed', err); return 0 }
+      }
+    },
+
+    hashStringFNV1a(str) {
+      const s = typeof str === 'string' ? str : String(str ?? '')
+      let h = 0x811c9dc5
+      for (let i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i)
+        h = (h + (h << 1) + (h << 4) + (h << 7) + (h << 8) + (h << 24)) >>> 0
+      }
+      return h.toString(16)
+    },
+
+    safeParseGeojson(v, idForLog) {
+      if (!v) return null
+      if (typeof v === 'object') return v
+      if (typeof v !== 'string') return null
+      try {
+        return JSON.parse(v)
+      } catch (e) {
+        console.error('[viewport] geojsonForMap JSON.parse failed', { id: idForLog, err: e, sample: String(v).slice(0, 160) })
+        return null
+      }
+    },
+
+    normalizePropertiesShowKeys(v) {
+      if (v == null) return []
+      if (Array.isArray(v)) {
+        return v.map(x => String(x ?? '').trim()).filter(Boolean)
+      }
+      if (typeof v === 'string') {
+        const s = v.trim()
+        if (!s) return []
+        try {
+          const parsed = JSON.parse(s)
+          if (Array.isArray(parsed)) {
+            return parsed.map(x => String(x ?? '').trim()).filter(Boolean)
+          }
+        } catch (e) {
+          // ignore JSON parse error, fallback comma
+        }
+        return s.split(',').map(x => x.trim()).filter(Boolean)
+      }
+      if (typeof v === 'object') {
+        return Object.keys(v).map(x => String(x ?? '').trim()).filter(Boolean)
+      }
+      return []
+    },
+
     triggerViewportFetch(reason = 'unknown', { debounce = false } = {}) {
       if (!this.datasetIdsNorm.length) {
         this.geojsonData = []
@@ -1377,11 +1535,11 @@ export default {
           const first = (res.data.items || res.data.data)?.[0]
           psRaw = first?.propertiesShow
         }
-        this.propertiesShowKeys = normalizePropertiesShowKeys(psRaw)
+        this.propertiesShowKeys = this.normalizePropertiesShowKeys(psRaw)
 
         const rawText = (typeof res?.data === 'string') ? res.data : JSON.stringify(res?.data ?? null)
-        const rawSizeBytes = safeByteSizeOf(rawText)
-        const rawHash = hashStringFNV1a(rawText)
+        const rawSizeBytes = this.safeByteSizeOf(rawText)
+        const rawHash = this.hashStringFNV1a(rawText)
         this.responseBefore = { hash: rawHash, sizeBytes: rawSizeBytes }
 
         // reset indices (viewport refresh)
@@ -1389,7 +1547,7 @@ export default {
 
         let payload = res?.data
         if (typeof payload === 'string') {
-          const parsed = safeParseGeojson(payload, 'res.data')
+          const parsed = this.safeParseGeojson(payload, 'res.data')
           payload = parsed ?? payload
         }
 
@@ -1397,7 +1555,7 @@ export default {
         if (Array.isArray(payload)) {
           this.geojsonData = payload
               .map(item => {
-                const parsed = safeParseGeojson(item?.geojsonForMap, item?.id)
+                const parsed = this.safeParseGeojson(item?.geojsonForMap, item?.id)
                 if (!parsed) return null
 
                 const dsIdRaw = (
@@ -1422,7 +1580,7 @@ export default {
         if (Array.isArray(maybeArr)) {
           this.geojsonData = maybeArr
               .map(item => {
-                const parsed = safeParseGeojson(item?.geojsonForMap, item?.id)
+                const parsed = this.safeParseGeojson(item?.geojsonForMap, item?.id)
                 if (!parsed) return null
 
                 const dsIdRaw = (
@@ -1523,14 +1681,11 @@ export default {
       if (!map) return
       this.clearPlainPoints()
 
-      // console.log(JSON.stringify(this.geojsonDataPoint))
-
       try {
         const newLayer = L.geoJSON(this.geojsonDataPoint, {
           pointToLayer: this.pointToLayerOption,
           onEachFeature: this.onEachFeatureOption
         })
-
 
         if (token != null && token !== this._pointsRebuildToken) return
 

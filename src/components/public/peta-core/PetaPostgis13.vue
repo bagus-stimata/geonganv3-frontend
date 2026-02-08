@@ -33,6 +33,7 @@
           :options-style="styleOption"
       />
 
+
       <LControl v-if="isVisibleHomeButton && showZoomButton && !isFullscreen" position="topright">
         <v-btn
             variant="elevated"
@@ -143,7 +144,16 @@
 <script setup>
 /* global defineProps */
 import { ref, onMounted, nextTick, onBeforeUnmount, computed, watch } from 'vue'
-import { LMap, LTileLayer, LGeoJson, LControl, LControlZoom as LControlZoomComp, LControlLayers, LFeatureGroup } from '@vue-leaflet/vue-leaflet'
+import {
+  LMap,
+  LTileLayer,
+  LGeoJson,
+  LControl,
+  LControlZoom as LControlZoomComp,
+  LControlLayers,
+  LFeatureGroup,
+  LMarker
+} from '@vue-leaflet/vue-leaflet'
 import L, {Icon} from 'leaflet'
 import 'leaflet.markercluster/dist/MarkerCluster.css'
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
@@ -620,8 +630,14 @@ function escapeHtml(str) {
 function pointToLayerOption(feature, latlng) {
   try {
     const icon = getMarkerIconForFeature(feature)
+    const mk = feature?.properties?.__markerKey
 
-    return icon ? L.marker(latlng, { icon }) : L.marker(latlng)
+    const marker = icon ? L.marker(latlng, { icon }) : L.marker(latlng)
+
+    // buat debug/trace (aman, gak ganggu Leaflet internals)
+    if (mk) marker.options.__markerKey = mk
+
+    return marker
   } catch (e) {
     console.warn('[PetaPostgis][pointToLayer] fallback default marker', e)
     return L.marker(latlng)
@@ -637,6 +653,10 @@ let markerClusterGeojsonLayer = null
 
 let markerPlainGeojsonLayer = null // normal points (no cluster) when zoom >= 13
 const CLUSTER_OFF_AT_ZOOM = 13
+
+// Prevent duplicate marker layers caused by overlapping async rebuilds
+// (datasetIds change + viewport fetch + zoom/move events can overlap)
+let pointsRebuildToken = 0
 
 let markerClusterPluginPromise = null
 
@@ -688,18 +708,35 @@ function clearPlainPoints() {
   }
 }
 
-function rebuildPlainPointsFromGeojson() {
+function rebuildPlainPointsFromGeojson(token = null) {
   const map = mapRef.value?.leafletObject
   if (!map) return
 
+  // clear current layer first
   clearPlainPoints()
 
   try {
-    markerPlainGeojsonLayer = L.geoJSON(geojsonDataPoint.value, {
+    const newLayer = L.geoJSON(geojsonDataPoint.value, {
       pointToLayer: pointToLayerOption,
       onEachFeature: onEachFeatureOption
     })
-    markerPlainGeojsonLayer.addTo(map)
+
+    // If this rebuild is stale, do not attach it
+    if (token != null && token !== pointsRebuildToken) return
+
+    newLayer.addTo(map)
+
+    // If it becomes stale right after add (race), remove it
+    if (token != null && token !== pointsRebuildToken) {
+      try {
+        if (map.hasLayer(newLayer)) map.removeLayer(newLayer)
+      } catch (err) {
+        console.warn('[PetaPostgis][plainPoints] remove stale layer failed', err)
+      }
+      return
+    }
+
+    markerPlainGeojsonLayer = newLayer
   } catch (e) {
     console.warn('[PetaPostgis][plainPoints] rebuild failed', e)
   }
@@ -754,6 +791,10 @@ function clearMarkerClusters() {
 async function rebuildMarkerClustersFromGeojson() {
   const map = mapRef.value?.leafletObject
   if (!map) return
+
+  // bump token so any previous async rebuild becomes stale
+  const token = ++pointsRebuildToken
+
   try {
     const z = Number(map.getZoom?.())
     const zoomIsClusterOff = Number.isFinite(z) ? (z >= CLUSTER_OFF_AT_ZOOM) : false
@@ -769,17 +810,27 @@ async function rebuildMarkerClustersFromGeojson() {
         console.warn('[PetaPostgis][cluster] detach failed', e)
       }
 
-      rebuildPlainPointsFromGeojson()
+      // If stale, stop
+      if (token !== pointsRebuildToken) return
+
+      rebuildPlainPointsFromGeojson(token)
       return
     }
 
     // zoom < 13 => cluster ON; normal OFF
     clearPlainPoints()
 
+    // If stale, stop
+    if (token !== pointsRebuildToken) return
+
     const grp = await ensureMarkerClusterLayer()
+
+    // If stale, stop (prevents old awaited call from adding layers)
+    if (token !== pointsRebuildToken) return
+
     if (!grp) {
       // fallback: plugin cluster gak ada -> tetap tampilkan point normal
-      rebuildPlainPointsFromGeojson()
+      rebuildPlainPointsFromGeojson(token)
       return
     }
 
@@ -791,12 +842,28 @@ async function rebuildMarkerClustersFromGeojson() {
 
     clearMarkerClusters()
 
+    // If stale, stop
+    if (token !== pointsRebuildToken) return
+
     try {
-      markerClusterGeojsonLayer = L.geoJSON(geojsonDataPoint.value, {
+      const newLayer = L.geoJSON(geojsonDataPoint.value, {
         pointToLayer: pointToLayerOption,
         onEachFeature: onEachFeatureOption
       })
-      grp.addLayer(markerClusterGeojsonLayer)
+
+      // add then re-check token to avoid duplicates from races
+      grp.addLayer(newLayer)
+
+      if (token !== pointsRebuildToken) {
+        try {
+          grp.removeLayer(newLayer)
+        } catch (err) {
+          console.warn('[PetaPostgis][cluster] remove stale layer failed', err)
+        }
+        return
+      }
+
+      markerClusterGeojsonLayer = newLayer
     } catch (e) {
       console.warn('[PetaPostgis][cluster] rebuild failed', e)
     }
@@ -808,16 +875,14 @@ async function rebuildMarkerClustersFromGeojson() {
 function resolveMarkerImageUrl(markerImage) {
   const v = (markerImage == null) ? '' : String(markerImage).trim()
   if (!v) return ''
-
-  // If already an absolute URL, use as-is
   if (/^https?:\/\//i.test(v)) return v
 
-  // Single backend endpoint for marker file
   try {
+    // kalau markerImage itu key/filename dari backend
     return FileService.fileMarker(v)
   } catch (e) {
-    console.warn('[PetaPostgis][resolveMarkerImageUrl] FileService.fileMarker failed, fallback default marker', e)
-    return ''
+    console.warn('[PetaPostgis][resolveMarkerImageUrl] fallback raw value', e)
+    return v
   }
 }
 
@@ -828,22 +893,74 @@ function injectDatasetIdIntoGeojson(gj, dsId) {
     if (!Number.isFinite(did) || did <= 0) return gj
     if (!gj || typeof gj !== 'object') return gj
 
-    if (gj.type === 'Feature') {
-      gj.properties = gj.properties || {}
-      if (gj.properties.__datasetId == null) gj.properties.__datasetId = did
-      return gj
+    // IMPORTANT: clone before writing so datasets don't overwrite each other
+    // Prefer structuredClone when available.
+    let clone = null
+    try {
+      if (typeof structuredClone === 'function') {
+        clone = structuredClone(gj)
+      }
+    } catch (err) {
+      console.warn('[PetaPostgis][injectDatasetIdIntoGeojson] structuredClone failed, fallback JSON', err)
+    }
+    if (!clone) {
+      clone = JSON.parse(JSON.stringify(gj))
     }
 
-    if (gj.type === 'FeatureCollection' && Array.isArray(gj.features)) {
-      gj.features.forEach(f => {
+    // tag root (debug/fallback)
+    try {
+      clone.__datasetId = did
+    } catch (err) {
+      console.warn('[PetaPostgis][injectDatasetIdIntoGeojson] root tag failed (ignored)', err)
+    }
+
+    if (clone.type === 'Feature') {
+      clone.properties = clone.properties || {}
+      clone.properties.__datasetId = did
+
+      // ✅ identity unik per feature
+      const fk =
+          clone.properties.featureKey ??
+          clone.properties.feature_key ??
+          clone.properties.FEATURE_KEY ??
+          clone.properties.id ??
+          clone.id ??
+          ''
+
+      const mk = `${did}:${String(fk ?? '')}:0`
+      clone.properties.__markerKey = mk
+      if (clone.id == null || String(clone.id).trim() === '') {
+        clone.id = mk
+      }
+
+      return clone
+    }
+
+    if (clone.type === 'FeatureCollection' && Array.isArray(clone.features)) {
+      clone.features.forEach((f, idx) => {
         if (!f || f.type !== 'Feature') return
         f.properties = f.properties || {}
-        if (f.properties.__datasetId == null) f.properties.__datasetId = did
+        f.properties.__datasetId = did
+
+        // ✅ identity unik per feature
+        const fk =
+            f.properties.featureKey ??
+            f.properties.feature_key ??
+            f.properties.FEATURE_KEY ??
+            f.properties.id ??
+            f.id ??
+            ''
+
+        const mk = `${did}:${String(fk ?? '')}:${idx}`
+        f.properties.__markerKey = mk
+        if (f.id == null || String(f.id).trim() === '') {
+          f.id = mk
+        }
       })
-      return gj
+      return clone
     }
 
-    return gj
+    return clone
   } catch (e) {
     console.warn('[PetaPostgis][injectDatasetIdIntoGeojson] failed', e)
     return gj
@@ -853,19 +970,21 @@ function injectDatasetIdIntoGeojson(gj, dsId) {
 /**
  * Marker harus punya dataset-old __datasetId
  */
-function getDefaultMarkerUrl() {
-  try {
-    return require('@/assets/images/my-marker.webp')
-  } catch (e) {
-    return ''
-  }
-}
-
 function getMarkerIconForFeature(feature) {
   try {
+    const debugOn = (props?.debugMarkerIcon === true)
+    const debugMarker = (...args) => {
+      if (!debugOn) return
+      try {
+        console.log('[PetaPostgis][markerIcon]', ...args)
+      } catch (e) {
+        console.warn('[PetaPostgis][markerIcon] debug log failed', e)
+      }
+    }
+
     const propsFeature = feature?.properties || {}
 
-    // dataset-old id can be injected by fetchViewportData (preferred)
+    // --- checkpoint 1: dataset id resolve ---
     const dsIdRaw = (
       propsFeature.__datasetId ??
       propsFeature.__datasetBean ??
@@ -880,18 +999,33 @@ function getMarkerIconForFeature(feature) {
       propsFeature.id_dataset
     )
 
-    const dsId = (dsIdRaw == null || String(dsIdRaw).trim() === '') ? null : Number(dsIdRaw)
+    let dsId = (dsIdRaw == null || String(dsIdRaw).trim() === '') ? null : Number(dsIdRaw)
 
+    // Fallback: sometimes dataset id is tagged at GeoJSON root; propagate here if available
+    if ((!Number.isFinite(dsId) || dsId == null || dsId <= 0) && Number.isFinite(feature?.__datasetId)) {
+      dsId = Number(feature.__datasetId)
+    }
+
+    if (!Number.isFinite(dsId) || dsId == null || dsId <= 0) {
+      debugMarker('checkpoint: dsId missing/invalid', { dsIdRaw, dsId, featureId: feature?.id, markerKey: propsFeature?.__markerKey })
+      dsId = null
+    } else {
+      debugMarker('checkpoint: dsId ok', { dsId })
+    }
+
+    // --- checkpoint 2: dataset resolve from selection list ---
     const list = Array.isArray(props.itemsMapsetSelected) ? props.itemsMapsetSelected : []
 
-    // If only one dataset-old is selected, we can safely use it without dsId
     let ds = null
-    if ((!Number.isFinite(dsId) || dsId == null || dsId <= 0) && list.length === 1) {
+
+    // If only one dataset-old is selected, we can safely use it without dsId
+    if (dsId == null && list.length === 1) {
       ds = list[0]
+      debugMarker('checkpoint: ds fallback single selected', { dsId: null, selectedCount: list.length, dsIdSelected: ds?.id ?? ds?.datasetId ?? ds?.dataset_id })
     }
 
     // If dsId exists, match it
-    if (!ds && dsId != null && Number.isFinite(dsId) && dsId > 0) {
+    if (!ds && dsId != null && list.length > 0) {
       ds = list.find(x => {
         const xid = Number(
           x?.id ??
@@ -904,31 +1038,51 @@ function getMarkerIconForFeature(feature) {
         )
         return Number.isFinite(xid) && xid === dsId
       })
+      debugMarker('checkpoint: ds match by dsId', { dsId, found: Boolean(ds), selectedCount: list.length })
     }
 
-    if (!ds) return null
-
-    // Resolve marker image field (support multiple naming styles)
-    const markerImageRaw = (
-      ds?.markerImage ??
-      ds?.marker_image ??
-      ds?.markerIcon ??
-      ds?.marker_icon ??
-      ds?.iconUrl ??
-      ds?.icon_url ??
-      ds?.icon ??
-      ds?.marker
-    )
-
-    let markerImageUrl = resolveMarkerImageUrl(markerImageRaw)
-    if (!markerImageUrl) {
-      markerImageUrl = getDefaultMarkerUrl()
+    if (!ds) {
+      debugMarker('checkpoint: ds not found -> default marker', { dsId, selectedCount: list.length })
+      return null
     }
-    if (!markerImageUrl) return null
 
-    // Only apply custom icon for POINT datasets if tipePeta is provided
+    // --- checkpoint 3: tipePeta gate (keep old behavior) ---
     const tipePeta = ds?.tipePeta ?? ds?.tipe_peta
     if (tipePeta != null && !isPointTipePeta(tipePeta)) {
+      debugMarker('checkpoint: tipePeta not POINT -> skip custom icon', { tipePeta, dsId: ds?.id ?? dsId })
+      return null
+    }
+
+    // --- checkpoint 4: markerImage resolve (feature -> dataset fallback) ---
+    const markerImageFromFeature = (
+      propsFeature?.markerImage ??
+      propsFeature?.marker_image ??
+      null
+    )
+
+    const markerImageFromDataset = (
+      ds?.markerImage ??
+      ds?.marker_image ??
+      null
+    )
+
+    const markerImageRaw = (markerImageFromFeature != null && String(markerImageFromFeature).trim() !== '')
+      ? markerImageFromFeature
+      : markerImageFromDataset
+
+    if (markerImageRaw == null || String(markerImageRaw).trim() === '') {
+      debugMarker('checkpoint: markerImage missing -> default marker', {
+        dsId: ds?.id ?? dsId,
+        markerImageFromFeature,
+        markerImageFromDataset
+      })
+      return null
+    }
+
+    // --- checkpoint 5: marker url resolve ---
+    const markerImageUrl = resolveMarkerImageUrl(markerImageRaw)
+    if (!markerImageUrl) {
+      debugMarker('checkpoint: resolveMarkerImageUrl failed -> default marker', { dsId: ds?.id ?? dsId, markerImageRaw })
       return null
     }
 
@@ -939,7 +1093,10 @@ function getMarkerIconForFeature(feature) {
     const cacheKey = `${markerImageUrl}|${iconSize[0]}x${iconSize[1]}`
 
     const cached = markerIconCache.value.get(cacheKey)
-    if (cached) return cached
+    if (cached) {
+      debugMarker('checkpoint: icon cache hit', { cacheKey })
+      return cached
+    }
 
     const icon = L.icon({
       iconUrl: markerImageUrl,
@@ -952,6 +1109,7 @@ function getMarkerIconForFeature(feature) {
     })
 
     markerIconCache.value.set(cacheKey, icon)
+    debugMarker('checkpoint: icon created', { cacheKey, dsId: ds?.id ?? dsId })
     return icon
   } catch (e) {
     console.warn('[PetaPostgis][getMarkerIconForFeature] failed, fallback default marker', e)
@@ -960,8 +1118,18 @@ function getMarkerIconForFeature(feature) {
 }
 
 function isPointTipePeta(tipePeta) {
-  return tipePeta === ETipePeta.POINT
+  try {
+    if (ETipePeta?.POINT != null && tipePeta === ETipePeta.POINT) return true
+    const s = String(tipePeta ?? '').trim().toUpperCase()
+    if (s === 'POINT') return true
+    const n = Number(tipePeta)
+    return Number.isFinite(n) && n === 1
+  } catch (e) {
+    console.warn('[PetaPostgis][isPointTipePeta] failed', e)
+    return true
+  }
 }
+
 function onEachFeatureOption(feature, layer) {
   try {
     // --- indexing for highlight/search ---
@@ -1447,14 +1615,14 @@ function getViewportFromMap() {
 }
 
 // --- Helper: formatBytes and safeByteSizeOf ---
-function formatBytes(bytes = 0) {
-  const b = Number(bytes)
-  if (!Number.isFinite(b) || b <= 0) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB']
-  const i = Math.min(Math.floor(Math.log(b) / Math.log(1024)), units.length - 1)
-  const v = b / Math.pow(1024, i)
-  return `${v.toFixed(i === 0 ? 0 : 2)} ${units[i]}`
-}
+// function formatBytes(bytes = 0) {
+//   const b = Number(bytes)
+//   if (!Number.isFinite(b) || b <= 0) return '0 B'
+//   const units = ['B', 'KB', 'MB', 'GB']
+//   const i = Math.min(Math.floor(Math.log(b) / Math.log(1024)), units.length - 1)
+//   const v = b / Math.pow(1024, i)
+//   return `${v.toFixed(i === 0 ? 0 : 2)} ${units[i]}`
+// }
 
 function safeByteSizeOf(v) {
   try {
@@ -1540,6 +1708,55 @@ function safeParseGeojson(v, idForLog) {
   }
 }
 
+// --- markerImage helpers ---
+function normalizeMarkerImage(v) {
+  const s = String(v ?? '').trim()
+  return s ? s : null
+}
+
+function injectMarkerImageIntoGeojson(geojson, markerImageRaw) {
+  try {
+    const mi = normalizeMarkerImage(markerImageRaw)
+    if (!mi) return geojson
+    if (!geojson || typeof geojson !== 'object') return geojson
+
+    const t = geojson.type
+    if (t === 'FeatureCollection' && Array.isArray(geojson.features)) {
+      for (const f of geojson.features) {
+        if (!f || typeof f !== 'object') continue
+        if (f.type !== 'Feature') continue
+        if (!f.properties || typeof f.properties !== 'object') f.properties = {}
+
+        // do not overwrite if already present
+        if (f.properties.markerImage == null || String(f.properties.markerImage).trim() === '') {
+          f.properties.markerImage = mi
+        }
+        if (f.properties.marker_image == null || String(f.properties.marker_image).trim() === '') {
+          f.properties.marker_image = mi
+        }
+      }
+      return geojson
+    }
+
+    if (t === 'Feature') {
+      if (!geojson.properties || typeof geojson.properties !== 'object') geojson.properties = {}
+
+      if (geojson.properties.markerImage == null || String(geojson.properties.markerImage).trim() === '') {
+        geojson.properties.markerImage = mi
+      }
+      if (geojson.properties.marker_image == null || String(geojson.properties.marker_image).trim() === '') {
+        geojson.properties.marker_image = mi
+      }
+      return geojson
+    }
+
+    return geojson
+  } catch (e) {
+    console.warn('[PetaPostgis][markerImage] inject failed', e)
+    return geojson
+  }
+}
+
 // cache response viewport terakhir (raw-text) biar bisa compare
 const responseBefore = ref({
   hash: null,
@@ -1611,35 +1828,35 @@ async function fetchViewportData({ minX, minY, maxX, maxY, z, reason, startedAt 
     const rawSizeBytes = safeByteSizeOf(rawText)
     const rawHash = hashStringFNV1a(rawText)
 
-    if (responseBefore.value.hash === rawHash && responseBefore.value.sizeBytes === rawSizeBytes) {
-      console.log('[viewport] same response, skip update', {
-        reason,
-        z,
-        size: formatBytes(rawSizeBytes),
-        sizeBytes: rawSizeBytes,
-        hash: rawHash
-      })
-      return
-    }
+    // if (responseBefore.value.hash === rawHash && responseBefore.value.sizeBytes === rawSizeBytes) {
+    //   console.log('[viewport] same response, skip update', {
+    //     reason,
+    //     z,
+    //     size: formatBytes(rawSizeBytes),
+    //     sizeBytes: rawSizeBytes,
+    //     hash: rawHash
+    //   })
+    //   return
+    // }
 
     responseBefore.value = { hash: rawHash, sizeBytes: rawSizeBytes }
 
     // --- Metrics: measure response time and size ---
-    const endedAt = (typeof performance !== 'undefined' && typeof performance.now === 'function')
-      ? performance.now()
-      : Date.now()
+    // const endedAt = (typeof performance !== 'undefined' && typeof performance.now === 'function')
+    //   ? performance.now()
+    //   : Date.now()
 
-    const elapsedMs = (Number.isFinite(Number(endedAt)) && Number.isFinite(Number(startedAt)))
-      ? (endedAt - startedAt)
-      : null
+    // const elapsedMs = (Number.isFinite(Number(endedAt)) && Number.isFinite(Number(startedAt)))
+    //   ? (endedAt - startedAt)
+    //   : null
 
-    console.log('[viewport] response metrics', {
-      reason,
-      z,
-      elapsedMs: elapsedMs != null ? Number(elapsedMs.toFixed(1)) : null,
-      size: formatBytes(rawSizeBytes),
-      sizeBytes: rawSizeBytes
-    })
+    // console.log('[viewport] response metrics', {
+    //   reason,
+    //   z,
+    //   elapsedMs: elapsedMs != null ? Number(elapsedMs.toFixed(1)) : null,
+    //   size: formatBytes(rawSizeBytes),
+    //   sizeBytes: rawSizeBytes
+    // })
     // --- End metrics ---
 
     // reset indices before applying new GeoJSON (viewport refresh)
@@ -1671,16 +1888,23 @@ async function fetchViewportData({ minX, minY, maxX, maxY, z, reason, startedAt 
             parsed?.ft_dataset_bean ??
             // then wrapper fields
             item?.datasetId ??
-            item?.dataset_id ??
             item?.ftDatasetBean ??
             item?.ft_dataset_bean ??
             item?.ftDatasetId ??
-            item?.datasetBean ??
-            item?.idDataset ??
-            item?.id_dataset
+            item?.datasetBean ?? null
           )
 
-          return injectDatasetIdIntoGeojson(parsed, dsIdRaw)
+          const markerImageRaw = (
+            item?.markerImage ??
+            item?.marker_image ??
+            parsed?.markerImage ??
+            parsed?.marker_image ??
+            null
+          )
+
+          const out = injectDatasetIdIntoGeojson(parsed, dsIdRaw)
+          injectMarkerImageIntoGeojson(out, markerImageRaw)
+          return out
         })
         .filter(Boolean)
       return
@@ -1709,7 +1933,17 @@ async function fetchViewportData({ minX, minY, maxX, maxY, z, reason, startedAt 
             item?.id_dataset
           )
 
-          return injectDatasetIdIntoGeojson(parsed, dsIdRaw)
+          const markerImageRaw = (
+            item?.markerImage ??
+            item?.marker_image ??
+            parsed?.markerImage ??
+            parsed?.marker_image ??
+            null
+          )
+
+          const out = injectDatasetIdIntoGeojson(parsed, dsIdRaw)
+          injectMarkerImageIntoGeojson(out, markerImageRaw)
+          return out
         })
         .filter(Boolean)
       return

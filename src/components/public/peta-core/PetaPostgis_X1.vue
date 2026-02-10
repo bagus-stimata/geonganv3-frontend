@@ -267,6 +267,13 @@ export default {
       return Object.values(basemaps)
     },
 
+    // _isVisibleHomeButton() { return this.isVisibleHomeButton !== false },
+    // _isVisibleSsButton() { return this.isVisibleSsButton !== false },
+    // _isVisibleFullScreenButton() { return this.isVisibleFullScreenButton !== false },
+    // _isVisibleCenterButton() { return this.isVisibleCenterButton !== false },
+    // _isVisibleFeatureGroup() { return this.isVisibleFeatureGroup !== false },
+    // _isVisibleDrawTools() { return this.isVisibleDrawTools !== false },
+
     datasetIdsNorm() {
       if (!Array.isArray(this.datasetIds)) return []
       const ids = this.datasetIds

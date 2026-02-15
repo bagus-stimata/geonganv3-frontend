@@ -396,14 +396,6 @@ export default {
         formData.append("fileSHX", shx);
         formData.append("fileDBF", dbf);
         formData.append("filePRJ", prj);
-        // DEBUG: FormData cannot be inspected with plain console.log(formData)
-        for (const [k, v] of formData.entries()) {
-          console.log(
-            "[SHP-CONVERT] formData",
-            k,
-            v instanceof File ? { name: v.name, size: v.size, type: v.type } : v
-          );
-        }
 
         // Endpoint convert: server returns GeoJSON
         const resp = await axios.post(
@@ -412,7 +404,7 @@ export default {
           {
             headers: {
               Authorization: "Basic 123Welcome123",
-              Accept: "application/geo+json",
+              "Content-Type": "multipart/form-data",
             },
             responseType: "blob",
             onUploadProgress: (event) => {
@@ -455,30 +447,8 @@ export default {
 
         await this.parseGeojsonTextToPreview(geojsonText);
       } catch (e) {
-        console.error("[SHP-CONVERT] error", e);
-
-        const status = e?.response?.status;
-        const data = e?.response?.data;
-
-        // FastAPI error body may be JSON, but since responseType is 'blob' it arrives as Blob
-        if (data instanceof Blob) {
-          try {
-            const text = await data.text();
-            console.error("[SHP-CONVERT] error body (blob->text):", text);
-            // show short snippet to UI
-            const snippet = String(text || "").slice(0, 300);
-            this.warningMessage = snippet
-              ? `Convert SHP gagal (HTTP ${status}). ${snippet}`
-              : `Convert SHP gagal (HTTP ${status}).`;
-          } catch (err2) {
-            console.error("[SHP-CONVERT] failed to read error blob", err2);
-            this.warningMessage = `Convert SHP gagal (HTTP ${status}).`;
-          }
-        } else {
-          this.warningMessage = `Convert SHP gagal${status ? ` (HTTP ${status})` : ""}.`;
-          if (data) console.error("[SHP-CONVERT] error body:", data);
-        }
-
+        console.error(e);
+        this.warningMessage = "Convert SHP gagal / hasil tidak bisa dipreview.";
         this.infoMessage = "";
         this.canUseFile = false;
       } finally {

@@ -580,8 +580,6 @@ export default {
               };
             });
       }
-
-
     },
 
     setMapToolTip() {

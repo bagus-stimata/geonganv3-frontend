@@ -82,7 +82,17 @@
                                 </v-row>
                               </v-img>
                             </v-card>
-                            <div class="text-center font-weight-regular text-grey text-caption mt-2">Cover Dataset</div>
+                            <div v-if="itemModified.avatarImage === ''" class="text-center font-weight-regular text-grey text-caption mt-2">Cover Dataset</div>
+                            <div v-else class="text-center font-weight-regular text-grey text-caption mt-2">
+                              <v-btn
+                                  size="small"
+                                  variant="text"
+                                  color="primary"
+                                  @click="downloadFileImage(lookupImageUrlOri(itemModified))"
+                              >
+                                Cover Dataset <v-icon class="ms-1">mdi-download</v-icon>
+                              </v-btn>
+                            </div>
                           </div>
                         </template>
                       </v-hover>
@@ -133,6 +143,7 @@
                         </template>
                       </v-hover>
                     </v-row>
+
                 </v-col>
 
                 <v-col cols="12" sm="12" md="7">
@@ -783,6 +794,20 @@ export default {
   },
 
   methods: {
+    lookupImageUrlOri(item) {
+      if (item.avatarImage === undefined || item.avatarImage === "") {
+        return require("@/assets/images/no_image_available.jpeg")
+      } else {
+        return FileService.image_url_ori(item.avatarImage);
+      }
+    },
+    downloadFileImage(url){
+      const link = document.createElement('a');
+      link.href = url;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    },
     openUploadGeojsonExcelDialog() {
       if (this.$refs.refUploadGeojsonExcelDatasetDialog) {
         this.$refs.refUploadGeojsonExcelDatasetDialog.showDialog();

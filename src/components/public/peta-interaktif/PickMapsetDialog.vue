@@ -276,7 +276,14 @@ export default {
         this.runExtendedFilter();
       }
     },
-
+    itemsMapsetSelected: {
+      handler(newVal) {
+        if (Array.isArray(newVal) && newVal.length === 0) {
+          this.$emit('deleteAllList');
+        }
+      },
+      deep: true
+    }
   },
   methods: {
     truncateNotes(notes) {

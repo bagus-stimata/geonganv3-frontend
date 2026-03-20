@@ -189,7 +189,7 @@
       location="bottom">
         <span class="snackbar-center">{{ snackbar.text }}</span>
     </v-snackbar>
-    <PickMapsetDialog @applyPeta="applyPeta" ref="refPickMapsetDialog"></PickMapsetDialog>
+    <PickMapsetDialog @deleteAllList="deleteAllList" @applyPeta="applyPeta" ref="refPickMapsetDialog"></PickMapsetDialog>
     <DownloadFormDialog :itemsFDivision="itemsFDivision" @showDialogDownloadChoice="showDialogDownloadChoice" ref="refDownloadFormDialog"></DownloadFormDialog>
     <DownloadChoiceDialog :itemsFDivision="itemsFDivision" @downloadGeojsonZip="downloadGeojsonZip" ref="refDownloadChoiceDialog"></DownloadChoiceDialog>
     <UploadGeojsonDialog

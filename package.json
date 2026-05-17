@@ -1,6 +1,6 @@
 {
   "name": "geoportal-nganjuk",
-  "version": "0.1.37",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "serve": "vue-cli-service serve",
@@ -16,7 +16,7 @@
     "@vue-leaflet/vue-leaflet": "^0.10.1",
     "@vueup/vue-quill": "^1.2.0",
     "apexcharts": "^4.5.0",
-    "axios": "^1.7.9",
+    "axios": "^1.16.1",
     "buffer": "^6.0.3",
     "core-js": "^3.8.3",
     "crypto-js": "^4.2.0",

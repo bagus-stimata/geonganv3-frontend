@@ -84,7 +84,7 @@
                 size="small"
                 variant="flat"
                 @click="startUpload"
-                :disabled="!fileShp || !fileShx || !fileDbf || !filePrj"
+                :disabled="!fileShp || !fileShx || !fileDbf || !filePrj || canUseFile || dialogProgres"
               >
                 Convert & Preview
                 <v-icon right dark>mdi-cloud-upload</v-icon>
@@ -205,6 +205,8 @@
 
 <script>
 import axios from "axios";
+import ConstApiUrls from "../../../../services/const-api-urls";
+import authHeaderMultipart from "../../../../services/auth-header-multipart";
 export default {
   name: "UploadShpToGeojsonDialog",
   props: {
@@ -257,6 +259,24 @@ export default {
         { title: "OK", key: "__rowValid", sortable: false, align: "center", width: 44 },
         ...this.tableHeaders,
       ];
+    },
+  },
+  watch: {
+    fileShp() {
+      this.resetPreviewState();
+      this.progress = 0;
+    },
+    fileShx() {
+      this.resetPreviewState();
+      this.progress = 0;
+    },
+    fileDbf() {
+      this.resetPreviewState();
+      this.progress = 0;
+    },
+    filePrj() {
+      this.resetPreviewState();
+      this.progress = 0;
     },
   },
   methods: {
@@ -407,11 +427,11 @@ export default {
 
         // Endpoint convert: server returns GeoJSON
         const resp = await axios.post(
-          "https://desgreentools.des-green.com/desgreen/tools/convert-shapefile-to-geojson",
+          `${ConstApiUrls.API_SERVICE_URL}storage/convert-shapefile-to-geojson`,
           formData,
           {
             headers: {
-              Authorization: "Basic 123Welcome123",
+              ...authHeaderMultipart(),
               Accept: "application/geo+json",
             },
             responseType: "blob",
@@ -490,7 +510,20 @@ export default {
         const feats = Array.isArray(this.rawGeojsonFeatures) ? this.rawGeojsonFeatures : [];
         const validFeatures = feats.filter((f) => this.isGeojsonFeatureValidCoords(f));
 
-        const fc = { type: "FeatureCollection", features: validFeatures };
+        let fc = { type: "FeatureCollection", features: validFeatures };
+        try {
+          const original = JSON.parse(this.geojsonTextOriginal || "{}");
+          if (original && typeof original === "object" && original.type === "FeatureCollection") {
+            fc = {
+              ...original,
+              type: "FeatureCollection",
+              features: validFeatures,
+            };
+          }
+        } catch (e) {
+          console.warn("[UploadShpToGeojsonDialog] gagal parse metadata GeoJSON original", e);
+        }
+
         const text = JSON.stringify(fc);
 
         const baseName = String(this.convertedFileName || "dataset").replace(/\.(geojson|json)$/i, "");

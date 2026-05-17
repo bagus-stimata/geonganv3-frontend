@@ -259,7 +259,7 @@
           <div v-if="isGeoJsonDeleted" class="text-caption text-orange ml-6">Batal untuk membatalkan dan Save and Close untuk menerapkan penghapusan</div>
           <v-card-text class="mt-0" v-if="! isGeoJsonDeleted">
             <v-row v-if="!hasStoredGeojson || geojsonFileName">
-              <v-col cols="12" sm="8" md="3">
+              <v-col cols="12" sm="6" md="3">
                 <v-btn
                   block
                   color="green"
@@ -275,7 +275,7 @@
                   <strong>{{ geojsonFileName }}</strong>
                 </div>
               </v-col>
-              <v-col cols="12" sm="12" md="4">
+              <v-col cols="12" sm="6" md="3">
                 <v-autocomplete
                     v-model="itemModified.tipePeta"
                     :items="itemsTipePeta"
@@ -291,7 +291,7 @@
                     hide-details
                 ></v-autocomplete>
               </v-col>
-              <v-col cols="12" sm="12" md="3">
+              <v-col cols="12" sm="6" md="3">
                 <v-btn
                     block
                     color="green"
@@ -300,6 +300,17 @@
                     @click="openUploadGeojsonShpDialog"
                 >
                   Upload SHP
+                </v-btn>
+              </v-col>
+              <v-col cols="12" sm="6" md="3">
+                <v-btn
+                    block
+                    color="teal"
+                    variant="flat"
+                    class="mr-2 rounded-lg"
+                    @click="openUploadGeojsonGdbDialog"
+                >
+                  Upload GDB
                 </v-btn>
               </v-col>
             </v-row>
@@ -574,6 +585,12 @@
         :geojsonFileName="geojsonFileName"
         @geojson-file-selected="handleGeojsonShpFileSelected"
       />
+      <UploadGdbToGeojsonDialog
+        ref="refUploadGeojsonGdbDatasetDialog"
+        :geojsonFile="geojsonFile"
+        :geojsonFileName="geojsonFileName"
+        @geojson-file-selected="handleGeojsonGdbFileSelected"
+      />
       <UploadGeojsonExcelDatasetDialog
           ref="refUploadGeojsonExcelDatasetDialog"
           :geojsonFile="geojsonFile"
@@ -656,9 +673,11 @@ import UploadMarkerDialog from "@/components/utils/UploadMarkerDialog.vue";
 import DatasetDownloadDialog from "@/components/admin/data-peta/new-dataset/DatasetDownloadDialog.vue";
 import UploadGeojsonExcelDatasetDialog from "@/components/admin/data-peta/new-dataset/UploadGeojsonExcelDatasetDialog.vue";
 import UploadShpToGeojsonDialog from "./UploadShpToGeojsonDialog.vue";
+import UploadGdbToGeojsonDialog from "./UploadGdbToGeojsonDialog.vue";
 
 export default {
   components: {
+    UploadGdbToGeojsonDialog,
     UploadShpToGeojsonDialog,
     DatasetDownloadDialog,
     UploadMarkerDialog: UploadMarkerDialog,
@@ -818,6 +837,11 @@ export default {
         this.$refs.refUploadGeojsonShpDatasetDialog.showDialog();
       }
     },
+    openUploadGeojsonGdbDialog() {
+      if (this.$refs.refUploadGeojsonGdbDatasetDialog) {
+        this.$refs.refUploadGeojsonGdbDatasetDialog.showDialog();
+      }
+    },
 
     async handleGeojsonExcelFileSelected(payload) {
       // payload: { file, fileName }
@@ -827,6 +851,13 @@ export default {
       await this.onGeojsonFileSelected();
     },
     async handleGeojsonShpFileSelected(payload) {
+      // payload: { file, fileName }
+      this.geojsonFile = payload && payload.file ? payload.file : null;
+      this.geojsonFileName = payload && payload.fileName ? payload.fileName : "";
+      await this.$nextTick();
+      await this.onGeojsonFileSelected();
+    },
+    async handleGeojsonGdbFileSelected(payload) {
       // payload: { file, fileName }
       this.geojsonFile = payload && payload.file ? payload.file : null;
       this.geojsonFileName = payload && payload.fileName ? payload.fileName : "";

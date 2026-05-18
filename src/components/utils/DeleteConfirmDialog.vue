@@ -32,7 +32,7 @@ export default {
   data() {
     return {
       selectedItems:[],
-      itemId: -1,
+      itemId: null,
       dialogShow: false,
       myConfirmDeleteOptions: {
         title: 'Konfirmasi Hapus',
@@ -52,26 +52,27 @@ export default {
   },
   methods: {
     okeConfirmed: function(){
-      if (this.itemId>0) {
+      if (Number.isInteger(this.itemId) && this.itemId >= 0) {
         this.$emit('eventFromDeleteConfirmDialog1', this.itemId)
       }else {
         this.$emit('eventFromDeleteConfirmDialog2', this.selectedItems)
       }
     },
     showDialog(itemId, message) {
-      if (itemId >0) {
+      const normalizedId = Number(itemId);
+      if (Number.isInteger(normalizedId) && normalizedId >= 0) {
         this.myConfirmDeleteOptions.message2 = message
-        this.itemId = itemId
+        this.itemId = normalizedId
         this.selectedItems =[]
-        this.dialogShow = !this.dialogShow
+        this.dialogShow = true
       }
     },
     showDialogMulti(items, message) {
-      if (items.length >-1) {
+      if (Array.isArray(items) && items.length > 0) {
         this.selectedItems = items
         this.myConfirmDeleteOptions.message2 = message
-        this.itemId = -1
-        this.dialogShow = !this.dialogShow
+        this.itemId = null
+        this.dialogShow = true
       }
     },
 

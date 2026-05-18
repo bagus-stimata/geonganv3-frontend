@@ -507,15 +507,24 @@ export default {
     },
 
     deleteItemConfirmedSingleSelect() {
-      const deletedItem = this.ftDatasets[this.itemSelectedIndex];
-      FtDatasetService.deleteFtDataset(deletedItem.id).then(
+      const selectedByIndex = this.ftDatasetsFiltered[this.itemSelectedIndex];
+      const selectedId = Number(this.itemSelected?.id ?? selectedByIndex?.id);
+
+      if (!Number.isInteger(selectedId) || selectedId <= 0) {
+        this.snackBarMessage = "gagal hapus (id dataset tidak valid)";
+        this.snackbar = true;
+        this.$refs.refDeleteConfirmDialog.setDialogState(false);
+        return;
+      }
+
+      FtDatasetService.deleteFtDataset(selectedId).then(
           () => {
-            this.ftDatasets.splice(this.itemSelectedIndex, 1);
+            this.fetchFtDataset();
             this.closeDialog();
           },
           (error) => {
             console.log(error);
-            this.snackBarMessage = "gagal hapus (digunakan oleh data anakk)";
+            this.snackBarMessage = "gagal hapus (digunakan oleh data anak)";
             this.snackbar = true;
             this.$refs.refDeleteConfirmDialog.setDialogState(false);
           }
@@ -523,7 +532,7 @@ export default {
     },
 
     deleteItemConfirmedMultiSelect(items) {
-      if (items.length > -1) {
+      if (items.length > 0) {
         const itemIds = items.map((x) => x.id);
         FtDatasetService.deleteAllFtDataset(itemIds).then(
             () => {

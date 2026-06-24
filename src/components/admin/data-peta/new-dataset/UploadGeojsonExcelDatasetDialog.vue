@@ -25,8 +25,8 @@
             <v-col cols="12" sm="12" md="8" class="align-start justify-start">
               <v-file-input
                   v-model="localFile"
-                  label="Pilih File GeoJSON (.geojson) atau Excell (.xlsx)"
-                  accept=".geojson,.json,.xlsx,.xls"
+                  label="Pilih File GeoJSON (.geojson), Excel (.xlsx) atau CSV (.csv)"
+                  accept=".geojson,.json,.xlsx,.xls,.csv"
                   variant="outlined"
                   density="compact"
                   prepend-inner-icon="mdi-file-upload"
@@ -224,6 +224,9 @@ export default {
         if (nameLower.endsWith(".xlsx") || nameLower.endsWith(".xls")) {
           this.sourceType = "EXCEL";
           await this.buildPreviewFromExcel(file);
+        } else if (nameLower.endsWith(".csv")) {
+          this.sourceType = "CSV";
+          await this.buildPreviewFromCsv(file);
         } else {
           this.sourceType = "GEOJSON";
           await this.buildPreviewFromGeojson(file);
@@ -602,6 +605,72 @@ export default {
       // For GeoJSON preview (no explicit coord columns): don't invalidate rows based on empties.
       return true;
     },
+    async buildPreviewFromCsv(file) {
+      const text = await file.text();
+
+      const wb = XLSX.read(text, { type: "string" });
+      const sheetName = wb.SheetNames && wb.SheetNames.length ? wb.SheetNames[0] : null;
+      if (!sheetName) throw new Error("Sheet tidak ditemukan di file CSV");
+
+      const ws = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: "", raw: true });
+      if (!rows || !rows.length) throw new Error("Data CSV kosong");
+
+      const headers = Object.keys(rows[0] || {}).filter(Boolean);
+
+      const latCandidates = ["lat", "latitude", "lattitude", "y", "y_lat", "ycoord"];
+      const lonCandidates = ["lon", "lng", "longitude", "x", "x_lon", "xcoord"];
+
+      const latKeysAll = this.findHeaderKeysAll(headers, latCandidates);
+      const lonKeysAll = this.findHeaderKeysAll(headers, lonCandidates);
+
+      const latKey = latKeysAll.length === 1 ? latKeysAll[0] : "";
+      const lonKey = lonKeysAll.length === 1 ? lonKeysAll[0] : "";
+
+      this.latKeyDetected = latKey;
+      this.lonKeyDetected = lonKey;
+
+      if (latKeysAll.length > 1 || lonKeysAll.length > 1) {
+        const latMsg = latKeysAll.length > 1 ? `Latitude terdeteksi lebih dari 1 kolom: ${latKeysAll.join(", ")}` : "";
+        const lonMsg = lonKeysAll.length > 1 ? `Longitude terdeteksi lebih dari 1 kolom: ${lonKeysAll.join(", ")}` : "";
+
+        this.warningMessage =
+            "File CSV ini punya kolom koordinat ganda (ambiguous). Tolong sisakan 1 kolom Latitude dan 1 kolom Longitude saja. " +
+            [latMsg, lonMsg].filter(Boolean).join(" | ");
+        this.infoMessage = "";
+        this.canUseFile = false;
+      } else if (!latKey && !lonKey) {
+        this.warningMessage = "Data CSV ini tidak mengandung kolom koordinat (lat/latitude dan lon/longitude).";
+        this.canUseFile = false;
+      } else if (!latKey || !lonKey) {
+        const missing = !latKey ? "Latitude (lat/latitude)" : "Longitude (lon/longitude)";
+        this.warningMessage = `Data CSV ini tidak mengandung kolom ${missing}. Tidak bisa digunakan.`;
+        this.canUseFile = false;
+      } else {
+        this.infoMessage = `Kolom koordinat terdeteksi: ${latKey} & ${lonKey}`;
+        this.canUseFile = true;
+      }
+
+      this.previewHeaders = headers;
+
+      this.previewRows = rows.map((r) => {
+        const row = { ...r };
+        row.__rowValid = this.isRowValidStrict(row, headers, latKey, lonKey);
+        return row;
+      });
+
+      this.validRowCount = this.previewRows.filter((r) => r && r.__rowValid).length;
+
+      if (this.canUseFile && this.validRowCount < 1) {
+        this.warningMessage = "Struktur CSV valid, tapi tidak ada row yang memenuhi kriteria (koordinat wajib valid).";
+        this.infoMessage = "";
+        this.canUseFile = false;
+      }
+
+      if (this.canUseFile) {
+        this.infoMessage = `Kolom koordinat terdeteksi: ${latKey} & ${lonKey}. Row valid: ${this.validRowCount}/${this.previewRows.length}`;
+      }
+    },
     async buildPreviewFromExcel(file) {
       const buffer = await file.arrayBuffer();
       const wb = XLSX.read(buffer, { type: "array" });
@@ -753,17 +822,19 @@ export default {
 
       try {
         // If parent re-parses file, we must emit a filtered file.
-        if (this.sourceType === "EXCEL") {
+        if (this.sourceType === "EXCEL" || this.sourceType === "CSV") {
           const wb = XLSX.utils.book_new();
-          const ws = XLSX.utils.json_to_sheet(validRows, {
-            header: (this.previewHeaders || []).slice(),
-            skipHeader: false,
-          });
+          const ws = XLSX.utils.json_to_sheet(validRows, { skipHeader: false });
+          const safeName = (fileNameToEmit || (this.sourceType === "CSV" ? "data.csv" : "data.xlsx")).replace(/\.(xlsx|xls|csv)$/i, "");
+          const newName = `${safeName}_valid.xlsx`;
+
           XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
 
-          const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-          const safeName = (fileNameToEmit || "data.xlsx").replace(/\.(xlsx|xls)$/i, "");
-          const newName = `${safeName}_valid.xlsx`;
+          const out = XLSX.write(wb, {
+            bookType: "xlsx",
+            type: "array",
+          });
+
           fileToEmit = new File([out], newName, {
             type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
           });

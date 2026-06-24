@@ -268,7 +268,7 @@
                   style="text-transform: none;"
                   @click="openUploadGeojsonExcelDialog"
                 >
-                  Pilih File GeoJSON / Excel
+                  Pilih File GeoJSON / Excel / CSV
                 </v-btn>
                 <div class="text-caption mt-2" v-if="geojsonFileName">
                   File terpilih:

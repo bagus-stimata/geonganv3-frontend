@@ -847,6 +847,25 @@ export default {
       // payload: { file, fileName }
       this.geojsonFile = payload && payload.file ? payload.file : null;
       this.geojsonFileName = payload && payload.fileName ? payload.fileName : "";
+
+      const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+      const latKey = payload?.latKey || "";
+      const lonKey = payload?.lonKey || "";
+
+      if (payload?.sourceType === "EXCEL" && rows.length > 0 && latKey && lonKey) {
+        try {
+          const text = this.convertExcelRowsToGeojsonText(rows, latKey, lonKey);
+          this.itemModified.geojson = text;
+          this.itemModified.fileNameLow = this.geojsonFileName;
+          this.itemModified.withGeojson = true;
+          this.itemModified.hasGeojson = false;
+          this.syncPropertyMetaFromGeojsonText(text);
+          return;
+        } catch (e) {
+          console.warn("[FtDatasetDialog] fallback to file-based Excel parse", e);
+        }
+      }
+
       await this.$nextTick();
       await this.onGeojsonFileSelected();
     },
@@ -1116,19 +1135,7 @@ export default {
         }
       }
 
-      // Parse propertiesMeta (string JSON atau object)
-      let meta = item.propertiesMeta;
-      if (typeof meta === "string" && meta.trim() !== "") {
-        try {
-          meta = JSON.parse(meta);
-        } catch (e) {
-          console.warn("[FtTematikDialog] gagal parse propertiesMeta string", e);
-          meta = {};
-        }
-      } else if (!meta || typeof meta !== "object") {
-        meta = {};
-      }
-
+      const meta = this.normalizePropertiesMeta(item.propertiesMeta);
       const propertyTypes = meta.propertyTypes || {};
       const aliasMap = meta.alias || {};
 
@@ -1141,6 +1148,114 @@ export default {
       });
 
       this.propertyMetaRows = rows;
+    },
+    normalizePropertiesMeta(rawMeta) {
+      let meta = rawMeta;
+      if (typeof meta === "string" && meta.trim() !== "") {
+        try {
+          meta = JSON.parse(meta);
+        } catch (e) {
+          console.warn("[FtTematikDialog] gagal parse propertiesMeta string", e);
+          meta = {};
+        }
+      }
+
+      if (Array.isArray(meta)) {
+        const propertyTypes = {};
+        meta.forEach((row) => {
+          if (!row || !row.name) return;
+          propertyTypes[row.name] = row.type ? [String(row.type)] : [];
+        });
+        return { propertyTypes, alias: {} };
+      }
+
+      if (!meta || typeof meta !== "object") {
+        return { propertyTypes: {}, alias: {} };
+      }
+
+      return {
+        ...meta,
+        propertyTypes: meta.propertyTypes || {},
+        alias: meta.alias || {},
+      };
+    },
+    inferPropertyType(value) {
+      if (value === null || value === undefined || value === "") return "";
+      if (typeof value === "boolean") return "Boolean";
+      if (typeof value === "number") return Number.isInteger(value) ? "Integer" : "Double";
+      if (value instanceof Date) return "Date";
+      if (typeof value === "object") return "Object";
+
+      const parsed = this.toNumberSafe(value);
+      if (parsed !== null) return Number.isInteger(parsed) ? "Integer" : "Double";
+      return "String";
+    },
+    extractPropertyMetaFromGeojsonText(text) {
+      const obj = JSON.parse(text || "{}");
+      const features = obj && obj.type === "FeatureCollection" && Array.isArray(obj.features)
+        ? obj.features
+        : (obj && obj.type === "Feature" ? [obj] : []);
+
+      const keys = [];
+      const seen = new Set();
+      const typeSets = {};
+
+      features.forEach((feature) => {
+        const props = (feature && feature.properties) || {};
+        Object.entries(props).forEach(([key, value]) => {
+          if (!seen.has(key)) {
+            seen.add(key);
+            keys.push(key);
+          }
+
+          const type = this.inferPropertyType(value);
+          if (type) {
+            if (!typeSets[key]) typeSets[key] = new Set();
+            typeSets[key].add(type);
+          }
+        });
+      });
+
+      const propertyTypes = {};
+      keys.forEach((key) => {
+        propertyTypes[key] = typeSets[key] ? Array.from(typeSets[key]) : [];
+      });
+
+      return { keys, propertyTypes };
+    },
+    syncPropertyMetaFromGeojsonText(text) {
+      let extracted;
+      try {
+        extracted = this.extractPropertyMetaFromGeojsonText(text);
+      } catch (e) {
+        console.warn("[FtTematikDialog] gagal sinkron metadata dari GeoJSON", e);
+        return;
+      }
+
+      const keys = extracted.keys || [];
+      const propertyTypes = extracted.propertyTypes || {};
+      const previousMeta = this.normalizePropertiesMeta(this.itemModified && this.itemModified.propertiesMeta);
+      const previousAlias = previousMeta.alias || {};
+      const alias = {};
+
+      keys.forEach((key) => {
+        if (previousAlias[key]) alias[key] = previousAlias[key];
+      });
+
+      this.itemModified.propertyKeys = JSON.stringify(keys);
+      this.itemModified.propertiesMeta = JSON.stringify({ propertyTypes, alias });
+      this.itemModified.propertiesShow = this.stringifyPropertiesShow(keys);
+
+      this.propertyMetaRows = keys.map((name) => ({
+        name,
+        type: (propertyTypes[name] || []).join(" | "),
+        alias: alias[name] || "",
+      }));
+      this.localPropertiesShow = keys.slice();
+
+      this.featureColumns = [];
+      this.featureColumnsView = [];
+      this.featureRows = [];
     },
     parsePropertiesShowFromItem(item) {
       if (!item || !item.propertiesShow) return [];
@@ -1234,9 +1349,271 @@ export default {
     toNumberSafe(val) {
       if (val === null || val === undefined) return null;
       if (typeof val === "number" && Number.isFinite(val)) return val;
-      const s = String(val).trim().replace(",", ".");
-      const n = Number(s);
+      const s = String(val).trim().replace(/\s+/g, "");
+      if (!s) return null;
+
+      // 1.234,56 -> 1234.56
+      if (/^-?\d{1,3}(\.\d{3})+,\d+$/.test(s)) {
+        const n = Number(s.replace(/\./g, "").replace(",", "."));
+        return Number.isFinite(n) ? n : null;
+      }
+      // 1,234.56 -> 1234.56
+      if (/^-?\d{1,3}(,\d{3})+\.\d+$/.test(s)) {
+        const n = Number(s.replace(/,/g, ""));
+        return Number.isFinite(n) ? n : null;
+      }
+      // 123,456789 -> 123.456789
+      const n = Number(s.replace(",", "."));
       return Number.isFinite(n) ? n : null;
+    },
+    isEmptyColumnValue(value) {
+      if (value === null || value === undefined) return true;
+      if (typeof value === "string") return value.trim() === "";
+      if (Array.isArray(value)) return value.length === 0;
+      if (typeof value === "object") {
+        if (value instanceof Date) return false;
+        return Object.keys(value).length === 0;
+      }
+      return false;
+    },
+    getRowHeaders(rows) {
+      const headers = [];
+      const seen = new Set();
+      (rows || []).forEach((row) => {
+        Object.keys(row || {}).forEach((key) => {
+          if (!seen.has(key)) {
+            seen.add(key);
+            headers.push(key);
+          }
+        });
+      });
+      return headers;
+    },
+    isGeneratedEmptyHeader(key) {
+      const normalized = String(key || "").trim();
+      return normalized === "" || /^__EMPTY(?:_\d+)?$/i.test(normalized) || /^_\d+$/.test(normalized);
+    },
+    getColumnNonEmptyCount(rows, key) {
+      return (rows || []).reduce((count, row) => {
+        return count + (this.isEmptyColumnValue((row || {})[key]) ? 0 : 1);
+      }, 0);
+    },
+    dropEmptyColumnsFromRows(rows) {
+      const sourceRows = Array.isArray(rows) ? rows : [];
+      const headers = this.getRowHeaders(sourceRows).filter((key) => {
+        const filledCount = this.getColumnNonEmptyCount(sourceRows, key);
+        if (filledCount === 0) return false;
+        if (this.isGeneratedEmptyHeader(key)) return filledCount > 2;
+        return true;
+      });
+
+      const cleanedRows = sourceRows.map((row) => {
+        const cleaned = {};
+        headers.forEach((key) => {
+          cleaned[key] = Object.prototype.hasOwnProperty.call(row || {}, key)
+            ? row[key]
+            : "";
+        });
+        return cleaned;
+      });
+
+      return { rows: cleanedRows, headers };
+    },
+    dropEmptyPropertiesFromFeatures(features) {
+      const sourceFeatures = Array.isArray(features) ? features : [];
+      const propertyRows = sourceFeatures.map((f) => (f && f.properties) ? f.properties : {});
+      const { headers } = this.dropEmptyColumnsFromRows(propertyRows);
+      const headerSet = new Set(headers);
+
+      return sourceFeatures.map((feature) => {
+        const props = (feature && feature.properties) ? feature.properties : {};
+        const cleanedProps = {};
+        Object.keys(props).forEach((key) => {
+          if (headerSet.has(key)) cleanedProps[key] = props[key];
+        });
+        return { ...feature, properties: cleanedProps };
+      });
+    },
+    dropEmptyGeojsonPropertiesFromText(text) {
+      const obj = JSON.parse(text);
+      if (obj && obj.type === "FeatureCollection" && Array.isArray(obj.features)) {
+        return JSON.stringify({
+          ...obj,
+          features: this.dropEmptyPropertiesFromFeatures(obj.features),
+        });
+      }
+      if (obj && obj.type === "Feature") {
+        const cleaned = this.dropEmptyPropertiesFromFeatures([obj])[0];
+        return JSON.stringify(cleaned || obj);
+      }
+      return text;
+    },
+    getCoordCandidates() {
+      return {
+        latCandidates: [
+          "lat",
+          "lati",
+          "latit",
+          "latitude",
+          "latitude_y",
+          "lattitude",
+          "latitute",
+          "latitud",
+          "lat_deg",
+          "lat_degree",
+          "lat_d",
+          "latitude_dd",
+          "lat_dd",
+          "latitude_decimal",
+          "lat_decimal",
+          "lat_dec",
+          "koordinat_lat",
+          "koordinatlat",
+          "koordinatlintang",
+          "koordinat_lintang",
+          "koordinatlatitude",
+          "koordinat_latitude",
+          "coord_lat",
+          "coordlatitude",
+          "coordinate_lat",
+          "coordinate_latitude",
+          "point_lat",
+          "titik_lat",
+          "lat_point",
+          "latitude_point",
+          "y",
+          "y_lat",
+          "lat_y",
+          "latitude_y_coord",
+          "ycoord",
+          "y_coord",
+          "y_coordinate",
+          "ycoordlat",
+          "lat_y_coord",
+          "koor_y",
+          "coord_y",
+          "coordinate_y",
+          "y_koordinat",
+          "y_lintang",
+          "koordinaty",
+          "koordinat_y",
+          "lintang",
+          "garislintang",
+          "garis_lintang",
+          "latitude_wgs_84",
+          "lat_wgs84",
+          "latwgs84",
+          "lat_wgs_84",
+          "latitude_wgs84",
+          "latitude_84",
+          "lat_84",
+        ],
+        lonCandidates: [
+          "lon",
+          "lng",
+          "longi",
+          "longitude",
+          "longitude_x",
+          "long",
+          "longg",
+          "longtitude",
+          "longitud",
+          "lon_deg",
+          "lon_degree",
+          "lon_d",
+          "lon_dd",
+          "longitude_dd",
+          "long_dd",
+          "lon_decimal",
+          "longitude_decimal",
+          "lon_dec",
+          "koordinat_lon",
+          "koordinatlon",
+          "koordinatlong",
+          "koordinatlongitude",
+          "koordinat_bujur",
+          "coord_lon",
+          "coordlongitude",
+          "coordinate_lon",
+          "coordinate_longitude",
+          "point_lon",
+          "titik_lon",
+          "lon_point",
+          "longitude_point",
+          "x",
+          "x_lon",
+          "lon_x",
+          "longitude_x_coord",
+          "xcoord",
+          "x_coord",
+          "x_coordinate",
+          "xcoordlon",
+          "lon_x_coord",
+          "koor_x",
+          "coord_x",
+          "coordinate_x",
+          "x_koordinat",
+          "x_bujur",
+          "koordinatx",
+          "koordinat_x",
+          "bujur",
+          "garisbujur",
+          "garis_bujur",
+          "longitude_wgs_84",
+          "lon_wgs84",
+          "lonwgs84",
+          "lon_wgs_84",
+          "lng_wgs84",
+          "longitude_wgs84",
+          "longitude_84",
+          "lon_84",
+        ],
+      };
+    },
+    normalizeHeaderToken(value) {
+      const raw = String(value || "")
+        .toLowerCase()
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "");
+
+      const normalized = raw.replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+      const compact = normalized.replace(/_/g, "");
+      return { normalized, compact };
+    },
+    findHeaderKeysAll(headers, candidates) {
+      const hdrs = (headers || []).map((h) => String(h));
+      const normalizedHeaders = hdrs.map((h) => ({
+        original: h,
+        ...this.normalizeHeaderToken(h),
+      }));
+      const found = new Map();
+
+      (candidates || []).forEach((c) => {
+        const cand = this.normalizeHeaderToken(c);
+        const matched = normalizedHeaders.find((h) =>
+          h.normalized === cand.normalized || h.compact === cand.compact
+        );
+        if (matched) {
+          found.set(matched.original, true);
+        }
+      });
+
+      // contains matches (e.g. "koordinat_lat")
+      // IMPORTANT: skip single-letter candidates (like 'x'/'y') to avoid false positives
+      (candidates || []).forEach((c) => {
+        const cand = this.normalizeHeaderToken(c);
+        if (!cand.compact || cand.compact.length <= 1) return;
+        normalizedHeaders.forEach((h) => {
+          if (
+            h.normalized.includes(cand.normalized) ||
+            h.compact.includes(cand.compact)
+          ) {
+            found.set(h.original, true);
+          }
+        });
+      });
+
+      return Array.from(found.keys());
     },
 
     findHeaderKey(headers, candidates) {
@@ -1259,49 +1636,52 @@ export default {
 
       return "";
     },
+    pickBestLatLonFromRows(rows) {
+      const headers = this.getRowHeaders(rows).filter(Boolean);
+      const { latCandidates, lonCandidates } = this.getCoordCandidates();
 
-    async convertExcelToGeojsonText(blob) {
-      const buffer = await blob.arrayBuffer();
-      const wb = XLSX.read(buffer, { type: "array" });
+      const latKeysAll = this.findHeaderKeysAll(headers, latCandidates);
+      const lonKeysAll = this.findHeaderKeysAll(headers, lonCandidates);
 
-      const sheetName = wb.SheetNames && wb.SheetNames.length ? wb.SheetNames[0] : null;
-      if (!sheetName) throw new Error("Sheet tidak ditemukan di file Excel");
+      let latKey = "";
+      let lonKey = "";
+      let validRowCount = 0;
 
-      const ws = wb.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json(ws, { defval: "", raw: true });
+      latKeysAll.forEach((latCandidate) => {
+        lonKeysAll.forEach((lonCandidate) => {
+          if (latCandidate === lonCandidate) return;
+          const count = rows.reduce((acc, row) => {
+            const lat = this.toNumberSafe(row[latCandidate]);
+            const lon = this.toNumberSafe(row[lonCandidate]);
+            if (lat === null || lon === null) return acc;
+            if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return acc;
+            return acc + 1;
+          }, 0);
+          if (count > validRowCount) {
+            validRowCount = count;
+            latKey = latCandidate;
+            lonKey = lonCandidate;
+          }
+        });
+      });
 
-      if (!rows || !rows.length) {
-        throw new Error("Data Excel kosong. Pastikan ada header dan minimal 1 baris data");
-      }
-
-      const headers = Object.keys(rows[0] || {}).filter(Boolean);
-
-      // auto-detect lat/lon
-      // NOTE: accept common typo 'lattitude' (double-t) because many sheets use it
-      const latKey = this.findHeaderKey(headers, ["lat", "latitude", "lattitude", "y", "y_lat", "ycoord"]);
-      const lonKey = this.findHeaderKey(headers, ["lon", "lng", "longitude", "x", "x_lon", "xcoord"]);
-
-      if (!latKey || !lonKey) {
-        throw new Error(
-            "Kolom Latitude/Longitude tidak ditemukan. Rename kolom jadi lat/lon (atau latitude/longitude/lattitude) lalu upload ulang."
-        );
-      }
-
+      return { latKey, lonKey, validRowCount, latKeysAll, lonKeysAll };
+    },
+    convertExcelRowsToGeojsonText(rows, latKey, lonKey) {
+      const cleaned = this.dropEmptyColumnsFromRows(rows);
       const features = [];
-
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i] || {};
+      for (let i = 0; i < cleaned.rows.length; i++) {
+        const row = cleaned.rows[i] || {};
         const lat = this.toNumberSafe(row[latKey]);
         const lon = this.toNumberSafe(row[lonKey]);
 
-        // skip invalid
         if (lat === null || lon === null) continue;
         if (lat < -90 || lat > 90 || lon < -180 || lon > 180) continue;
 
         const props = {};
         Object.entries(row).forEach(([k, v]) => {
           if (k === latKey || k === lonKey) return;
-          props[k] = v; // keep apa adanya
+          props[k] = v;
         });
 
         features.push({
@@ -1314,8 +1694,49 @@ export default {
       if (!features.length) {
         throw new Error("Tidak ada point valid terbentuk dari Excel. Pastikan lat/lon numeric dan dalam range.");
       }
-
       return JSON.stringify({ type: "FeatureCollection", features });
+    },
+
+    async convertExcelToGeojsonText(blob) {
+      const buffer = await blob.arrayBuffer();
+      const wb = XLSX.read(buffer, { type: "array" });
+
+      const sheetNames = wb.SheetNames || [];
+      if (!sheetNames.length) throw new Error("Sheet tidak ditemukan di file Excel");
+
+      const evaluated = sheetNames
+        .map((sheetName) => {
+          const ws = wb.Sheets[sheetName];
+          const rows = XLSX.utils.sheet_to_json(ws, { defval: "", raw: true });
+          if (!rows || !rows.length) return null;
+
+          const cleaned = this.dropEmptyColumnsFromRows(rows);
+          if (!cleaned.headers.length) return null;
+
+          const picked = this.pickBestLatLonFromRows(cleaned.rows);
+          return { sheetName, rows: cleaned.rows, ...picked };
+        })
+        .filter(Boolean);
+
+      if (!evaluated.length) {
+        throw new Error("Data Excel kosong. Pastikan ada header dan minimal 1 baris data");
+      }
+
+      const candidatesWithCoords = evaluated.filter((x) => x.latKey && x.lonKey);
+      const chosen = (candidatesWithCoords.length ? candidatesWithCoords : evaluated).sort((a, b) => {
+        return (b.validRowCount || 0) - (a.validRowCount || 0);
+      })[0];
+
+      const latKey = chosen.latKey;
+      const lonKey = chosen.lonKey;
+
+      if (!latKey || !lonKey) {
+        throw new Error(
+            "Kolom Latitude/Longitude tidak ditemukan. Rename kolom jadi lat/lon (atau latitude/longitude/lattitude) lalu upload ulang."
+        );
+      }
+
+      return this.convertExcelRowsToGeojsonText(chosen.rows, latKey, lonKey);
     },
     async onGeojsonFileSelected() {
       const file = Array.isArray(this.geojsonFile) ? this.geojsonFile[0] : this.geojsonFile;
@@ -1347,7 +1768,7 @@ export default {
           text = await this.convertExcelToGeojsonText(file);
         } else {
           // ✅ GeoJSON/JSON: tetap seperti sebelumnya
-          text = await file.text();
+          text = this.dropEmptyGeojsonPropertiesFromText(await file.text());
         }
 
         const safeText = (text || "").toString();
@@ -1360,7 +1781,7 @@ export default {
           // Belum tersimpan di server; hasGeojson akan diset oleh backend
           this.itemModified.hasGeojson = false;
 
-          // tetap tidak refreshPropertyMetaFromItem / refreshFeatureRowsFromGeojson di sini (sesuai logic kamu)
+          this.syncPropertyMetaFromGeojsonText(safeText);
         }
       } catch (err) {
         console.error(err);
@@ -1433,41 +1854,77 @@ export default {
         } else if (typeof payload.geojson !== "string") {
           payload.geojson = String(payload.geojson);
         }
+
+        try {
+          payload.geojson = this.dropEmptyGeojsonPropertiesFromText(payload.geojson);
+        } catch (e) {
+          console.warn("[FtTematikDialog] gagal bersihkan kolom kosong GeoJSON", e);
+        }
+      }
+
+      const payloadPropertyKeys = payload.withGeojson
+        ? this.extractGeojsonPropertyKeysFromText(payload.geojson)
+        : null;
+      if (payloadPropertyKeys) {
+        this.prunePayloadPropertiesToKeys(payload, payloadPropertyKeys);
       }
 
       // Sinkronkan alias dari tabel metadata ke propertiesMeta (JSON)
-      this.syncAliasToPropertiesMeta(payload);
+      this.syncAliasToPropertiesMeta(payload, payloadPropertyKeys);
 
       return payload;
     },
-    syncAliasToPropertiesMeta(payload) {
+    extractGeojsonPropertyKeysFromText(text) {
+      try {
+        const obj = JSON.parse(text || "{}");
+        const features = obj && obj.type === "FeatureCollection" && Array.isArray(obj.features)
+          ? obj.features
+          : (obj && obj.type === "Feature" ? [obj] : []);
+        const keys = [];
+        const seen = new Set();
+        features.forEach((feature) => {
+          Object.keys((feature && feature.properties) || {}).forEach((key) => {
+            if (!seen.has(key)) {
+              seen.add(key);
+              keys.push(key);
+            }
+          });
+        });
+        return keys;
+      } catch (e) {
+        return null;
+      }
+    },
+    prunePayloadPropertiesToKeys(payload, keys) {
+      const allowed = new Set(Array.isArray(keys) ? keys : []);
+      payload.propertyKeys = JSON.stringify(Array.from(allowed));
+
+      const groups = this.parsePropertiesShowFromItem(payload).filter((key) => allowed.has(key));
+      payload.propertiesShow = this.stringifyPropertiesShow(groups);
+    },
+    syncAliasToPropertiesMeta(payload, allowedKeys = null) {
       if (!this.propertyMetaRows || !this.propertyMetaRows.length) {
         return;
       }
 
       // Ambil meta mentah dari itemModified atau dari payload
-      let rawMeta = (this.itemModified && this.itemModified.propertiesMeta) || payload.propertiesMeta;
-      let meta;
+      const rawMeta = (this.itemModified && this.itemModified.propertiesMeta) || payload.propertiesMeta;
+      const meta = this.normalizePropertiesMeta(rawMeta);
 
-      if (typeof rawMeta === "string" && rawMeta.trim() !== "") {
-        try {
-          meta = JSON.parse(rawMeta);
-        } catch (e) {
-          console.warn("[FtTematikDialog] gagal parse propertiesMeta saat sync alias", e);
-          meta = {};
-        }
-      } else if (rawMeta && typeof rawMeta === "object") {
-        meta = rawMeta;
-      } else {
-        meta = {};
-      }
+      const allowed = Array.isArray(allowedKeys) ? new Set(allowedKeys) : null;
 
-      if (!meta.alias) {
-        meta.alias = {};
+      if (allowed) {
+        Object.keys(meta.alias || {}).forEach((key) => {
+          if (!allowed.has(key)) delete meta.alias[key];
+        });
+        Object.keys(meta.propertyTypes || {}).forEach((key) => {
+          if (!allowed.has(key)) delete meta.propertyTypes[key];
+        });
       }
 
       this.propertyMetaRows.forEach((row) => {
         const key = row.name;
+        if (allowed && !allowed.has(key)) return;
         const alias = (row.alias || "").trim();
 
         if (alias) {

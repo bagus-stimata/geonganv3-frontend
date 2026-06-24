@@ -122,6 +122,7 @@
 
           <div class="text-caption mt-2" v-if="sourceType">
             Source: <strong>{{ sourceType }}</strong>
+            <span v-if="sourceSheetName"> | Sheet: <strong>{{ sourceSheetName }}</strong></span>
           </div>
         </v-card-text>
       </v-card>
@@ -142,6 +143,7 @@ export default {
   data() {
     return {
       sourceType: "",
+      sourceSheetName: "",
       latKeyDetected: "",
       lonKeyDetected: "",
       validRowCount: 0,
@@ -209,6 +211,7 @@ export default {
       this.infoMessage = "";
       this.canUseFile = false;
       this.sourceType = "";
+      this.sourceSheetName = "";
       this.latKeyDetected = "";
       this.lonKeyDetected = "";
       this.validRowCount = 0;
@@ -238,42 +241,297 @@ export default {
       }
       return String(val);
     },
+    isEmptyColumnValue(value) {
+      if (value === null || value === undefined) return true;
+      if (typeof value === "string") return value.trim() === "";
+      if (Array.isArray(value)) return value.length === 0;
+      if (typeof value === "object") {
+        if (value instanceof Date) return false;
+        return Object.keys(value).length === 0;
+      }
+      return false;
+    },
+    getRowHeaders(rows) {
+      const headers = [];
+      const seen = new Set();
+      (rows || []).forEach((row) => {
+        Object.keys(row || {}).forEach((key) => {
+          if (!seen.has(key)) {
+            seen.add(key);
+            headers.push(key);
+          }
+        });
+      });
+      return headers;
+    },
+    isGeneratedEmptyHeader(key) {
+      const normalized = String(key || "").trim();
+      return normalized === "" || /^__EMPTY(?:_\d+)?$/i.test(normalized) || /^_\d+$/.test(normalized);
+    },
+    getColumnNonEmptyCount(rows, key) {
+      return (rows || []).reduce((count, row) => {
+        return count + (this.isEmptyColumnValue((row || {})[key]) ? 0 : 1);
+      }, 0);
+    },
+    dropEmptyColumnsFromRows(rows) {
+      const sourceRows = Array.isArray(rows) ? rows : [];
+      const headers = this.getRowHeaders(sourceRows).filter((key) => {
+        const filledCount = this.getColumnNonEmptyCount(sourceRows, key);
+        if (filledCount === 0) return false;
+        if (this.isGeneratedEmptyHeader(key)) return filledCount > 2;
+        return true;
+      });
 
+      const cleanedRows = sourceRows.map((row) => {
+        const cleaned = {};
+        headers.forEach((key) => {
+          cleaned[key] = Object.prototype.hasOwnProperty.call(row || {}, key)
+            ? row[key]
+            : "";
+        });
+        return cleaned;
+      });
+
+      return { rows: cleanedRows, headers };
+    },
+    dropEmptyPropertiesFromFeatures(features) {
+      const sourceFeatures = Array.isArray(features) ? features : [];
+      const propertyRows = sourceFeatures.map((f) => (f && f.properties) ? f.properties : {});
+      const { headers } = this.dropEmptyColumnsFromRows(propertyRows);
+      const headerSet = new Set(headers);
+
+      return sourceFeatures.map((feature) => {
+        const props = (feature && feature.properties) ? feature.properties : {};
+        const cleanedProps = {};
+        Object.keys(props).forEach((key) => {
+          if (headerSet.has(key)) cleanedProps[key] = props[key];
+        });
+        return { ...feature, properties: cleanedProps };
+      });
+    },
+
+    normalizeHeaderToken(value) {
+      const raw = String(value || "")
+        .toLowerCase()
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "");
+
+      const normalized = raw.replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+      const compact = normalized.replace(/_/g, "");
+      return { normalized, compact };
+    },
     findHeaderKeysAll(headers, candidates) {
       const hdrs = (headers || []).map((h) => String(h));
-      const lower = hdrs.map((h) => h.toLowerCase());
+      const normalizedHeaders = hdrs.map((h) => ({
+        original: h,
+        ...this.normalizeHeaderToken(h),
+      }));
 
       const found = new Map();
 
       // exact matches first
       (candidates || []).forEach((c) => {
-        const cc = String(c).toLowerCase();
-        const idx = lower.indexOf(cc);
-        if (idx >= 0) {
-          found.set(hdrs[idx], true);
+        const cand = this.normalizeHeaderToken(c);
+        const matched = normalizedHeaders.find((h) =>
+          h.normalized === cand.normalized || h.compact === cand.compact
+        );
+        if (matched) {
+          found.set(matched.original, true);
         }
       });
 
       // contains matches (e.g. "koordinat_lat")
       // IMPORTANT: skip single-letter candidates (like 'x'/'y') to avoid false positives
       (candidates || []).forEach((c) => {
-        const cc = String(c).toLowerCase();
-        if (cc.length <= 1) return;
-        lower.forEach((h, idx) => {
-          if (h.includes(cc)) {
-            found.set(hdrs[idx], true);
+        const cand = this.normalizeHeaderToken(c);
+        if (!cand.compact || cand.compact.length <= 1) return;
+        normalizedHeaders.forEach((h) => {
+          if (
+            h.normalized.includes(cand.normalized) ||
+            h.compact.includes(cand.compact)
+          ) {
+            found.set(h.original, true);
           }
         });
       });
 
       return Array.from(found.keys());
     },
+    getCoordCandidates() {
+      return {
+        latCandidates: [
+          "lat",
+          "lati",
+          "latit",
+          "latitude",
+          "latitude_y",
+          "lattitude",
+          "latitute",
+          "latitud",
+          "lat_deg",
+          "lat_degree",
+          "lat_d",
+          "latitude_dd",
+          "lat_dd",
+          "latitude_decimal",
+          "lat_decimal",
+          "lat_dec",
+          "koordinat_lat",
+          "koordinatlat",
+          "koordinatlintang",
+          "koordinat_lintang",
+          "koordinatlatitude",
+          "koordinat_latitude",
+          "coord_lat",
+          "coordlatitude",
+          "coordinate_lat",
+          "coordinate_latitude",
+          "point_lat",
+          "titik_lat",
+          "lat_point",
+          "latitude_point",
+          "y",
+          "y_lat",
+          "lat_y",
+          "latitude_y_coord",
+          "ycoord",
+          "y_coord",
+          "y_coordinate",
+          "ycoordlat",
+          "lat_y_coord",
+          "koor_y",
+          "coord_y",
+          "coordinate_y",
+          "y_koordinat",
+          "y_lintang",
+          "koordinaty",
+          "koordinat_y",
+          "lintang",
+          "garislintang",
+          "garis_lintang",
+          "latitude_wgs_84",
+          "lat_wgs84",
+          "latwgs84",
+          "lat_wgs_84",
+          "latitude_wgs84",
+          "latitude_84",
+          "lat_84",
+        ],
+        lonCandidates: [
+          "lon",
+          "lng",
+          "longi",
+          "longitude",
+          "longitude_x",
+          "long",
+          "longg",
+          "longtitude",
+          "longitud",
+          "lon_deg",
+          "lon_degree",
+          "lon_d",
+          "lon_dd",
+          "longitude_dd",
+          "long_dd",
+          "lon_decimal",
+          "longitude_decimal",
+          "lon_dec",
+          "koordinat_lon",
+          "koordinatlon",
+          "koordinatlong",
+          "koordinatlongitude",
+          "koordinat_bujur",
+          "coord_lon",
+          "coordlongitude",
+          "coordinate_lon",
+          "coordinate_longitude",
+          "point_lon",
+          "titik_lon",
+          "lon_point",
+          "longitude_point",
+          "x",
+          "x_lon",
+          "lon_x",
+          "longitude_x_coord",
+          "xcoord",
+          "x_coord",
+          "x_coordinate",
+          "xcoordlon",
+          "lon_x_coord",
+          "koor_x",
+          "coord_x",
+          "coordinate_x",
+          "x_koordinat",
+          "x_bujur",
+          "koordinatx",
+          "koordinat_x",
+          "bujur",
+          "garisbujur",
+          "garis_bujur",
+          "longitude_wgs_84",
+          "lon_wgs84",
+          "lonwgs84",
+          "lon_wgs_84",
+          "lng_wgs84",
+          "longitude_wgs84",
+          "longitude_84",
+          "lon_84",
+        ],
+      };
+    },
+    pickBestLatLonFromRows(rows) {
+      const headers = this.getRowHeaders(rows).filter(Boolean);
+      const { latCandidates, lonCandidates } = this.getCoordCandidates();
+
+      const latKeysAll = this.findHeaderKeysAll(headers, latCandidates);
+      const lonKeysAll = this.findHeaderKeysAll(headers, lonCandidates);
+
+      let latKey = "";
+      let lonKey = "";
+      let validRowCount = 0;
+
+      latKeysAll.forEach((latCandidate) => {
+        lonKeysAll.forEach((lonCandidate) => {
+          if (latCandidate === lonCandidate) return;
+          const count = rows.reduce((acc, row) => {
+            return acc + (this.isRowValidStrict(row, headers, latCandidate, lonCandidate) ? 1 : 0);
+          }, 0);
+          if (count > validRowCount) {
+            validRowCount = count;
+            latKey = latCandidate;
+            lonKey = lonCandidate;
+          }
+        });
+      });
+
+      return {
+        headers,
+        latKeysAll,
+        lonKeysAll,
+        latKey,
+        lonKey,
+        validRowCount,
+      };
+    },
 
     toNumberSafe(val) {
       if (val === null || val === undefined) return null;
       if (typeof val === "number" && Number.isFinite(val)) return val;
-      const s = String(val).trim().replace(",", ".");
-      const n = Number(s);
+      const s = String(val).trim().replace(/\s+/g, "");
+      if (!s) return null;
+
+      // 1.234,56 -> 1234.56
+      if (/^-?\d{1,3}(\.\d{3})+,\d+$/.test(s)) {
+        const n = Number(s.replace(/\./g, "").replace(",", "."));
+        return Number.isFinite(n) ? n : null;
+      }
+      // 1,234.56 -> 1234.56
+      if (/^-?\d{1,3}(,\d{3})+\.\d+$/.test(s)) {
+        const n = Number(s.replace(/,/g, ""));
+        return Number.isFinite(n) ? n : null;
+      }
+      // 123,456789 -> 123.456789
+      const n = Number(s.replace(",", "."));
       return Number.isFinite(n) ? n : null;
     },
     isGeojsonFeatureValidCoords(feature) {
@@ -347,41 +605,48 @@ export default {
     async buildPreviewFromExcel(file) {
       const buffer = await file.arrayBuffer();
       const wb = XLSX.read(buffer, { type: "array" });
-      const sheetName = wb.SheetNames && wb.SheetNames.length ? wb.SheetNames[0] : null;
-      if (!sheetName) throw new Error("Sheet tidak ditemukan di file Excel");
+      const sheetNames = wb.SheetNames || [];
+      if (!sheetNames.length) throw new Error("Sheet tidak ditemukan di file Excel");
 
-      const ws = wb.Sheets[sheetName];
-      const rows = XLSX.utils.sheet_to_json(ws, { defval: "", raw: true });
-      if (!rows || !rows.length) throw new Error("Data Excel kosong");
+      const evaluated = sheetNames
+        .map((sheetName) => {
+          const ws = wb.Sheets[sheetName];
+          const rows = XLSX.utils.sheet_to_json(ws, { defval: "", raw: true });
+          if (!rows || !rows.length) return null;
 
-      const headers = Object.keys(rows[0] || {}).filter(Boolean);
+          const cleaned = this.dropEmptyColumnsFromRows(rows);
+          if (!cleaned.headers.length) return null;
 
-      const latCandidates = ["lat", "latitude", "lattitude", "y", "y_lat", "ycoord"];
-      const lonCandidates = ["lon", "lng", "longitude", "x", "x_lon", "xcoord"];
+          const picked = this.pickBestLatLonFromRows(cleaned.rows);
+          return {
+            sheetName,
+            rows: cleaned.rows,
+            ...picked,
+          };
+        })
+        .filter(Boolean);
 
-      const latKeysAll = this.findHeaderKeysAll(headers, latCandidates);
-      const lonKeysAll = this.findHeaderKeysAll(headers, lonCandidates);
+      if (!evaluated.length) throw new Error("Data Excel kosong");
 
-      // pick a single key if unambiguous
-      const latKey = latKeysAll.length === 1 ? latKeysAll[0] : "";
-      const lonKey = lonKeysAll.length === 1 ? lonKeysAll[0] : "";
+      const candidatesWithCoords = evaluated.filter((x) => x.latKey && x.lonKey);
+      const chosen = (candidatesWithCoords.length ? candidatesWithCoords : evaluated).sort((a, b) => {
+        return (b.validRowCount || 0) - (a.validRowCount || 0);
+      })[0];
+
+      const rows = chosen.rows;
+      const headers = chosen.headers;
+      const latKeysAll = chosen.latKeysAll;
+      const lonKeysAll = chosen.lonKeysAll;
+      const latKey = chosen.latKey;
+      const lonKey = chosen.lonKey;
+
+      this.sourceSheetName = chosen.sheetName || "";
 
       this.latKeyDetected = latKey;
       this.lonKeyDetected = lonKey;
 
-      // validation: ambiguous duplicates (human error)
-      if (latKeysAll.length > 1 || lonKeysAll.length > 1) {
-        const latMsg = latKeysAll.length > 1 ? `Latitude terdeteksi lebih dari 1 kolom: ${latKeysAll.join(", ")}` : "";
-        const lonMsg = lonKeysAll.length > 1 ? `Longitude terdeteksi lebih dari 1 kolom: ${lonKeysAll.join(", ")}` : "";
-
-        this.warningMessage =
-          "File Excel ini punya kolom koordinat ganda (ambiguous). Tolong sisakan 1 kolom Latitude dan 1 kolom Longitude saja. " +
-          [latMsg, lonMsg].filter(Boolean).join(" | ");
-        this.infoMessage = "";
-        this.canUseFile = false;
-      }
-      // validation: must have BOTH (and not ambiguous)
-      else if (!latKey && !lonKey) {
+      // validation: must have BOTH
+      if (!latKey && !lonKey) {
         this.warningMessage = "Data Excel ini tidak mengandung kolom koordinat (lat/latitude dan lon/longitude).";
         this.canUseFile = false;
       } else if (!latKey || !lonKey) {
@@ -389,7 +654,6 @@ export default {
         this.warningMessage = `Data Excel ini tidak mengandung kolom ${missing}. Tidak bisa digunakan.`;
         this.canUseFile = false;
       } else {
-        this.infoMessage = `Kolom koordinat terdeteksi: ${latKey} & ${lonKey}`;
         this.canUseFile = true;
       }
 
@@ -415,7 +679,13 @@ export default {
       }
 
       if (this.canUseFile) {
-        this.infoMessage = `Kolom koordinat terdeteksi: ${latKey} & ${lonKey}. Row valid: ${this.validRowCount}/${this.previewRows.length}`;
+        const hasAmbiguousKeys = latKeysAll.length > 1 || lonKeysAll.length > 1;
+        const autoPickNote = hasAmbiguousKeys
+          ? ` (auto-pick dari kandidat lat: ${latKeysAll.join(", ")} | lon: ${lonKeysAll.join(", ")})`
+          : "";
+        const sheetNote = this.sourceSheetName ? ` [Sheet: ${this.sourceSheetName}]` : "";
+        this.infoMessage =
+          `Kolom koordinat terdeteksi: ${latKey} & ${lonKey}${autoPickNote}. Row valid: ${this.validRowCount}/${this.previewRows.length}${sheetNote}`;
       }
     },
     async buildPreviewFromGeojson(file) {
@@ -433,8 +703,8 @@ export default {
 
       if (!features.length) throw new Error("GeoJSON tidak memiliki fitur");
 
-      this.rawGeojsonFeatures = features;
-      const slice = features;
+      this.rawGeojsonFeatures = this.dropEmptyPropertiesFromFeatures(features);
+      const slice = this.rawGeojsonFeatures;
 
       const headerSet = new Set();
       slice.forEach((f) => {
@@ -471,8 +741,10 @@ export default {
       const validRows = (this.previewRows || [])
         .filter((r) => r && r.__rowValid)
         .map((r) => {
-          const rr = { ...r };
-          delete rr.__rowValid;
+          const rr = {};
+          (this.previewHeaders || []).forEach((key) => {
+            rr[key] = Object.prototype.hasOwnProperty.call(r, key) ? r[key] : "";
+          });
           return rr;
         });
 
@@ -483,7 +755,10 @@ export default {
         // If parent re-parses file, we must emit a filtered file.
         if (this.sourceType === "EXCEL") {
           const wb = XLSX.utils.book_new();
-          const ws = XLSX.utils.json_to_sheet(validRows, { skipHeader: false });
+          const ws = XLSX.utils.json_to_sheet(validRows, {
+            header: (this.previewHeaders || []).slice(),
+            skipHeader: false,
+          });
           XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
 
           const out = XLSX.write(wb, { bookType: "xlsx", type: "array" });
@@ -495,7 +770,9 @@ export default {
           fileNameToEmit = newName;
         } else if (this.sourceType === "GEOJSON") {
           const feats = Array.isArray(this.rawGeojsonFeatures) ? this.rawGeojsonFeatures : [];
-          const validFeatures = feats.filter((f) => this.isGeojsonFeatureValidCoords(f));
+          const validFeatures = this.dropEmptyPropertiesFromFeatures(
+            feats.filter((f) => this.isGeojsonFeatureValidCoords(f))
+          );
 
           const fc = { type: "FeatureCollection", features: validFeatures };
           const text = JSON.stringify(fc);
